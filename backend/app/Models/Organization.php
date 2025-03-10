@@ -3,23 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Model;
 
-class Organization extends Authenticatable
+class Organization extends Model
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasFactory;
 
     protected $fillable = [
         'name',
-        'logo',
         'category',
         'description',
         'objectives',
         'representative_id',
-        'statutory_declaration',
-        'verified_document',
         'wallet_address',
         'register_address',
         'gmail',
@@ -28,12 +23,14 @@ class Organization extends Authenticatable
         'facebook',
         'instagram',
         'others',
-        'password'
+        'logo',
+        'statutory_declaration',
+        'verified_document',
+        'is_verified',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
+    protected $casts = [
+        'is_verified' => 'boolean',
     ];
 
     public function representative()

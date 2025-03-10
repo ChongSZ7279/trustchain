@@ -1,45 +1,72 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import App from './App';
-import Login from './components/Login';
-import Register from './components/Register';
-import Dashboard from './components/Dashboard';
+import { createBrowserRouter } from 'react-router-dom';
 import Home from './components/Home';
+import Login from './components/Login';
+import UserRegistration from './components/UserRegistration';
+import OrganizationRegistration from './components/OrganizationRegistration';
 import ProtectedRoute from './components/ProtectedRoute';
-import GuestRoute from './components/GuestRoute';
+import UserDashboard from './components/UserDashboard';
+import OrganizationDashboard from './components/OrganizationDashboard';
+import OrganizationList from './components/OrganizationList';
+import OrganizationDetails from './components/OrganizationDetails';
+import OrganizationEdit from './components/OrganizationEdit';
 
-export const router = createBrowserRouter([
-    {
-        path: '/',
-        element: <App />,
-        children: [
-            {
-                path: '/',
-                element: <Home />
-            },
-            {
-                path: '/login',
-                element: (
-                    <GuestRoute>
-                        <Login />
-                    </GuestRoute>
-                )
-            },
-            {
-                path: '/register',
-                element: (
-                    <GuestRoute>
-                        <Register />
-                    </GuestRoute>
-                )
-            },
-            {
-                path: '/dashboard',
-                element: (
-                    <ProtectedRoute>
-                        <Dashboard />
-                    </ProtectedRoute>
-                )
-            }
-        ]
-    }
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Home />
+  },
+  {
+    path: '/login',
+    element: <Login />
+  },
+  {
+    path: '/register/user',
+    element: <UserRegistration />
+  },
+  {
+    path: '/register/organization',
+    element: <OrganizationRegistration />
+  },
+  {
+    path: '/dashboard',
+    element: (
+      <ProtectedRoute requiresUser>
+        <UserDashboard />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/organization/dashboard',
+    element: (
+      <ProtectedRoute requiresOrganization>
+        <OrganizationDashboard />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/organizations',
+    element: (
+      <ProtectedRoute>
+        <OrganizationList />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/organizations/:id',
+    element: (
+      <ProtectedRoute>
+        <OrganizationDetails />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/organizations/:id/edit',
+    element: (
+      <ProtectedRoute>
+        <OrganizationEdit />
+      </ProtectedRoute>
+    )
+  }
 ]);
+
+export default router;

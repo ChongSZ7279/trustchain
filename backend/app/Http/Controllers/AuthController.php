@@ -3,43 +3,109 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Organization;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function registerUser(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
+                'ic_number' => 'required|string|unique:users,ic_number',
                 'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
+                'profile_picture' => 'nullable|image|max:2048',
+                'front_ic_picture' => 'required|image|max:2048',
+                'back_ic_picture' => 'required|image|max:2048',
+                'phone_number' => 'required|string',
+                'gmail' => 'required|string|email|unique:users,gmail',
+                'wallet_address' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-            ]);
+            // Handle file uploads
+            $userData = $request->except(['profile_picture', 'front_ic_picture', 'back_ic_picture']);
+            
+            if ($request->hasFile('profile_picture')) {
+                $userData['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+            }
+            
+            $userData['front_ic_picture'] = $request->file('front_ic_picture')->store('ic_pictures', 'public');
+            $userData['back_ic_picture'] = $request->file('back_ic_picture')->store('ic_pictures', 'public');
+            $userData['password'] = Hash::make($request->password);
 
+            $user = User::create($userData);
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
                 'user' => $user,
                 'token' => $token,
-                'message' => 'Registration successful'
+                'message' => 'User registration successful'
             ], 201);
         } catch (\Exception $e) {
-            Log::error('Registration error: ' . $e->getMessage());
+            Log::error('User registration error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Registration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function registerOrganization(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'logo' => 'required|image|max:2048',
+                'category' => 'required|string',
+                'description' => 'required|string',
+                'objectives' => 'required|string',
+                'representative_id' => 'required|string|exists:users,ic_number',
+                'statutory_declaration' => 'required|file|mimes:pdf,doc,docx|max:2048',
+                'verified_document' => 'required|file|mimes:pdf,doc,docx|max:2048',
+                'wallet_address' => 'required|string',
+                'register_address' => 'required|string',
+                'gmail' => 'required|string|email|unique:organizations,gmail',
+                'phone_number' => 'required|string',
+                'website' => 'nullable|string|url',
+                'facebook' => 'nullable|string',
+                'instagram' => 'nullable|string',
+                'others' => 'nullable|string',
+                'password' => 'required|string|min:8|confirmed'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            // Handle file uploads
+            $orgData = $request->except(['logo', 'statutory_declaration', 'verified_document']);
+            
+            $orgData['logo'] = $request->file('logo')->store('organization_logos', 'public');
+            $orgData['statutory_declaration'] = $request->file('statutory_declaration')->store('organization_documents', 'public');
+            $orgData['verified_document'] = $request->file('verified_document')->store('organization_documents', 'public');
+            $orgData['password'] = Hash::make($request->password);
+
+            $organization = Organization::create($orgData);
+            $token = $organization->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'organization' => $organization,
+                'token' => $token,
+                'message' => 'Organization registration successful'
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Organization registration error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Registration failed',
                 'error' => $e->getMessage()
@@ -51,25 +117,30 @@ class AuthController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'email' => 'required|email',
+                'gmail' => 'required|email',
                 'password' => 'required',
+                'type' => 'required|in:user,organization'
             ]);
 
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
-            if (!Auth::attempt($request->only('email', 'password'))) {
+            $credentials = $request->only('gmail', 'password');
+            $guard = $request->type === 'user' ? 'web' : 'organization';
+
+            if (!Auth::guard($guard)->attempt($credentials)) {
                 return response()->json([
                     'message' => 'The provided credentials are incorrect.'
                 ], 401);
             }
 
-            $user = User::where('email', $request->email)->firstOrFail();
-            $token = $user->createToken('auth_token')->plainTextToken;
+            $model = $request->type === 'user' ? User::class : Organization::class;
+            $authenticatable = $model::where('gmail', $request->gmail)->firstOrFail();
+            $token = $authenticatable->createToken('auth_token')->plainTextToken;
 
             return response()->json([
-                'user' => $user,
+                $request->type => $authenticatable,
                 'token' => $token,
                 'message' => 'Login successful'
             ]);

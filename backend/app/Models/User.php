@@ -13,15 +13,26 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $primaryKey = 'ic_number';
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
     protected $fillable = [
+        'ic_number',
         'name',
-        'email',
         'password',
+        'profile_picture',
+        'front_ic_picture',
+        'back_ic_picture',
+        'phone_number',
+        'gmail',
+        'wallet_address',
+        'frame_color_code'
     ];
 
     /**
@@ -43,4 +54,9 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function organizations()
+    {
+        return $this->hasMany(Organization::class, 'representative_id', 'ic_number');
+    }
 }

@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register/user', [AuthController::class, 'registerUser']);
+Route::post('/register/organization', [AuthController::class, 'registerOrganization']);
 Route::post('/login', [AuthController::class, 'login']);
 
 // Protected routes

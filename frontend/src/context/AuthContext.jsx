@@ -1,153 +1,133 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
+import axios from 'axios';
 
-const AuthContext = createContext({});
-const API_URL = 'http://localhost:8000/api';
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [organization, setOrganization] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    useEffect(() => {
-        // Check if user is logged in
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetchUser();
-        } else {
+    const registerUser = async (userData) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const formData = new FormData();
+            
+            Object.keys(userData).forEach(key => {
+                if (userData[key] instanceof File) {
+                    formData.append(key, userData[key]);
+                } else {
+                    formData.append(key, userData[key]);
+                }
+            });
+
+            const response = await axios.post('/api/register/user', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            setUser(response.data.user);
+            localStorage.setItem('token', response.data.token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+            return response.data;
+        } catch (err) {
+            setError(err.response?.data?.message || 'Registration failed');
+            throw err;
+        } finally {
             setLoading(false);
         }
-    }, []);
+    };
 
-    const fetchUser = async () => {
+    const registerOrganization = async (orgData) => {
         try {
-            const response = await fetch(`${API_URL}/user`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include'
-            });
+            setLoading(true);
+            setError(null);
+            const formData = new FormData();
             
-            if (response.ok) {
-                const userData = await response.json();
-                setUser(userData);
+            Object.keys(orgData).forEach(key => {
+                if (orgData[key] instanceof File) {
+                    formData.append(key, orgData[key]);
+                } else {
+                    formData.append(key, orgData[key]);
+                }
+            });
+
+            const response = await axios.post('/api/register/organization', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            setOrganization(response.data.organization);
+            localStorage.setItem('token', response.data.token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+            return response.data;
+        } catch (err) {
+            setError(err.response?.data?.message || 'Registration failed');
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const login = async (credentials) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await axios.post('/api/login', credentials);
+            
+            if (credentials.type === 'user') {
+                setUser(response.data.user);
+                setOrganization(null);
             } else {
-                localStorage.removeItem('token');
+                setOrganization(response.data.organization);
                 setUser(null);
             }
-        } catch (error) {
-            console.error('Error fetching user:', error);
-            localStorage.removeItem('token');
-            setUser(null);
-        }
-        setLoading(false);
-    };
 
-    const login = async (email, password) => {
-        try {
-            const response = await fetch(`${API_URL}/login`, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ email, password }),
-            });
-
-            const data = await response.json();
-            console.log('Login response:', data);
-
-            if (response.ok) {
-                localStorage.setItem('token', data.token);
-                setUser(data.user);
-                return { success: true };
-            } else {
-                return { 
-                    success: false, 
-                    error: data.message || data.errors?.email?.[0] || 'Login failed'
-                };
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            return { success: false, error: 'An error occurred during login' };
-        }
-    };
-
-    const register = async (name, email, password, password_confirmation) => {
-        try {
-            const response = await fetch(`${API_URL}/register`, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ 
-                    name, 
-                    email, 
-                    password,
-                    password_confirmation 
-                }),
-            });
-
-            const data = await response.json();
-            console.log('Register response:', data);
-
-            if (response.ok) {
-                localStorage.setItem('token', data.token);
-                setUser(data.user);
-                return { success: true };
-            } else {
-                return { 
-                    success: false, 
-                    errors: data.errors || { general: data.message || data.error }
-                };
-            }
-        } catch (error) {
-            console.error('Registration error:', error);
-            return { 
-                success: false, 
-                error: 'An error occurred during registration' 
-            };
+            localStorage.setItem('token', response.data.token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+            return response.data;
+        } catch (err) {
+            setError(err.response?.data?.message || 'Login failed');
+            throw err;
+        } finally {
+            setLoading(false);
         }
     };
 
     const logout = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                await fetch(`${API_URL}/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include'
-                });
-            }
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            localStorage.removeItem('token');
+            setLoading(true);
+            await axios.post('/api/logout');
             setUser(null);
+            setOrganization(null);
+            localStorage.removeItem('token');
+            delete axios.defaults.headers.common['Authorization'];
+        } catch (err) {
+            setError(err.response?.data?.message || 'Logout failed');
+        } finally {
+            setLoading(false);
         }
     };
 
-    return (
-        <AuthContext.Provider value={{
-            user,
-            loading,
-            login,
-            register,
-            logout
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    const value = {
+        user,
+        organization,
+        loading,
+        error,
+        registerUser,
+        registerOrganization,
+        login,
+        logout,
+        isAuthenticated: !!(user || organization)
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-    return useContext(AuthContext);
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 }; 

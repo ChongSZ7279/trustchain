@@ -15,6 +15,7 @@ import OrganizationEdit from './components/OrganizationEdit';
 import CharityList from './components/CharityList';
 import CharityDetails from './components/CharityDetails';
 import CharityForm from './components/CharityForm';
+import TaskForm from './components/TaskForm';
 import ImageTest from './components/ImageTest';
 import UserEdit from './components/UserEdit';
 
@@ -95,6 +96,14 @@ const router = createBrowserRouter([
       {
         path: '/charities/:id/edit',
         element: <CharityForm />
+      },
+      {
+        path: '/charities/:id/tasks/create',
+        element: <TaskForm />
+      },
+      {
+        path: 'tasks/:taskId/edit',
+        element: <TaskForm />
       }
     ]
   }

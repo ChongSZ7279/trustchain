@@ -5,20 +5,29 @@ import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
 
 export default function TaskForm({ mode = 'create' }) {
+  // Extract parameters from URL
+  const params = useParams();
+  // For edit mode: /tasks/:taskId/edit
+  // For create mode: /charities/:id/tasks/create
+  const taskId = params.taskId; // From /tasks/:taskId/edit
+  const charityId = params.id; // From /charities/:id/tasks/create
+  
+  console.log('Route params:', params); // Debug log
+  
+  const navigate = useNavigate();
+  const { organization } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     fund_targeted: '',
     status: 'pending',
+  });
+  const [files, setFiles] = useState({
     proof: null
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [previewUrl, setPreviewUrl] = useState(null);
-
-  const { organization } = useAuth();
-  const navigate = useNavigate();
-  const { charityId, id } = useParams();
+  const [charity, setCharity] = useState(null);
 
   useEffect(() => {
     if (!organization) {
@@ -26,37 +35,64 @@ export default function TaskForm({ mode = 'create' }) {
       return;
     }
 
-    if (mode === 'edit' && id) {
-      const fetchTask = async () => {
-        try {
-          const response = await axios.get(`/api/tasks/${id}`);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        console.log('Mode:', mode, 'CharityId:', charityId, 'TaskId:', taskId); // Debug log
+        
+        if (mode === 'edit' || taskId) {
+          // Fetch task data when editing
+          const response = await axios.get(`/api/tasks/${taskId}`);
           const task = response.data;
+          console.log('Fetched task:', task); // Debug log
           
+          // Check if user owns the charity
           if (task.charity.organization_id !== organization.id) {
+            console.error('User does not own this charity');
             navigate('/charities');
             return;
           }
 
           setFormData({
-            name: task.name,
-            description: task.description,
-            fund_targeted: task.fund_targeted,
-            status: task.status,
-            proof: null
+            name: task.name || '',
+            description: task.description || '',
+            fund_targeted: task.fund_targeted || '',
+            status: task.status || 'pending',
           });
 
-          if (task.proof) {
-            setPreviewUrl(formatImageUrl(task.proof));
+          setCharity(task.charity);
+        } else if (mode === 'create' || charityId) {
+          // Verify charityId exists when creating
+          if (!charityId) {
+            console.error('No charity ID found for task creation');
+            navigate('/charities');
+            return;
           }
-        } catch (err) {
-          console.error('Error fetching task:', err);
-          setError('Failed to fetch task details');
-        }
-      };
 
-      fetchTask();
-    }
-  }, [mode, id, organization, navigate]);
+          // Fetch charity data when creating new task
+          const response = await axios.get(`/api/charities/${charityId}`);
+          const charityData = response.data;
+          console.log('Fetched charity:', charityData); // Debug log
+          
+          // Check if user owns the charity
+          if (charityData.organization_id !== organization.id) {
+            console.error('User does not own this charity');
+            navigate('/charities');
+            return;
+          }
+
+          setCharity(charityData);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load required data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [mode, taskId, charityId, organization, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -69,11 +105,7 @@ export default function TaskForm({ mode = 'create' }) {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({
-        ...prev,
-        proof: file
-      }));
-      setPreviewUrl(URL.createObjectURL(file));
+      setFiles({ proof: file });
     }
   };
 
@@ -82,31 +114,42 @@ export default function TaskForm({ mode = 'create' }) {
     setLoading(true);
     setError('');
 
-    const formDataToSend = new FormData();
-    Object.keys(formData).forEach(key => {
-      if (formData[key] !== null) {
-        formDataToSend.append(key, formData[key]);
-      }
-    });
-
     try {
+      const formDataToSend = new FormData();
+      
+      // Append form data
+      Object.keys(formData).forEach(key => {
+        formDataToSend.append(key, formData[key]);
+      });
+
+      // Append file if exists
+      if (files.proof) {
+        formDataToSend.append('proof', files.proof);
+      }
+
       let response;
-      if (mode === 'edit') {
+      if (mode === 'edit' || taskId) {
         formDataToSend.append('_method', 'PUT');
-        response = await axios.post(`/api/tasks/${id}`, formDataToSend, {
+        response = await axios.post(`/api/tasks/${taskId}`, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json',
           },
         });
-      } else {
+        
+        // Navigate back to charity details
+        navigate(`/charities/${charity.id}`);
+      } else if (mode === 'create' || charityId) {
         response = await axios.post(`/api/charities/${charityId}/tasks`, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json',
           },
         });
+        
+        // Navigate back to charity details
+        navigate(`/charities/${charityId}`);
       }
-
-      navigate(`/charities/${mode === 'edit' ? response.data.charity_id : charityId}`);
     } catch (err) {
       console.error('Error submitting task:', err);
       setError(err.response?.data?.message || 'Failed to submit task');
@@ -115,13 +158,32 @@ export default function TaskForm({ mode = 'create' }) {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!charity && !loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900">Loading charity information...</h2>
+          {error && <p className="mt-2 text-red-600">{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              {mode === 'edit' ? 'Edit Task' : 'Create New Task'}
+              {(mode === 'edit' || taskId) ? 'Edit Task' : 'Create New Task'}
             </h2>
 
             {error && (
@@ -178,7 +240,7 @@ export default function TaskForm({ mode = 'create' }) {
                 />
               </div>
 
-              {mode === 'edit' && (
+              {(mode === 'edit' || taskId) && (
                 <div>
                   <label htmlFor="status" className="block text-sm font-medium text-gray-700">
                     Status
@@ -210,32 +272,12 @@ export default function TaskForm({ mode = 'create' }) {
                   onChange={handleFileChange}
                   className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
-                {previewUrl && (
-                  <div className="mt-2">
-                    {previewUrl.endsWith('.pdf') ? (
-                      <a
-                        href={previewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        View Current Document
-                      </a>
-                    ) : (
-                      <img
-                        src={previewUrl}
-                        alt="Proof Preview"
-                        className="h-32 w-auto object-cover rounded-lg"
-                      />
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="flex justify-end space-x-4">
                 <button
                   type="button"
-                  onClick={() => navigate(`/charities/${mode === 'edit' ? formData.charity_id : charityId}`)}
+                  onClick={() => navigate(`/charities/${charity ? charity.id : charityId}`)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
                   Cancel
@@ -245,7 +287,7 @@ export default function TaskForm({ mode = 'create' }) {
                   disabled={loading}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {loading ? 'Saving...' : mode === 'edit' ? 'Update Task' : 'Create Task'}
+                  {loading ? 'Saving...' : (mode === 'edit' || taskId) ? 'Update Task' : 'Create Task'}
                 </button>
               </div>
             </form>

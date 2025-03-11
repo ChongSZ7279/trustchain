@@ -156,6 +156,19 @@ export default function Login() {
             </div>
           </div>
 
+          <div className="mt-4 text-sm text-gray-600">
+            <p>
+              By logging in, you agree to our{' '}
+              <Link to="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
+                Terms and Conditions
+              </Link>
+              {' '}and{' '}
+              <Link to="/terms#privacy" className="text-blue-600 hover:text-blue-800 font-medium">
+                Privacy Policy
+              </Link>
+            </p>
+          </div>
+
           <div>
             <button
               type="submit"

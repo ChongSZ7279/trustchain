@@ -53,12 +53,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="#about" className="text-base text-gray-300 hover:text-white">
+                <a href="/#about" className="text-base text-gray-300 hover:text-white">
                   About Us
                 </a>
               </li>
               <li>
-                <a href="#contact" className="text-base text-gray-300 hover:text-white">
+                <a href="/#contact" className="text-base text-gray-300 hover:text-white">
                   Contact
                 </a>
               </li>
@@ -70,17 +70,17 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Legal</h3>
             <ul className="mt-4 space-y-4">
               <li>
-                <a href="#" className="text-base text-gray-300 hover:text-white">
+                <a href="/terms" className="text-base text-gray-300 hover:text-white">
                   Privacy Policy
                 </a>
               </li>
               <li>
-                <a href="#" className="text-base text-gray-300 hover:text-white">
+                <a href="/terms" className="text-base text-gray-300 hover:text-white">
                   Terms of Service
                 </a>
               </li>
               <li>
-                <a href="#" className="text-base text-gray-300 hover:text-white">
+                <a href="/terms" className="text-base text-gray-300 hover:text-white">
                   Cookie Policy
                 </a>
               </li>

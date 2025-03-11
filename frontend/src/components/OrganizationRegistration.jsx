@@ -20,7 +20,8 @@ export default function OrganizationRegistration() {
     instagram: '',
     others: '',
     password: '',
-    password_confirmation: ''
+    password_confirmation: '',
+    acceptedTerms: false
   });
   const [files, setFiles] = useState({
     logo: null,
@@ -86,6 +87,14 @@ export default function OrganizationRegistration() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.acceptedTerms) {
+      setFormErrors({
+        submit: 'You must accept the Terms and Conditions to register'
+      });
+      return;
+    }
+
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
@@ -586,6 +595,35 @@ export default function OrganizationRegistration() {
                     <p className="mt-2 text-sm text-red-600">{formErrors.verified_document}</p>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Terms and Conditions */}
+          <div className="space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-4 mt-6">
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  id="terms"
+                  name="terms"
+                  type="checkbox"
+                  checked={formData.acceptedTerms}
+                  onChange={(e) => setFormData({ ...formData, acceptedTerms: e.target.checked })}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+              </div>
+              <div className="ml-3">
+                <label htmlFor="terms" className="text-sm text-gray-600">
+                  I agree to the{' '}
+                  <Link to="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
+                    Terms and Conditions
+                  </Link>
+                  {' '}and{' '}
+                  <Link to="/terms#privacy" className="text-blue-600 hover:text-blue-800 font-medium">
+                    Privacy Policy
+                  </Link>
+                  . I confirm that my organization is legally registered and all provided information is accurate.
+                </label>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 export default function ProtectedLayout() {
   const { user, organization } = useAuth();
@@ -18,6 +19,7 @@ export default function ProtectedLayout() {
           <Outlet />
         </div>
       </main>
+      <Footer />
     </div>
   );
 } 

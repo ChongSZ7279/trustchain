@@ -17,10 +17,10 @@ import CharityDetails from './components/CharityDetails';
 import CharityForm from './components/CharityForm';
 import TaskForm from './components/TaskForm';
 import TaskPictureManager from './components/TaskPictureManager';
-import ImageTest from './components/ImageTest';
 import UserEdit from './components/UserEdit';
 import TransactionList from './components/TransactionList';
 import TransactionDetails from './components/TransactionDetails';
+import TermsAndConditions from './pages/TermsAndConditions';
 
 const router = createBrowserRouter([
   {
@@ -47,9 +47,9 @@ const router = createBrowserRouter([
         element: <CharityDetails />
       },
       {
-        path: '/image-test',
-        element: <ImageTest />,
-      },
+        path: '/terms',
+        element: <TermsAndConditions />
+      }
     ]
   },
   {

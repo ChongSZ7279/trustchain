@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { formatImageUrl } from '../utils/helpers';
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
@@ -41,7 +42,7 @@ export default function UserDashboard() {
                   <div className="flex items-center space-x-4">
                     {user.profile_picture && (
                       <img
-                        src={`/storage/${user.profile_picture}`}
+                        src={formatImageUrl(user.profile_picture)}
                         alt="Profile"
                         className="h-16 w-16 rounded-full object-cover"
                       />
@@ -75,19 +76,23 @@ export default function UserDashboard() {
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Front</p>
-                    <img
-                      src={`/storage/${user.front_ic_picture}`}
-                      alt="Front IC"
-                      className="mt-2 h-48 w-full object-cover rounded-lg"
-                    />
+                    {user.front_ic_picture && (
+                      <img
+                        src={formatImageUrl(user.front_ic_picture)}
+                        alt="Front IC"
+                        className="mt-2 h-48 w-full object-cover rounded-lg"
+                      />
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Back</p>
-                    <img
-                      src={`/storage/${user.back_ic_picture}`}
-                      alt="Back IC"
-                      className="mt-2 h-48 w-full object-cover rounded-lg"
-                    />
+                    {user.back_ic_picture && (
+                      <img
+                        src={formatImageUrl(user.back_ic_picture)}
+                        alt="Back IC"
+                        className="mt-2 h-48 w-full object-cover rounded-lg"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

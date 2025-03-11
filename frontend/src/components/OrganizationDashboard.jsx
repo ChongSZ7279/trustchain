@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { formatImageUrl } from '../utils/helpers';
 
 export default function OrganizationDashboard() {
   const { organization, logout } = useAuth();
@@ -39,11 +40,13 @@ export default function OrganizationDashboard() {
                 <h2 className="text-lg font-medium text-gray-900">Organization Information</h2>
                 <div className="mt-4 space-y-4">
                   <div className="flex items-center space-x-4">
-                    <img
-                      src={`/storage/${organization.logo}`}
-                      alt="Organization Logo"
-                      className="h-16 w-16 rounded-lg object-cover"
-                    />
+                    {organization.logo && (
+                      <img
+                        src={formatImageUrl(organization.logo)}
+                        alt="Organization Logo"
+                        className="h-16 w-16 rounded-lg object-cover"
+                      />
+                    )}
                     <div>
                       <p className="text-sm font-medium text-gray-900">{organization.name}</p>
                       <p className="text-sm text-gray-500">{organization.category}</p>
@@ -120,26 +123,35 @@ export default function OrganizationDashboard() {
                 <h2 className="text-lg font-medium text-gray-900">Documents</h2>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Statutory Declaration</p>
-                    <a
-                      href={`/storage/${organization.statutory_declaration}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      View Document
-                    </a>
+                    <h3 className="text-sm font-medium text-gray-900">Statutory Declaration</h3>
+                    <div className="mt-2">
+                      {organization.statutory_declaration && (
+                        <a
+                          href={formatImageUrl(organization.statutory_declaration)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          View Document
+                        </a>
+                      )}
+                    </div>
                   </div>
+
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Verified Document</p>
-                    <a
-                      href={`/storage/${organization.verified_document}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      View Document
-                    </a>
+                    <h3 className="text-sm font-medium text-gray-900">Verified Document</h3>
+                    <div className="mt-2">
+                      {organization.verified_document && (
+                        <a
+                          href={formatImageUrl(organization.verified_document)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          View Document
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

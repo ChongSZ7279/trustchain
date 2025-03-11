@@ -19,6 +19,8 @@ import TaskForm from './components/TaskForm';
 import TaskPictureManager from './components/TaskPictureManager';
 import ImageTest from './components/ImageTest';
 import UserEdit from './components/UserEdit';
+import TransactionList from './components/TransactionList';
+import TransactionDetails from './components/TransactionDetails';
 
 const router = createBrowserRouter([
   {
@@ -109,6 +111,14 @@ const router = createBrowserRouter([
       {
         path: 'tasks/:taskId/pictures',
         element: <TaskPictureManager />
+      },
+      {
+        path: '/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/transactions/:id',
+        element: <TransactionDetails />
       }
     ]
   }

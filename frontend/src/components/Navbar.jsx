@@ -33,13 +33,21 @@ export default function Navbar() {
               >
                 Charities
               </Link>
+              {(user || organization) && (
+                <Link
+                  to="/transactions"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
+                >
+                  Transactions
+                </Link>
+              )}
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
             {user || organization ? (
               <>
                 <Link
-                  to={organization ? "/organization/dashboard" : "/dashboard"}
+                  to={organization ? "/organization/dashboard" : "/user/dashboard"}
                   className="text-sm font-medium text-gray-500 hover:text-gray-900"
                 >
                   Dashboard

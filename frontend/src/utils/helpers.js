@@ -1,22 +1,30 @@
 /**
- * Format an image URL to properly access files from Laravel's storage
- * @param {string} path - The image path from the database
+ * Format an image URL from the backend to be properly displayed in the frontend
+ * @param {string} path - The image path from the backend
  * @returns {string} The formatted URL
  */
 export const formatImageUrl = (path) => {
-  if (!path) return null;
+  if (!path) return '';
   
-  // If the path already starts with http or https, return it as is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  // If the path already starts with http, return it as is
+  if (path.startsWith('http')) {
     return path;
   }
   
-  // If the path already includes /storage, return it as is
-  if (path.startsWith('/storage/')) {
-    return path;
-  }
-  
-  // For paths stored in the database like 'profile_pictures/image.png'
-  // We need to prepend /storage/ to access them through Laravel's storage URL
-  return `/storage/${path}`;
+  // Otherwise, prepend the backend URL
+  return `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${path}`;
+};
+
+/**
+ * Determine the file type based on the file extension
+ * @param {string} path - The file path
+ * @returns {string} The file type ('image', 'pdf', 'document', or 'unknown')
+ */
+export const getFileType = (path) => {
+  if (!path) return 'unknown';
+  const extension = path.split('.').pop().toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
+  if (['pdf'].includes(extension)) return 'pdf';
+  if (['doc', 'docx'].includes(extension)) return 'document';
+  return 'unknown';
 }; 

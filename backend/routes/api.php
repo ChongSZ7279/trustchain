@@ -7,6 +7,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\CharityController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskPictureController;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
@@ -46,6 +47,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/charities/{charityId}/tasks', [TaskController::class, 'store']);
     Route::match(['put', 'patch'], '/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+    
+    // Task Pictures routes
+    Route::get('/tasks/{taskId}/pictures', [TaskPictureController::class, 'index']);
+    Route::post('/tasks/{taskId}/pictures', [TaskPictureController::class, 'store']);
+    Route::delete('/tasks/{taskId}/pictures/{pictureId}', [TaskPictureController::class, 'destroy']);
 });
 
 // Add a test route to check storage configuration

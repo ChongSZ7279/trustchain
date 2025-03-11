@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
+import TaskMediaDisplay from './TaskMediaDisplay';
 
 export default function CharityDetails() {
   const { id } = useParams();
@@ -12,19 +13,34 @@ export default function CharityDetails() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [taskPictures, setTaskPictures] = useState({});
 
   useEffect(() => {
     const fetchCharityAndTasks = async () => {
       try {
-        const [charityRes, tasksRes] = await Promise.all([
-          axios.get(`/api/charities/${id}`),
-          axios.get(`/api/charities/${id}/tasks`)
-        ]);
-        setCharity(charityRes.data);
-        setTasks(tasksRes.data);
+        setLoading(true);
+        const charityResponse = await axios.get(`/api/charities/${id}`);
+        setCharity(charityResponse.data);
+
+        const tasksResponse = await axios.get(`/api/charities/${id}/tasks`);
+        setTasks(tasksResponse.data);
+
+        // Fetch pictures for each task
+        const picturesData = {};
+        for (const task of tasksResponse.data) {
+          try {
+            const picturesResponse = await axios.get(`/api/tasks/${task.id}/pictures`);
+            picturesData[task.id] = picturesResponse.data || [];
+          } catch (err) {
+            console.error(`Error fetching pictures for task ${task.id}:`, err);
+            picturesData[task.id] = [];
+          }
+        }
+        setTaskPictures(picturesData);
+        
       } catch (err) {
-        setError('Failed to fetch charity details');
-        console.error('Error fetching charity details:', err);
+        console.error('Error fetching data:', err);
+        setError('Failed to load charity details');
       } finally {
         setLoading(false);
       }
@@ -79,6 +95,16 @@ export default function CharityDetails() {
   }
 
   const isOwner = organization && organization.id === charity.organization_id;
+
+  // Helper function to determine file type
+  const getFileType = (path) => {
+    if (!path) return 'unknown';
+    const extension = path.split('.').pop().toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
+    if (['pdf'].includes(extension)) return 'pdf';
+    if (['doc', 'docx'].includes(extension)) return 'document';
+    return 'unknown';
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -174,49 +200,60 @@ export default function CharityDetails() {
               <ul className="divide-y divide-gray-200">
                 {tasks.map((task) => (
                   <li key={task.id} className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h4 className="text-lg font-medium text-gray-900">{task.name}</h4>
-                        <p className="mt-1 text-sm text-gray-600">{task.description}</p>
-                        <div className="mt-2">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Target: ${task.fund_targeted}
-                          </span>
-                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.slice(1)}
-                          </span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-lg font-medium text-gray-900">{task.name}</h4>
+                          <p className="mt-1 text-sm text-gray-600">{task.description}</p>
+                          <div className="mt-2">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Target: ${task.fund_targeted}
+                            </span>
+                            <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.slice(1)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      {isOwner && (
-                        <div className="ml-4 flex items-center space-x-4">
-                          <Link
-                            to={`/tasks/${task.id}/edit`}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm('Are you sure you want to delete this task?')) {
-                                try {
-                                  await axios.delete(`/api/tasks/${task.id}`);
-                                  setTasks(tasks.filter(t => t.id !== task.id));
-                                } catch (err) {
-                                  console.error('Error deleting task:', err);
-                                  setError('Failed to delete task');
+                        {isOwner && (
+                          <div className="ml-4 flex items-center space-x-4">
+                            <Link
+                              to={`/tasks/${task.id}/pictures`}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              Manage Pictures
+                            </Link>
+                            <Link
+                              to={`/tasks/${task.id}/edit`}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('Are you sure you want to delete this task?')) {
+                                  try {
+                                    await axios.delete(`/api/tasks/${task.id}`);
+                                    setTasks(tasks.filter(t => t.id !== task.id));
+                                  } catch (err) {
+                                    console.error('Error deleting task:', err);
+                                    setError('Failed to delete task');
+                                  }
                                 }
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
+                              }}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Display task media (proof document and pictures) */}
+                      <TaskMediaDisplay taskId={task.id} proof={task.proof} />
                     </div>
                   </li>
                 ))}

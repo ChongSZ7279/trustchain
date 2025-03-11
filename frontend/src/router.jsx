@@ -16,6 +16,7 @@ import CharityList from './components/CharityList';
 import CharityDetails from './components/CharityDetails';
 import CharityForm from './components/CharityForm';
 import TaskForm from './components/TaskForm';
+import TaskPictureManager from './components/TaskPictureManager';
 import ImageTest from './components/ImageTest';
 import UserEdit from './components/UserEdit';
 
@@ -104,6 +105,10 @@ const router = createBrowserRouter([
       {
         path: 'tasks/:taskId/edit',
         element: <TaskForm />
+      },
+      {
+        path: 'tasks/:taskId/pictures',
+        element: <TaskPictureManager />
       }
     ]
   }

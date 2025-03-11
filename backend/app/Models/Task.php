@@ -26,4 +26,12 @@ class Task extends Model
     {
         return $this->belongsTo(Charity::class);
     }
+    
+    /**
+     * Get the pictures for the task.
+     */
+    public function pictures()
+    {
+        return $this->hasMany(TaskPicture::class);
+    }
 } 

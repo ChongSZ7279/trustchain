@@ -6,23 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
+    public function up()
     {
         Schema::create('charities', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('organization_id')->constrained()->onDelete('cascade');
+            $table->foreignId('organization_id')->constrained('organizations')->onDelete('cascade');
+            $table->string('name');
             $table->string('category');
             $table->text('description');
-            $table->decimal('fund_targeted', 15, 2);
-            $table->decimal('fund_received', 15, 2)->default(0);
+            $table->text('objective');
+            $table->decimal('fund_targeted', 10, 2);
             $table->string('picture_path')->nullable();
             $table->string('verified_document')->nullable();
-            $table->boolean('is_verified')->default(false);
             $table->timestamps();
         });
     }
 
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('charities');
     }

@@ -40,4 +40,9 @@ class Organization extends Authenticatable
     {
         return $this->belongsTo(User::class, 'representative_id', 'ic_number');
     }
+
+    public function charities()
+    {
+        return $this->hasMany(Charity::class);
+    }
 } 

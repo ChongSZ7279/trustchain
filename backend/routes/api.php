@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\CharityController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
@@ -20,6 +21,7 @@ Route::get('/organizations/{id}', [OrganizationController::class, 'show']);
 // Public charity routes
 Route::get('/charities', [CharityController::class, 'index']);
 Route::get('/charities/{id}', [CharityController::class, 'show']);
+Route::get('/organizations/{id}/charities', [CharityController::class, 'organizationCharities']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -37,6 +39,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/charities', [CharityController::class, 'store']);
     Route::match(['put', 'patch'], '/charities/{id}', [CharityController::class, 'update']);
     Route::delete('/charities/{id}', [CharityController::class, 'destroy']);
+
+    // Task routes
+    Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
+    Route::get('/tasks/{id}', [TaskController::class, 'show']);
+    Route::post('/charities/{charityId}/tasks', [TaskController::class, 'store']);
+    Route::match(['put', 'patch'], '/tasks/{id}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
 });
 
 // Add a test route to check storage configuration

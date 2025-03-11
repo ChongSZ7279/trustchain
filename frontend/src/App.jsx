@@ -2,7 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import router from './router';
 import axios from 'axios';
-
+import { Route } from 'react-router-dom';
 // Set axios defaults
 axios.defaults.baseURL = 'http://localhost:8000';
 axios.defaults.headers.common['Accept'] = 'application/json';

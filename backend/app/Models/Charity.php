@@ -11,8 +11,10 @@ class Charity extends Model
 
     protected $fillable = [
         'organization_id',
+        'name',
         'category',
         'description',
+        'objective',
         'fund_targeted',
         'fund_received',
         'picture_path',
@@ -29,5 +31,10 @@ class Charity extends Model
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
     }
 } 

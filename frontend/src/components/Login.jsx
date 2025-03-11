@@ -43,11 +43,24 @@ export default function Login() {
     }
 
     try {
-      await login(formData);
-      navigate('/dashboard');
+      const response = await login(formData);
+      console.log('Login successful:', response);
+      
+      // Redirect based on user type
+      if (formData.type === 'user') {
+        navigate('/user/dashboard');
+      } else {
+        navigate('/organization/dashboard');
+      }
     } catch (err) {
+      console.error('Login error:', err);
+      
       if (err.response?.data?.errors) {
         setFormErrors(err.response.data.errors);
+      } else if (err.response?.data?.message) {
+        setFormErrors({ general: err.response.data.message });
+      } else {
+        setFormErrors({ general: 'Login failed. Please try again.' });
       }
     }
   };
@@ -130,12 +143,12 @@ export default function Login() {
               )}
             </div>
 
-            {error && (
+            {formErrors.general && (
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">
-                      {error}
+                      {formErrors.general}
                     </h3>
                   </div>
                 </div>

@@ -63,7 +63,7 @@ const router = createBrowserRouter([
     element: <ProtectedLayout />,
     children: [
       {
-        path: '/dashboard',
+        path: '/user/dashboard',
         element: <UserDashboard />
       },
       {

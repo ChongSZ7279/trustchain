@@ -134,15 +134,31 @@ class AuthController extends Controller
             $credentials = $request->only('gmail', 'password');
             $guard = $request->type === 'user' ? 'web' : 'organization';
 
+            // Debug log
+            Log::info('Login attempt', [
+                'type' => $request->type,
+                'guard' => $guard,
+                'gmail' => $request->gmail
+            ]);
+
             if (!Auth::guard($guard)->attempt($credentials)) {
+                Log::warning('Login failed: Invalid credentials', [
+                    'type' => $request->type,
+                    'gmail' => $request->gmail
+                ]);
+                
                 return response()->json([
                     'message' => 'The provided credentials are incorrect.'
                 ], 401);
             }
 
-            $model = $request->type === 'user' ? User::class : Organization::class;
-            $authenticatable = $model::where('gmail', $request->gmail)->firstOrFail();
+            $authenticatable = Auth::guard($guard)->user();
             $token = $authenticatable->createToken('auth_token')->plainTextToken;
+
+            Log::info('Login successful', [
+                'type' => $request->type,
+                'id' => $authenticatable->id
+            ]);
 
             return response()->json([
                 $request->type => $authenticatable,

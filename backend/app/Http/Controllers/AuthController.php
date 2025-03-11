@@ -94,7 +94,12 @@ class AuthController extends Controller
             $orgData['logo'] = $request->file('logo')->store('organization_logos', 'public');
             $orgData['statutory_declaration'] = $request->file('statutory_declaration')->store('organization_documents', 'public');
             $orgData['verified_document'] = $request->file('verified_document')->store('organization_documents', 'public');
+            
+            // Make sure password is properly hashed and included
             $orgData['password'] = Hash::make($request->password);
+            
+            // Debug log to see what data is being sent to the database
+            Log::info('Organization data before create:', array_keys($orgData));
 
             $organization = Organization::create($orgData);
             $token = $organization->createToken('auth_token')->plainTextToken;

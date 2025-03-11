@@ -102,12 +102,13 @@ export default function OrganizationEdit() {
     
     // Only validate if the field is empty after trimming
     if (!formData.name?.trim()) errors.name = 'Organization name is required';
-    if (!formData.category?.trim()) errors.category = 'Category is required';
+    if (!formData.category) errors.category = 'Category is required';
     if (!formData.description?.trim()) errors.description = 'Description is required';
     if (!formData.objectives?.trim()) errors.objectives = 'Objectives are required';
     if (!formData.wallet_address?.trim()) errors.wallet_address = 'Wallet address is required';
     if (!formData.register_address?.trim()) errors.register_address = 'Registration address is required';
     
+    // Gmail validation
     if (!formData.gmail?.trim()) {
       errors.gmail = 'Gmail is required';
     } else if (!formData.gmail.trim().endsWith('@gmail.com')) {
@@ -134,10 +135,12 @@ export default function OrganizationEdit() {
       setError(null);
       const formDataToSend = new FormData();
       
-      // Append form data
+      // Append form data, trimming string values
       Object.keys(formData).forEach(key => {
         if (formData[key] !== undefined && formData[key] !== null) {
-          formDataToSend.append(key, formData[key].trim());
+          // Trim string values before sending
+          const value = typeof formData[key] === 'string' ? formData[key].trim() : formData[key];
+          formDataToSend.append(key, value);
         }
       });
 
@@ -154,16 +157,18 @@ export default function OrganizationEdit() {
         }
       });
 
-      // If successful, navigate to the organization details page
-      navigate(`/organizations/${id}`);
+      // Update form data with response
+      setFormData(response.data);
+      setError('Organization updated successfully');
+      setSaving(false);
     } catch (err) {
-      console.error('Error updating organization:', err);
+      console.error('Update error:', err);
       if (err.response?.data?.errors) {
         setFormErrors(err.response.data.errors);
-        window.scrollTo(0, 0);
       } else {
         setError(err.response?.data?.message || 'Failed to update organization');
       }
+      window.scrollTo(0, 0);
     } finally {
       setSaving(false);
     }

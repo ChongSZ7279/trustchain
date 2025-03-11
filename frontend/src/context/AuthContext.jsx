@@ -43,27 +43,38 @@ export const AuthProvider = ({ children }) => {
         try {
             setLoading(true);
             setError(null);
-            const formData = new FormData();
             
-            Object.keys(orgData).forEach(key => {
-                if (orgData[key] instanceof File) {
-                    formData.append(key, orgData[key]);
-                } else {
-                    formData.append(key, orgData[key]);
-                }
-            });
-
-            const response = await axios.post('/api/register/organization', formData, {
+            // Log the data being sent for debugging
+            console.log('AuthContext: Sending organization registration data');
+            
+            const response = await axios.post('/api/register/organization', orgData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
+            console.log('AuthContext: Registration successful', response.data);
+            
+            // Store the token and set the authorization header
+            if (response.data.token) {
+                localStorage.setItem('token', response.data.token);
+                axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+            }
+            
             setOrganization(response.data.organization);
-            localStorage.setItem('token', response.data.token);
-            axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
             return response.data;
-        } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed');
-            throw err;
+        } catch (error) {
+            console.error('AuthContext: Registration error', error);
+            
+            // Log more detailed error information
+            if (error.response) {
+                console.error('Error response:', error.response.status, error.response.data);
+            } else if (error.request) {
+                console.error('Error request:', error.request);
+            } else {
+                console.error('Error message:', error.message);
+            }
+            
+            setError(error.response?.data?.message || 'Registration failed');
+            throw error;
         } finally {
             setLoading(false);
         }

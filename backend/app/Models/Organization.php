@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Sanctum\HasApiTokens;
 
 class Organization extends Model
 {
-    use HasFactory;
+    use HasFactory, HasApiTokens;
 
     protected $fillable = [
         'name',
@@ -27,6 +28,7 @@ class Organization extends Model
         'statutory_declaration',
         'verified_document',
         'is_verified',
+        'password',
     ];
 
     protected $casts = [

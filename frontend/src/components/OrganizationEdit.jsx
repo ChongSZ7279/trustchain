@@ -1,475 +1,364 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import { formatImageUrl } from '../utils/helpers';
 
 export default function OrganizationEdit() {
-  const { id } = useParams();
+  const { organization, setOrganization } = useAuth();
   const navigate = useNavigate();
-  const { user, organization } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
     description: '',
     objectives: '',
-    wallet_address: '',
-    register_address: '',
-    gmail: '',
+    category: '',
     phone_number: '',
+    register_address: '',
     website: '',
     facebook: '',
     instagram: '',
-    others: ''
-  });
-  const [files, setFiles] = useState({
     logo: null,
     statutory_declaration: null,
     verified_document: null
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [formErrors, setFormErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [previewUrls, setPreviewUrls] = useState({
+    logo: null,
+    statutory_declaration: null,
+    verified_document: null
+  });
 
   useEffect(() => {
-    if (id) {
-      fetchOrganizationDetails();
+    // Debug log
+    console.log('Current organization data:', organization);
+
+    // Redirect if no organization is logged in
+    if (!organization) {
+      navigate('/login');
+      return;
     }
-  }, [id, user, organization]);
 
-  const fetchOrganizationDetails = async () => {
+    setFormData({
+      name: organization.name || '',
+      description: organization.description || '',
+      objectives: organization.objectives || '',
+      category: organization.category || '',
+      phone_number: organization.phone_number || '',
+      register_address: organization.register_address || '',
+      website: organization.website || '',
+      facebook: organization.facebook || '',
+      instagram: organization.instagram || '',
+      logo: null,
+      statutory_declaration: null,
+      verified_document: null
+    });
+
+    setPreviewUrls({
+      logo: organization.logo ? formatImageUrl(organization.logo) : null,
+      statutory_declaration: organization.statutory_declaration ? formatImageUrl(organization.statutory_declaration) : null,
+      verified_document: organization.verified_document ? formatImageUrl(organization.verified_document) : null
+    });
+  }, [organization, navigate]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (files[0]) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: files[0]
+      }));
+      setPreviewUrls(prev => ({
+        ...prev,
+        [name]: URL.createObjectURL(files[0])
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Check if organization exists and has id
+    if (!organization?.id) {
+      setError('Organization not found. Please try logging in again.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
-      setError(null);
-      setFormErrors({}); // Clear any existing form errors
-      const response = await axios.get(`/api/organizations/${id}`);
-      const orgData = response.data;
+      const formDataToSend = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key !== 'logo' && key !== 'statutory_declaration' && key !== 'verified_document') {
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+      formDataToSend.append('_method', 'PUT');
 
-      // Check if user has permission to edit
-      if (organization?.id !== orgData.id && orgData.representative_id !== user?.ic_number) {
-        navigate(`/organizations/${id}`);
-        return;
+      if (formData.logo) {
+        formDataToSend.append('logo', formData.logo);
+      }
+      if (formData.statutory_declaration) {
+        formDataToSend.append('statutory_declaration', formData.statutory_declaration);
+      }
+      if (formData.verified_document) {
+        formDataToSend.append('verified_document', formData.verified_document);
       }
 
-      setFormData({
-        name: orgData.name || '',
-        category: orgData.category || '',
-        description: orgData.description || '',
-        objectives: orgData.objectives || '',
-        wallet_address: orgData.wallet_address || '',
-        register_address: orgData.register_address || '',
-        gmail: orgData.gmail || '',
-        phone_number: orgData.phone_number || '',
-        website: orgData.website || '',
-        facebook: orgData.facebook || '',
-        instagram: orgData.instagram || '',
-        others: orgData.others || ''
+      // Debug log before making request
+      console.log('Sending update request for organization:', {
+        id: organization.id,
+        formData: Object.fromEntries(formDataToSend.entries())
       });
+
+      const response = await axios.post(`/api/organizations/${organization.id}`, formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+      });
+
+      // Update the organization state with the new data
+      if (response.data && typeof setOrganization === 'function') {
+        setOrganization(response.data);
+      }
+
+      navigate('/organization/dashboard');
     } catch (err) {
-      console.error('Error fetching organization details:', err);
-      setError(err.response?.data?.message || 'Failed to fetch organization details');
-      navigate('/organizations');
+      console.error('Update error details:', {
+        error: err,
+        response: err.response?.data,
+        status: err.response?.status,
+        headers: err.response?.headers
+      });
+      setError(err.response?.data?.message || 'Failed to update organization. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value.trim() !== "" ? value : "",
-    }));
-    if (formErrors[name]) {
-      setFormErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-  
-
-  const handleFileChange = (e) => {
-    const { name, files: uploadedFiles } = e.target;
-    if (uploadedFiles.length > 0) {
-      setFiles(prev => ({ ...prev, [name]: uploadedFiles[0] }));
-      // Clear error when user uploads a file
-      if (formErrors[name]) {
-        setFormErrors(prev => ({ ...prev, [name]: '' }));
-      }
-    }
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    
-    // Only validate if the field is empty after trimming
-    if (!formData.name?.trim()) errors.name = 'Organization name is required';
-    if (!formData.category) errors.category = 'Category is required';
-    if (!formData.description?.trim()) errors.description = 'Description is required';
-    if (!formData.objectives?.trim()) errors.objectives = 'Objectives are required';
-    if (!formData.wallet_address?.trim()) errors.wallet_address = 'Wallet address is required';
-    if (!formData.register_address?.trim()) errors.register_address = 'Registration address is required';
-    
-    // Gmail validation
-    if (!formData.gmail?.trim()) {
-      errors.gmail = 'Gmail is required';
-    } else if (!formData.gmail.trim().endsWith('@gmail.com')) {
-      errors.gmail = 'Please enter a valid Gmail address';
-    }
-    
-    if (!formData.phone_number?.trim()) errors.phone_number = 'Phone number is required';
-
-    return errors;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setFormErrors(validationErrors);
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError(null);
-      const formDataToSend = new FormData();
-      
-      // Append form data, trimming string values
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== undefined && formData[key] !== null) {
-          // Trim string values before sending
-          const value = typeof formData[key] === 'string' ? formData[key].trim() : formData[key];
-          formDataToSend.append(key, value);
-        }
-      });
-
-      // Append files if they exist
-      Object.keys(files).forEach(key => {
-        if (files[key]) {
-          formDataToSend.append(key, files[key]);
-        }
-      });
-
-      const response = await axios.put(`/api/organizations/${id}`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        }
-      });
-
-      // Update form data with response
-      setFormData(response.data);
-      setError('Organization updated successfully');
-      setSaving(false);
-    } catch (err) {
-      console.error('Update error:', err);
-      if (err.response?.data?.errors) {
-        setFormErrors(err.response.data.errors);
-      } else {
-        setError(err.response?.data?.message || 'Failed to update organization');
-      }
-      window.scrollTo(0, 0);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
+  // Show loading state while checking organization authentication
+  if (!organization) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
-              Edit Organization
-            </h3>
-            <button
-              onClick={() => navigate(`/organizations/${id}`)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="border-t border-gray-200">
-            <div className="px-4 py-5 sm:px-6">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                {/* Organization Name */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Organization Name
-                  </label>
+    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+      <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+        <div className="relative px-4 py-10 bg-white mx-8 md:mx-0 shadow rounded-3xl sm:p-10">
+          <div className="max-w-md mx-auto">
+            <div className="flex items-center space-x-5">
+              <div className="block pl-2 font-semibold text-xl self-start text-gray-700">
+                <h2 className="leading-relaxed">Edit Organization</h2>
+              </div>
+            </div>
+            <form onSubmit={handleSubmit} className="divide-y divide-gray-200">
+              <div className="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
+                <div className="flex flex-col">
+                  <label className="leading-loose">Organization Name</label>
                   <input
                     type="text"
                     name="name"
-                    id="name"
                     value={formData.name}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
+                    required
                   />
-                  {formErrors.name && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.name}</p>
-                  )}
                 </div>
 
-                {/* Category */}
-                <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                    Category
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Description</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="leading-loose">Objectives</label>
+                  <textarea
+                    name="objectives"
+                    value={formData.objectives}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="leading-loose">Category</label>
                   <input
                     type="text"
                     name="category"
-                    id="category"
                     value={formData.category}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
+                    required
                   />
-                  {formErrors.category && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>
-                  )}
                 </div>
 
-                {/* Description */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    id="description"
-                    rows={3}
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {formErrors.description && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.description}</p>
-                  )}
-                </div>
-
-                {/* Objectives */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="objectives" className="block text-sm font-medium text-gray-700">
-                    Objectives
-                  </label>
-                  <textarea
-                    name="objectives"
-                    id="objectives"
-                    rows={3}
-                    value={formData.objectives}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {formErrors.objectives && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.objectives}</p>
-                  )}
-                </div>
-
-                {/* Contact Information */}
-                <div>
-                  <label htmlFor="gmail" className="block text-sm font-medium text-gray-700">
-                    Gmail
-                  </label>
-                  <input
-                    type="email"
-                    name="gmail"
-                    id="gmail"
-                    value={formData.gmail}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {formErrors.gmail && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.gmail}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone_number"
-                    id="phone_number"
-                    value={formData.phone_number}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {formErrors.phone_number && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.phone_number}</p>
-                  )}
-                </div>
-
-                {/* Addresses */}
-                <div>
-                  <label htmlFor="wallet_address" className="block text-sm font-medium text-gray-700">
-                    Wallet Address
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Phone Number</label>
                   <input
                     type="text"
-                    name="wallet_address"
-                    id="wallet_address"
-                    value={formData.wallet_address}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    name="phone_number"
+                    value={formData.phone_number}
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
+                    required
                   />
-                  {formErrors.wallet_address && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.wallet_address}</p>
-                  )}
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label htmlFor="register_address" className="block text-sm font-medium text-gray-700">
-                    Registration Address
-                  </label>
-                  <textarea
+                <div className="flex flex-col">
+                  <label className="leading-loose">Registration Address</label>
+                  <input
+                    type="text"
                     name="register_address"
-                    id="register_address"
-                    rows={3}
                     value={formData.register_address}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
+                    required
                   />
-                  {formErrors.register_address && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.register_address}</p>
-                  )}
                 </div>
 
-                {/* Social Media */}
-                <div>
-                  <label htmlFor="website" className="block text-sm font-medium text-gray-700">
-                    Website (Optional)
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Website (Optional)</label>
                   <input
                     type="url"
                     name="website"
-                    id="website"
                     value={formData.website}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="facebook" className="block text-sm font-medium text-gray-700">
-                    Facebook (Optional)
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Facebook (Optional)</label>
                   <input
-                    type="text"
+                    type="url"
                     name="facebook"
-                    id="facebook"
                     value={formData.facebook}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="instagram" className="block text-sm font-medium text-gray-700">
-                    Instagram (Optional)
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Instagram (Optional)</label>
                   <input
-                    type="text"
+                    type="url"
                     name="instagram"
-                    id="instagram"
                     value={formData.instagram}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={handleInputChange}
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
                   />
                 </div>
 
-                {/* Additional Information */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="others" className="block text-sm font-medium text-gray-700">
-                    Additional Information (Optional)
-                  </label>
-                  <textarea
-                    name="others"
-                    id="others"
-                    rows={3}
-                    value={formData.others}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* File Uploads */}
-                <div>
-                  <label htmlFor="logo" className="block text-sm font-medium text-gray-700">
-                    Update Logo (Optional)
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Logo</label>
                   <input
                     type="file"
                     name="logo"
-                    id="logo"
-                    accept="image/*"
                     onChange={handleFileChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    accept="image/*"
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
                   />
+                  {previewUrls.logo && (
+                    <img
+                      src={previewUrls.logo}
+                      alt="Logo Preview"
+                      className="mt-2 h-32 w-32 object-cover rounded-lg"
+                    />
+                  )}
                 </div>
 
-                <div>
-                  <label htmlFor="statutory_declaration" className="block text-sm font-medium text-gray-700">
-                    Update Statutory Declaration (Optional)
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Statutory Declaration</label>
                   <input
                     type="file"
                     name="statutory_declaration"
-                    id="statutory_declaration"
-                    accept=".pdf,.doc,.docx"
                     onChange={handleFileChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    accept=".pdf,image/*"
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
                   />
+                  {previewUrls.statutory_declaration && (
+                    <div className="mt-2">
+                      <a
+                        href={previewUrls.statutory_declaration}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-600"
+                      >
+                        View Current Document
+                      </a>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label htmlFor="verified_document" className="block text-sm font-medium text-gray-700">
-                    Update Verified Document (Optional)
-                  </label>
+                <div className="flex flex-col">
+                  <label className="leading-loose">Verified Document</label>
                   <input
                     type="file"
                     name="verified_document"
-                    id="verified_document"
-                    accept=".pdf,.doc,.docx"
                     onChange={handleFileChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    accept=".pdf,image/*"
+                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
                   />
+                  {previewUrls.verified_document && (
+                    <div className="mt-2">
+                      <a
+                        href={previewUrls.verified_document}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-600"
+                      >
+                        View Current Document
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
-
               {error && (
-                <div className="mt-6 rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">
-                        {error}
-                      </h3>
-                    </div>
-                  </div>
+                <div className="text-red-500 text-sm mt-2">
+                  {error}
                 </div>
               )}
-
-              <div className="mt-6">
+              <div className="pt-4 flex items-center space-x-4">
+                <button
+                  type="button"
+                  onClick={() => navigate('/organization/dashboard')}
+                  className="flex justify-center items-center w-full text-gray-900 px-4 py-3 rounded-md focus:outline-none"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                    saving ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  disabled={loading}
+                  className="bg-blue-500 flex justify-center items-center w-full text-white px-4 py-3 rounded-md focus:outline-none hover:bg-blue-600"
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {loading ? 'Updating...' : 'Update Organization'}
                 </button>
               </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>

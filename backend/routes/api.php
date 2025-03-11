@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\CharityController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
@@ -24,6 +25,9 @@ Route::get('/charities/{id}', [CharityController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    
+    // Protected user routes
+    Route::match(['put', 'patch'], '/users/{id}', [UserController::class, 'update']);
     
     // Protected organization routes
     Route::match(['put', 'patch'], '/organizations/{id}', [OrganizationController::class, 'update']);

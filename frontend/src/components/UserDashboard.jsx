@@ -1,8 +1,11 @@
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
+import { useNavigate } from 'react-router-dom';
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  
 
   const handleLogout = async () => {
     try {
@@ -20,10 +23,16 @@ export default function UserDashboard() {
             <div className="flex items-center">
               <h1 className="text-xl font-semibold">User Dashboard</h1>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/user/edit')}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Edit Profile
+              </button>
               <button
                 onClick={handleLogout}
-                className="ml-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               >
                 Logout
               </button>

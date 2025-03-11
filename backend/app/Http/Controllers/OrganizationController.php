@@ -26,10 +26,30 @@ class OrganizationController extends Controller
     {
         $organization = Organization::findOrFail($id);
 
-        // Validate user has permission to update
-        if ($organization->representative_id !== Auth::user()->ic_number && 
-            Auth::user()->type !== 'organization') {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Get authenticated user/organization
+        $authenticatedOrg = Auth::user();
+
+        // Debug information
+        \Log::info('Organization update attempt:', [
+            'organization_id' => $id,
+            'organization_data' => $organization->toArray(),
+            'authenticated_org' => $authenticatedOrg ? $authenticatedOrg->toArray() : null,
+            'request_data' => $request->all()
+        ]);
+
+        // Check if organization is authenticated
+        if (!$authenticatedOrg) {
+            \Log::warning('Update attempt with no authenticated organization');
+            return response()->json(['message' => 'Unauthorized - Not authenticated'], 403);
+        }
+
+        // Check if authenticated organization matches the one being updated
+        if ($organization->id !== $authenticatedOrg->id) {
+            \Log::warning('Update attempt by wrong organization', [
+                'target_organization_id' => $organization->id,
+                'authenticated_org_id' => $authenticatedOrg->id
+            ]);
+            return response()->json(['message' => 'Unauthorized - You can only update your own organization'], 403);
         }
 
         // Validate basic fields
@@ -38,48 +58,54 @@ class OrganizationController extends Controller
             'category' => 'required|string|max:255',
             'description' => 'required|string',
             'objectives' => 'required|string',
-            'wallet_address' => 'required|string',
             'register_address' => 'required|string',
-            'gmail' => 'required|email|ends_with:@gmail.com',
             'phone_number' => 'required|string',
             'website' => 'nullable|url',
-            'facebook' => 'nullable|string',
-            'instagram' => 'nullable|string',
-            'others' => 'nullable|string',
+            'facebook' => 'nullable|url',
+            'instagram' => 'nullable|url',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'statutory_declaration' => 'nullable|mimes:pdf,doc,docx|max:2048',
-            'verified_document' => 'nullable|mimes:pdf,doc,docx|max:2048',
+            'statutory_declaration' => 'nullable|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:2048',
+            'verified_document' => 'nullable|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:2048',
         ]);
 
         // Handle file uploads
         if ($request->hasFile('logo')) {
             // Delete old logo if exists
             if ($organization->logo) {
-                Storage::delete($organization->logo);
+                Storage::disk('public')->delete($organization->logo);
             }
-            $validated['logo'] = $request->file('logo')->store('organizations/logos', 'public');
+            $validated['logo'] = $request->file('logo')->store('organization_logos', 'public');
         }
 
         if ($request->hasFile('statutory_declaration')) {
             if ($organization->statutory_declaration) {
-                Storage::delete($organization->statutory_declaration);
+                Storage::disk('public')->delete($organization->statutory_declaration);
             }
             $validated['statutory_declaration'] = $request->file('statutory_declaration')
-                ->store('organizations/statutory_declarations', 'public');
+                ->store('organization_documents', 'public');
         }
 
         if ($request->hasFile('verified_document')) {
             if ($organization->verified_document) {
-                Storage::delete($organization->verified_document);
+                Storage::disk('public')->delete($organization->verified_document);
             }
             $validated['verified_document'] = $request->file('verified_document')
-                ->store('organizations/verified_documents', 'public');
+                ->store('organization_documents', 'public');
         }
 
         try {
             $organization->update($validated);
+            \Log::info('Organization updated successfully', [
+                'organization_id' => $organization->id,
+                'updated_data' => $validated
+            ]);
             return response()->json($organization);
         } catch (\Exception $e) {
+            \Log::error('Organization update error:', [
+                'organization_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'message' => 'Failed to update organization',
                 'error' => $e->getMessage()
@@ -92,20 +118,19 @@ class OrganizationController extends Controller
         $organization = Organization::findOrFail($id);
 
         // Validate user has permission to delete
-        if ($organization->representative_id !== Auth::user()->ic_number && 
-            Auth::user()->type !== 'organization') {
+        if (Auth::user()->type !== 'organization' || Auth::user()->id !== $organization->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         // Delete associated files
         if ($organization->logo) {
-            Storage::delete($organization->logo);
+            Storage::disk('public')->delete($organization->logo);
         }
         if ($organization->statutory_declaration) {
-            Storage::delete($organization->statutory_declaration);
+            Storage::disk('public')->delete($organization->statutory_declaration);
         }
         if ($organization->verified_document) {
-            Storage::delete($organization->verified_document);
+            Storage::disk('public')->delete($organization->verified_document);
         }
 
         $organization->delete();

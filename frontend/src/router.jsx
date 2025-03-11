@@ -16,6 +16,7 @@ import CharityList from './components/CharityList';
 import CharityDetails from './components/CharityDetails';
 import CharityForm from './components/CharityForm';
 import ImageTest from './components/ImageTest';
+import UserEdit from './components/UserEdit';
 
 const router = createBrowserRouter([
   {
@@ -72,8 +73,16 @@ const router = createBrowserRouter([
         element: <UserDashboard />
       },
       {
+        path: '/user/edit',
+        element: <UserEdit />
+      },
+      {
         path: '/organization/dashboard',
         element: <OrganizationDashboard />
+      },
+      {
+        path: '/organization/edit',
+        element: <OrganizationEdit />
       },
       {
         path: '/organizations/:id/edit',

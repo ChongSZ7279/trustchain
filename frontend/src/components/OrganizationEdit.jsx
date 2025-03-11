@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
+import { 
+  FaBuilding, 
+  FaFileAlt, 
+  FaImage, 
+  FaPhone, 
+  FaMapMarkerAlt,
+  FaGlobe,
+  FaFacebook,
+  FaInstagram,
+  FaArrowLeft,
+  FaSave,
+  FaTimes,
+  FaExclamationTriangle
+} from 'react-icons/fa';
 
 export default function OrganizationEdit() {
   const { organization, setOrganization } = useAuth();
@@ -30,10 +44,6 @@ export default function OrganizationEdit() {
   });
 
   useEffect(() => {
-    // Debug log
-    console.log('Current organization data:', organization);
-
-    // Redirect if no organization is logged in
     if (!organization) {
       navigate('/login');
       return;
@@ -86,7 +96,6 @@ export default function OrganizationEdit() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Check if organization exists and has id
     if (!organization?.id) {
       setError('Organization not found. Please try logging in again.');
       return;
@@ -114,12 +123,6 @@ export default function OrganizationEdit() {
         formDataToSend.append('verified_document', formData.verified_document);
       }
 
-      // Debug log before making request
-      console.log('Sending update request for organization:', {
-        id: organization.id,
-        formData: Object.fromEntries(formDataToSend.entries())
-      });
-
       const response = await axios.post(`/api/organizations/${organization.id}`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -127,26 +130,19 @@ export default function OrganizationEdit() {
         },
       });
 
-      // Update the organization state with the new data
       if (response.data && typeof setOrganization === 'function') {
         setOrganization(response.data);
       }
 
       navigate('/organization/dashboard');
     } catch (err) {
-      console.error('Update error details:', {
-        error: err,
-        response: err.response?.data,
-        status: err.response?.status,
-        headers: err.response?.headers
-      });
+      console.error('Update error:', err);
       setError(err.response?.data?.message || 'Failed to update organization. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Show loading state while checking organization authentication
   if (!organization) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -156,205 +152,278 @@ export default function OrganizationEdit() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
-      <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-        <div className="relative px-4 py-10 bg-white mx-8 md:mx-0 shadow rounded-3xl sm:p-10">
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center space-x-5">
-              <div className="block pl-2 font-semibold text-xl self-start text-gray-700">
-                <h2 className="leading-relaxed">Edit Organization</h2>
-              </div>
+    <div className="min-h-screen bg-gray-100 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center text-gray-500 mb-6">
+          <Link to="/organization/dashboard" className="hover:text-gray-700 flex items-center">
+            <FaArrowLeft className="mr-2" />
+            Back to Dashboard
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">Edit Organization</span>
+        </nav>
+
+        <div className="bg-white shadow-sm rounded-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FaBuilding className="mr-3" />
+                Edit Organization
+              </h1>
             </div>
-            <form onSubmit={handleSubmit} className="divide-y divide-gray-200">
-              <div className="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-                <div className="flex flex-col">
-                  <label className="leading-loose">Organization Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                    required
-                  />
-                </div>
 
-                <div className="flex flex-col">
-                  <label className="leading-loose">Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows="3"
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Objectives</label>
-                  <textarea
-                    name="objectives"
-                    value={formData.objectives}
-                    onChange={handleInputChange}
-                    rows="3"
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Category</label>
-                  <input
-                    type="text"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Phone Number</label>
-                  <input
-                    type="text"
-                    name="phone_number"
-                    value={formData.phone_number}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Registration Address</label>
-                  <input
-                    type="text"
-                    name="register_address"
-                    value={formData.register_address}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Website (Optional)</label>
-                  <input
-                    type="url"
-                    name="website"
-                    value={formData.website}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Facebook (Optional)</label>
-                  <input
-                    type="url"
-                    name="facebook"
-                    value={formData.facebook}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Instagram (Optional)</label>
-                  <input
-                    type="url"
-                    name="instagram"
-                    value={formData.instagram}
-                    onChange={handleInputChange}
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Logo</label>
-                  <input
-                    type="file"
-                    name="logo"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                  />
-                  {previewUrls.logo && (
-                    <img
-                      src={previewUrls.logo}
-                      alt="Logo Preview"
-                      className="mt-2 h-32 w-32 object-cover rounded-lg"
-                    />
-                  )}
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Statutory Declaration</label>
-                  <input
-                    type="file"
-                    name="statutory_declaration"
-                    onChange={handleFileChange}
-                    accept=".pdf,image/*"
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                  />
-                  {previewUrls.statutory_declaration && (
-                    <div className="mt-2">
-                      <a
-                        href={previewUrls.statutory_declaration}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-600"
-                      >
-                        View Current Document
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="leading-loose">Verified Document</label>
-                  <input
-                    type="file"
-                    name="verified_document"
-                    onChange={handleFileChange}
-                    accept=".pdf,image/*"
-                    className="px-4 py-2 border focus:ring-gray-500 focus:border-gray-900 w-full sm:text-sm border-gray-300 rounded-md focus:outline-none text-gray-600"
-                  />
-                  {previewUrls.verified_document && (
-                    <div className="mt-2">
-                      <a
-                        href={previewUrls.verified_document}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-600"
-                      >
-                        View Current Document
-                      </a>
-                    </div>
-                  )}
+            {error && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex items-center">
+                  <FaExclamationTriangle className="text-red-400 mr-2" />
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
               </div>
-              {error && (
-                <div className="text-red-500 text-sm mt-2">
-                  {error}
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Basic Information Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Organization Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <input
+                      type="text"
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      rows="3"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Objectives</label>
+                    <textarea
+                      name="objectives"
+                      value={formData.objectives}
+                      onChange={handleInputChange}
+                      rows="3"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      required
+                    />
+                  </div>
                 </div>
-              )}
-              <div className="pt-4 flex items-center space-x-4">
+              </div>
+
+              {/* Contact Information Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h2>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaPhone className="mr-2" />
+                      Phone Number
+                    </label>
+                    <input
+                      type="text"
+                      name="phone_number"
+                      value={formData.phone_number}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaMapMarkerAlt className="mr-2" />
+                      Registration Address
+                    </label>
+                    <input
+                      type="text"
+                      name="register_address"
+                      value={formData.register_address}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaGlobe className="mr-2" />
+                      Website (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      name="website"
+                      value={formData.website}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaFacebook className="mr-2" />
+                      Facebook (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      name="facebook"
+                      value={formData.facebook}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaInstagram className="mr-2" />
+                      Instagram (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      name="instagram"
+                      value={formData.instagram}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Documents Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Documents</h2>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaImage className="mr-2" />
+                      Organization Logo
+                    </label>
+                    <div className="mt-2 flex items-center space-x-4">
+                      {previewUrls.logo && (
+                        <img
+                          src={previewUrls.logo}
+                          alt="Logo Preview"
+                          className="h-20 w-20 object-cover rounded-lg border border-gray-200"
+                        />
+                      )}
+                      <input
+                        type="file"
+                        name="logo"
+                        onChange={handleFileChange}
+                        accept="image/*"
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaFileAlt className="mr-2" />
+                      Statutory Declaration
+                    </label>
+                    <div className="mt-2 flex items-center space-x-4">
+                      {previewUrls.statutory_declaration && (
+                        <a
+                          href={previewUrls.statutory_declaration}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-500 flex items-center"
+                        >
+                          <FaFileAlt className="mr-2" />
+                          View Current Document
+                        </a>
+                      )}
+                      <input
+                        type="file"
+                        name="statutory_declaration"
+                        onChange={handleFileChange}
+                        accept=".pdf,image/*"
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaFileAlt className="mr-2" />
+                      Verified Document
+                    </label>
+                    <div className="mt-2 flex items-center space-x-4">
+                      {previewUrls.verified_document && (
+                        <a
+                          href={previewUrls.verified_document}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-500 flex items-center"
+                        >
+                          <FaFileAlt className="mr-2" />
+                          View Current Document
+                        </a>
+                      )}
+                      <input
+                        type="file"
+                        name="verified_document"
+                        onChange={handleFileChange}
+                        accept=".pdf,image/*"
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end space-x-4 pt-6">
                 <button
                   type="button"
                   onClick={() => navigate('/organization/dashboard')}
-                  className="flex justify-center items-center w-full text-gray-900 px-4 py-3 rounded-md focus:outline-none"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
+                  <FaTimes className="mr-2" />
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-blue-500 flex justify-center items-center w-full text-white px-4 py-3 rounded-md focus:outline-none hover:bg-blue-600"
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
-                  {loading ? 'Updating...' : 'Update Organization'}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="mr-2" />
+                      Update Organization
+                    </>
+                  )}
                 </button>
               </div>
             </form>

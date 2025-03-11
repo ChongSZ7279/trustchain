@@ -57,15 +57,27 @@ const router = createBrowserRouter([
     children: [
       {
         path: '/login',
-        element: <Login />
+        element: <Login />,
+        handle: {
+          title: "Welcome Back!",
+          subtitle: "Please sign in to your account"
+        }
       },
       {
         path: '/register/user',
-        element: <UserRegistration />
+        element: <UserRegistration />,
+        handle: {
+          title: "Create Your Account",
+          subtitle: "Join our community and start making a difference"
+        }
       },
       {
         path: '/register/organization',
-        element: <OrganizationRegistration />
+        element: <OrganizationRegistration />,
+        handle: {
+          title: "Register Your Organization",
+          subtitle: "Join our platform and make a positive impact in the community"
+        }
       }
     ]
   },

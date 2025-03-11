@@ -1,5 +1,6 @@
 import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { BlockchainProvider } from './context/BlockchainContext';
 import router from './router';
 import axios from 'axios';
 import { Route } from 'react-router-dom';
@@ -39,7 +40,9 @@ axios.interceptors.response.use(
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <BlockchainProvider>
+        <RouterProvider router={router} />
+      </BlockchainProvider>
     </AuthProvider>
   );
 }

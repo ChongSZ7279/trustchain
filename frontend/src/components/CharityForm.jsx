@@ -1,7 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { 
+  FaBuilding, 
+  FaFileAlt, 
+  FaImage, 
+  FaTag,
+  FaMoneyBillWave,
+  FaArrowLeft,
+  FaSave,
+  FaTimes,
+  FaExclamationTriangle,
+  FaBullseye,
+  FaInfoCircle
+} from 'react-icons/fa';
 
 export default function CharityForm() {
   const { id } = useParams();
@@ -22,6 +35,10 @@ export default function CharityForm() {
   });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [previewUrls, setPreviewUrls] = useState({
+    picture_path: null,
+    verified_document: null
+  });
 
   useEffect(() => {
     if (id) {
@@ -200,178 +217,235 @@ export default function CharityForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
-              {id ? 'Edit Charity' : 'Create Charity'}
-            </h3>
-            <button
-              onClick={() => navigate('/charities')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-100 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center text-gray-500 mb-6">
+          <Link to="/organization/dashboard" className="hover:text-gray-700 flex items-center">
+            <FaArrowLeft className="mr-2" />
+            Back to Dashboard
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">{id ? 'Edit Charity' : 'Create Charity'}</span>
+        </nav>
 
-          <form onSubmit={handleSubmit} className="border-t border-gray-200">
-            <div className="px-4 py-5 sm:px-6">
-              <div className="grid grid-cols-1 gap-6">
-                {/* Name */}
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    id="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {isSubmitted && formErrors.name && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.name}</p>
-                  )}
-                </div>
+        <div className="bg-white shadow-sm rounded-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FaBuilding className="mr-3" />
+                {id ? 'Edit Charity' : 'Create Charity'}
+              </h1>
+            </div>
 
-                {/* Category */}
-                <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                    Category
-                  </label>
-                  <input
-                    type="text"
-                    name="category"
-                    id="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {isSubmitted && formErrors.category && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    id="description"
-                    rows={4}
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {isSubmitted && formErrors.description && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.description}</p>
-                  )}
-                </div>
-
-                {/* Objective */}
-                <div>
-                  <label htmlFor="objective" className="block text-sm font-medium text-gray-700">
-                    Objective
-                  </label>
-                  <textarea
-                    name="objective"
-                    id="objective"
-                    rows={4}
-                    value={formData.objective}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {isSubmitted && formErrors.objective && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.objective}</p>
-                  )}
-                </div>
-
-                {/* Fund Target */}
-                <div>
-                  <label htmlFor="fund_targeted" className="block text-sm font-medium text-gray-700">
-                    Target Fund Amount ($)
-                  </label>
-                  <input
-                    type="number"
-                    name="fund_targeted"
-                    id="fund_targeted"
-                    min="0"
-                    step="0.01"
-                    value={formData.fund_targeted}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                  {isSubmitted && formErrors.fund_targeted && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.fund_targeted}</p>
-                  )}
-                </div>
-
-                {/* Picture */}
-                <div>
-                  <label htmlFor="picture_path" className="block text-sm font-medium text-gray-700">
-                    Picture (Optional)
-                  </label>
-                  <input
-                    type="file"
-                    name="picture_path"
-                    id="picture_path"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  {isSubmitted && formErrors.picture_path && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.picture_path}</p>
-                  )}
-                </div>
-
-                {/* Verified Document */}
-                <div>
-                  <label htmlFor="verified_document" className="block text-sm font-medium text-gray-700">
-                    Verified Document {!id && <span className="text-red-500">*</span>}
-                  </label>
-                  <input
-                    type="file"
-                    name="verified_document"
-                    id="verified_document"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  {isSubmitted && formErrors.verified_document && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.verified_document}</p>
-                  )}
-                </div>
-
-                {error && (
-                  <div className="rounded-md bg-red-50 p-4">
-                    <div className="flex">
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-red-800">
-                          {error}
-                        </h3>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                      loading ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    {loading ? 'Saving...' : id ? 'Update Charity' : 'Create Charity'}
-                  </button>
+            {error && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex items-center">
+                  <FaExclamationTriangle className="text-red-400 mr-2" />
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
               </div>
-            </div>
-          </form>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Basic Information Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <FaInfoCircle className="mr-2" />
+                  Basic Information
+                </h2>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaBuilding className="mr-2" />
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      id="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                    {isSubmitted && formErrors.name && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaTag className="mr-2" />
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      name="category"
+                      id="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                    {isSubmitted && formErrors.category && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaFileAlt className="mr-2" />
+                      Description
+                    </label>
+                    <textarea
+                      name="description"
+                      id="description"
+                      rows={4}
+                      value={formData.description}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                    {isSubmitted && formErrors.description && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.description}</p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="objective" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaBullseye className="mr-2" />
+                      Objective
+                    </label>
+                    <textarea
+                      name="objective"
+                      id="objective"
+                      rows={4}
+                      value={formData.objective}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                    {isSubmitted && formErrors.objective && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.objective}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="fund_targeted" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaMoneyBillWave className="mr-2" />
+                      Target Fund Amount ($)
+                    </label>
+                    <input
+                      type="number"
+                      name="fund_targeted"
+                      id="fund_targeted"
+                      min="0"
+                      step="0.01"
+                      value={formData.fund_targeted}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                    {isSubmitted && formErrors.fund_targeted && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.fund_targeted}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Documents Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <FaFileAlt className="mr-2" />
+                  Documents
+                </h2>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="picture_path" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaImage className="mr-2" />
+                      Charity Picture
+                    </label>
+                    <div className="mt-2 flex items-center space-x-4">
+                      {previewUrls.picture_path && (
+                        <img
+                          src={previewUrls.picture_path}
+                          alt="Picture Preview"
+                          className="h-20 w-20 object-cover rounded-lg border border-gray-200"
+                        />
+                      )}
+                      <input
+                        type="file"
+                        name="picture_path"
+                        id="picture_path"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {isSubmitted && formErrors.picture_path && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.picture_path}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="verified_document" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaFileAlt className="mr-2" />
+                      Verified Document {!id && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    <div className="mt-2 flex items-center space-x-4">
+                      {previewUrls.verified_document && (
+                        <a
+                          href={previewUrls.verified_document}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-500 flex items-center"
+                        >
+                          <FaFileAlt className="mr-2" />
+                          View Current Document
+                        </a>
+                      )}
+                      <input
+                        type="file"
+                        name="verified_document"
+                        id="verified_document"
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileChange}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {isSubmitted && formErrors.verified_document && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.verified_document}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end space-x-4 pt-6">
+                <button
+                  type="button"
+                  onClick={() => navigate('/organization/dashboard')}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <FaTimes className="mr-2" />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      {id ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="mr-2" />
+                      {id ? 'Update Charity' : 'Create Charity'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

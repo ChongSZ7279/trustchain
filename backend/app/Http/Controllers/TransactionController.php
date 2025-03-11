@@ -154,13 +154,49 @@ class TransactionController extends Controller
      */
     public function getUserTransactions($userId)
     {
-        $user = User::where('ic_number', $userId)->firstOrFail();
+        // Debug logging
+        \Log::info('getUserTransactions request', [
+            'requested_user_id' => $userId,
+            'auth_user' => Auth::user(),
+            'headers' => request()->headers->all()
+        ]);
+
+        // Check if user is authenticated
+        if (!Auth::check()) {
+            \Log::warning('Unauthenticated user trying to access transactions');
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Check if the authenticated user is trying to access their own transactions
+        if (Auth::user()->ic_number !== $userId) {
+            \Log::warning('User trying to access unauthorized transactions', [
+                'auth_user_ic' => Auth::user()->ic_number,
+                'requested_user_ic' => $userId
+            ]);
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
         
-        $transactions = Transaction::with(['charity', 'task'])
-            ->where('user_ic', $userId)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        try {
+            $user = User::where('ic_number', $userId)->firstOrFail();
             
-        return response()->json($transactions);
+            $transactions = Transaction::with(['charity', 'task'])
+                ->where('user_ic', $userId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            \Log::info('Successfully retrieved transactions', [
+                'user_ic' => $userId,
+                'count' => $transactions->count()
+            ]);
+                
+            return response()->json($transactions);
+        } catch (\Exception $e) {
+            \Log::error('Error retrieving transactions', [
+                'user_ic' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json(['message' => 'Error retrieving transactions'], 500);
+        }
     }
 }

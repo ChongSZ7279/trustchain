@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
+import { 
+  FaTasks, 
+  FaFileAlt, 
+  FaImage, 
+  FaArrowLeft,
+  FaSave,
+  FaTimes,
+  FaExclamationTriangle,
+  FaInfoCircle,
+  FaClipboardList,
+  FaCheckCircle,
+  FaTrash,
+  FaUpload
+} from 'react-icons/fa';
 
 export default function TaskPictureManager() {
   const { taskId } = useParams();
@@ -196,138 +210,167 @@ export default function TaskPictureManager() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-gray-100 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Task Pictures: {task.name}
-              </h2>
-              <button
-                type="button"
-                onClick={() => navigate(`/charities/${task.charity.id}`)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Back to Charity
-              </button>
+        {/* Breadcrumb */}
+        <nav className="flex items-center text-gray-500 mb-6">
+          <Link 
+            to={`/charities/${task?.charity?.id}`} 
+            className="hover:text-gray-700 flex items-center"
+          >
+            <FaArrowLeft className="mr-2" />
+            Back to Charity
+          </Link>
+          <span className="mx-2">/</span>
+          <Link 
+            to={`/tasks/${taskId}`} 
+            className="hover:text-gray-700"
+          >
+            Task Details
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">Manage Pictures</span>
+        </nav>
+
+        <div className="bg-white shadow-sm rounded-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FaImage className="mr-3" />
+                Task Pictures: {task?.name}
+              </h1>
             </div>
 
             {error && (
-              <div className="mb-4 text-red-600">
-                {error}
+              <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex items-center">
+                  <FaExclamationTriangle className="text-red-400 mr-2" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               </div>
             )}
-            
-            {/* Authentication Status */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700">Authentication Status</h3>
-              <p className="text-sm text-gray-600">
-                Token: {token ? 'Present ✓' : 'Missing ✗'}
-              </p>
-              <p className="text-sm text-gray-600">
-                Organization: {organization ? `${organization.name} (ID: ${organization.id}) ✓` : 'Missing ✗'}
-              </p>
-            </div>
 
-            {/* Task Details Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Task Details</h3>
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Name</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{task.name}</dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Status</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.slice(1)}
-                    </span>
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-gray-500">Description</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{task.description}</dd>
-                </div>
-              </dl>
-            </div>
-            
-            {/* Existing Pictures */}
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Current Pictures</h3>
-              {taskPictures.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {taskPictures.map(picture => (
-                    <div key={picture.id} className="border rounded-lg overflow-hidden bg-white shadow">
-                      <div className="h-48 overflow-hidden">
-                        <img 
-                          src={formatImageUrl(picture.path)} 
-                          alt="Task picture" 
-                          className="w-full h-full object-cover"
-                        />
+            <div className="space-y-8">
+              {/* Task Details Summary */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <FaInfoCircle className="mr-2" />
+                  Task Details
+                </h2>
+                <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Name</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{task?.name}</dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Status</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        task?.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        task?.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {task?.status?.replace('_', ' ').charAt(0).toUpperCase() + task?.status?.slice(1)}
+                      </span>
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-gray-500">Description</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{task?.description}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Current Pictures */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <FaImage className="mr-2" />
+                  Current Pictures
+                </h2>
+                {taskPictures.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {taskPictures.map(picture => (
+                      <div key={picture.id} className="border rounded-lg overflow-hidden bg-white shadow">
+                        <div className="h-48 overflow-hidden">
+                          <img 
+                            src={formatImageUrl(picture.path)} 
+                            alt="Task picture" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="p-4">
+                          <p className="text-sm text-gray-500">
+                            Uploaded: {new Date(picture.created_at).toLocaleString()}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePicture(picture.id)}
+                            className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded text-red-700 bg-red-100 hover:bg-red-200"
+                          >
+                            <FaTrash className="mr-2" />
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                      <div className="p-4">
-                        <p className="text-sm text-gray-500">
-                          Uploaded: {new Date(picture.created_at).toLocaleString()}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => handleDeletePicture(picture.id)}
-                          className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded text-red-700 bg-red-100 hover:bg-red-200"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500">No pictures have been added to this task yet.</p>
-              )}
-            </div>
-            
-            {/* Add New Picture */}
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Add New Picture</h3>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="task-picture" className="block text-sm font-medium text-gray-700">
-                    Select Picture
-                  </label>
-                  <input
-                    type="file"
-                    id="task-picture"
-                    accept="image/*"
-                    onChange={handlePictureChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                </div>
-                
-                {picturePreview && (
-                  <div className="mt-2">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
-                    <img 
-                      src={picturePreview} 
-                      alt="Preview" 
-                      className="h-40 w-auto object-cover rounded-lg"
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No pictures have been added to this task yet.</p>
+                )}
+              </div>
+
+              {/* Add New Picture */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <FaUpload className="mr-2" />
+                  Add New Picture
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="task-picture" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaImage className="mr-2" />
+                      Select Picture
+                    </label>
+                    <input
+                      type="file"
+                      id="task-picture"
+                      accept="image/*"
+                      onChange={handlePictureChange}
+                      className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                     />
                   </div>
-                )}
-                
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleAddPicture}
-                    disabled={!newPicture || loading}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {loading ? 'Uploading...' : 'Upload Picture'}
-                  </button>
+                  
+                  {picturePreview && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
+                      <img 
+                        src={picturePreview} 
+                        alt="Preview" 
+                        className="h-40 w-auto object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+                  
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleAddPicture}
+                      disabled={!newPicture || loading}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <FaUpload className="mr-2" />
+                          Upload Picture
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

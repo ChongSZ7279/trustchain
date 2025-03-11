@@ -1,65 +1,30 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import charityImage from '../assets/image/charity-8366471_1280.png';
+import childrenImage from '../assets/image/children-5833685_1280.jpg';
+import handImage from '../assets/image/hand-4806608_1280.jpg';
+import smileImage from '../assets/image/smile-7400381_1280.jpg';
+import africanImage from '../assets/image/african-2044961_1280.jpg';
+import jonathon from '../assets/image/Jonat.jpg';
+import sally from '../assets/image/Sally2.png';
+import weiwen from '../assets/image/WeiWen2.png';
+import siewzhen from '../assets/image/SiewZhen.png';
 
 const Home = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
-  return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Navbar */}
-            <nav className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                            <Link to="/" className="text-xl font-bold text-indigo-600">
-                                TrustChain
-                            </Link>
-                            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                                <a href="#about" className="text-gray-500 hover:text-gray-700 px-3 py-2">
-                                    About Us
-                                </a>
-                                <a href="#team" className="text-gray-500 hover:text-gray-700 px-3 py-2">
-                                    Our Team
-                                </a>
-                                <a href="#contact" className="text-gray-500 hover:text-gray-700 px-3 py-2">
-                                    Contact
-                                </a>
-                            </div>
-                        </div>
-                        <div className="flex items-center">
-                            {!user ? (
-                                <>
-                                    <Link
-                                        to="/login"
-                                        className="text-gray-500 hover:text-gray-700 px-3 py-2"
-                                    >
-                                        Login
-                                    </Link>
-                                    <Link
-                                        to="/register"
-                                        className="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                                    >
-                                        Register
-                                    </Link>
-                                </>
-                            ) : (
-                                <Link
-                                    to="/dashboard"
-                                    className="text-gray-500 hover:text-gray-700 px-3 py-2"
-                                >
-                                    Dashboard
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            {/* Hero Section */}
+    return (
+        <div>
+            {/* Hero Section with Welcome Quote */}
             <div className="relative overflow-hidden">
                 <div className="absolute inset-0">
+                    <img
+                        className="h-full w-full object-cover"
+                        src={charityImage}
+                        alt="Charity background"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-500 mix-blend-multiply" />
                 </div>
                 <div className="relative px-4 py-16 sm:px-6 sm:py-24 lg:py-32 lg:px-8">
@@ -68,8 +33,7 @@ const Home = () => {
                         <span className="block text-indigo-200">Building Trust Through Transparency</span>
                     </h1>
                     <p className="mt-6 max-w-lg mx-auto text-center text-xl text-indigo-100 sm:max-w-3xl">
-                        Join our platform to connect with trusted organizations and individuals. 
-                        We provide a secure and transparent environment for collaboration and growth.
+                        "The best way to find yourself is to lose yourself in the service of others." - Mahatma Gandhi
                     </p>
                     <div className="mt-10 max-w-sm mx-auto sm:max-w-none sm:flex sm:justify-center">
                         <div className="space-y-4 sm:space-y-0 sm:space-x-4">
@@ -77,72 +41,198 @@ const Home = () => {
                                 onClick={() => navigate('/login')}
                                 className="flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 sm:px-10"
                             >
-                                Sign In
+                                Get Started
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Features Section */}
+            {/* About Us Section */}
+            <div id="about" className="py-16 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="lg:text-center">
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">About Us</h2>
+                        <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            Our Story
+                        </p>
+                    </div>
+                    <div className="mt-10">
+                        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2">
+                            <div className="relative">
+                                <img
+                                    src={childrenImage}
+                                    alt="Children in need"
+                                    className="rounded-lg shadow-lg"
+                                />
+                            </div>
+                            <div className="space-y-6">
+                                <p className="text-lg text-gray-500">
+                                    TrustChain was founded with a simple mission: to revolutionize charitable giving through blockchain technology. We believe that transparency and trust are the cornerstones of effective philanthropy.
+                                </p>
+                                <p className="text-lg text-gray-500">
+                                    Our platform connects donors with verified charitable organizations, ensuring that every contribution makes a real difference in the lives of those in need.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Mission and Vision Section */}
+            <div className="py-16 bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                        {/* Mission */}
+                        <div className="bg-white p-8 rounded-lg shadow-lg">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Mission</h3>
+                            <p className="text-gray-600">
+                                To create a transparent and efficient platform that connects donors with charitable organizations, ensuring that every contribution reaches those in need through blockchain-powered verification and tracking.
+                            </p>
+                        </div>
+                        {/* Vision */}
+                        <div className="bg-white p-8 rounded-lg shadow-lg">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Vision</h3>
+                            <p className="text-gray-600">
+                                To become the world's leading blockchain-based charitable platform, setting new standards for transparency and trust in philanthropy while making a lasting impact on global communities.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Testimonials Section */}
             <div className="py-16 bg-white">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="lg:text-center">
-                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">
-                            Features
-                        </h2>
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Testimonials</h2>
                         <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                            Choose Your Path
+                            What Our Community Says
                         </p>
                     </div>
-
-                    <div className="mt-16">
-                        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-                            {/* Individual User Card */}
-                            <div 
-                                onClick={() => navigate('/register/user')}
-                                className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                            >
-                                <div>
-                                    <span className="rounded-lg inline-flex p-3 bg-indigo-50 text-indigo-700 ring-4 ring-white">
-                                        {/* User Icon */}
-                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                    </span>
+                    <div className="mt-10">
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+                            {/* Testimonial 1 */}
+                            <div className="bg-gray-50 p-6 rounded-lg">
+                                <div className="flex items-center mb-4">
+                                    <img
+                                        src={handImage}
+                                        alt="Testimonial 1"
+                                        className="h-12 w-12 rounded-full object-cover"
+                                    />
+                                    <div className="ml-4">
+                                        <h4 className="text-lg font-semibold">Sarah Johnson</h4>
+                                        <p className="text-gray-500">Regular Donor</p>
+                                    </div>
                                 </div>
-                                <div className="mt-8">
-                                    <h3 className="text-lg font-medium">
-                                        <span className="absolute inset-0" aria-hidden="true" />
-                                        Register as Individual
-                                    </h3>
-                                    <p className="mt-2 text-sm text-gray-500">
-                                        Create your personal account to connect with organizations and manage your identity securely.
-                                    </p>
+                                <p className="text-gray-600">
+                                    "TrustChain has transformed how I give back. The transparency and tracking features give me confidence that my donations are making a real difference."
+                                </p>
+                            </div>
+                            {/* Testimonial 2 */}
+                            <div className="bg-gray-50 p-6 rounded-lg">
+                                <div className="flex items-center mb-4">
+                                    <img
+                                        src={smileImage}
+                                        alt="Testimonial 2"
+                                        className="h-12 w-12 rounded-full object-cover"
+                                    />
+                                    <div className="ml-4">
+                                        <h4 className="text-lg font-semibold">Michael Chen</h4>
+                                        <p className="text-gray-500">Charity Director</p>
+                                    </div>
+                                </div>
+                                <p className="text-gray-600">
+                                    "As a charity director, I appreciate how TrustChain helps us maintain transparency and build trust with our donors. It's revolutionized our fundraising efforts."
+                                </p>
+                            </div>
+                            {/* Testimonial 3 */}
+                            <div className="bg-gray-50 p-6 rounded-lg">
+                                <div className="flex items-center mb-4">
+                                    <img
+                                        src={africanImage}
+                                        alt="Testimonial 3"
+                                        className="h-12 w-12 rounded-full object-cover"
+                                    />
+                                    <div className="ml-4">
+                                        <h4 className="text-lg font-semibold">David Okafor</h4>
+                                        <p className="text-gray-500">Community Leader</p>
+                                    </div>
+                                </div>
+                                <p className="text-gray-600">
+                                    "The impact of TrustChain in our community has been incredible. It's helped us connect with donors and show them exactly how their contributions help."
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Management Team Section */}
+            <div id="team" className="py-16 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="lg:text-center">
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Our Team</h2>
+                        <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            Meet the People Behind TrustChain
+                        </p>
+                    </div>
+                    <div className="mt-10">
+                        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                            {/* Team Member 1 */}
+                            <div className="text-center">
+                                <div className="relative">
+                                    <img
+                                        src={jonathon}
+                                        alt="Team member"
+                                        className="mx-auto h-32 w-32 rounded-full object-cover"
+                                    />
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-lg font-medium text-gray-900">Jonathon</h3>
+                                    <p className="text-sm text-gray-500">Backend Developer</p>
                                 </div>
                             </div>
-
-                            {/* Organization Card */}
-                            <div 
-                                onClick={() => navigate('/register/organization')}
-                                className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                            >
-                                <div>
-                                    <span className="rounded-lg inline-flex p-3 bg-indigo-50 text-indigo-700 ring-4 ring-white">
-                                        {/* Building Icon */}
-                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                        </svg>
-                                    </span>
+                            {/* Team Member 2 */}
+                            <div className="text-center">
+                                <div className="relative">
+                                    <img
+                                        src={sally}
+                                        alt="Team member"
+                                        className="mx-auto h-32 w-32 rounded-full object-cover"
+                                    />
                                 </div>
-                                <div className="mt-8">
-                                    <h3 className="text-lg font-medium">
-                                        <span className="absolute inset-0" aria-hidden="true" />
-                                        Register as Organization
-                                    </h3>
-                                    <p className="mt-2 text-sm text-gray-500">
-                                        Establish your organization's presence and build trust with verified documentation and transparency.
-                                    </p>
+                                <div className="mt-4">
+                                    <h3 className="text-lg font-medium text-gray-900">Sally</h3>
+                                    <p className="text-sm text-gray-500">Frontend Developer</p>
+                                </div>
+                            </div>
+                            {/* Team Member 3 */}
+                            <div className="text-center">
+                                <div className="relative">
+                                    <img
+                                        src={weiwen}
+                                        alt="Team member"
+                                        className="mx-auto h-32 w-32 rounded-full object-cover" 
+                                    />
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-lg font-medium text-gray-900">Weiwen</h3>
+                                    <p className="text-sm text-gray-500">UI UX Designer</p>
+                                </div>
+                            </div>
+                            {/* Team Member 4 */}
+                            <div className="text-center">
+                                <div className="relative">
+                                    <img
+                                        src={siewzhen}
+                                        alt="Team member"
+                                        className="mx-auto h-32 w-32 rounded-full object-cover"
+                                    />
+                                </div>
+                                <div className="mt-4">
+                                    <h3 className="text-lg font-medium text-gray-900">Siew Zhen</h3>
+                                    <p className="text-sm text-gray-500">Full Stack Developer</p>
                                 </div>
                             </div>
                         </div>
@@ -150,43 +240,84 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* Trust Indicators */}
-            <div className="bg-gray-50 pt-12 sm:pt-16">
+            {/* Contact Section */}
+            <div id="contact" className="py-16 bg-gray-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                            Trusted by organizations and individuals
-                        </h2>
-                        <p className="mt-3 text-xl text-gray-500 sm:mt-4">
-                            Join our growing community of verified users and organizations.
+                    <div className="lg:text-center">
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Contact Us</h2>
+                        <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            Get in Touch
                         </p>
                     </div>
-                </div>
-                <div className="mt-10 pb-12 bg-white sm:pb-16">
-                    <div className="relative">
-                        <div className="absolute inset-0 h-1/2 bg-gray-50" />
-                        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="max-w-4xl mx-auto">
-                                <dl className="rounded-lg bg-white shadow-lg sm:grid sm:grid-cols-3">
-                                    <div className="flex flex-col border-b border-gray-100 p-6 text-center sm:border-0 sm:border-r">
-                                        <dt className="order-2 mt-2 text-lg leading-6 font-medium text-gray-500">
-                                            Verified Users
-                                        </dt>
-                                        <dd className="order-1 text-5xl font-extrabold text-indigo-600">100%</dd>
+                    <div className="mt-10">
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                            {/* Contact Form */}
+                            <div className="bg-white p-8 rounded-lg shadow-lg">
+                                <form className="space-y-6">
+                                    <div>
+                                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                            Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="name"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
                                     </div>
-                                    <div className="flex flex-col border-t border-b border-gray-100 p-6 text-center sm:border-0 sm:border-l sm:border-r">
-                                        <dt className="order-2 mt-2 text-lg leading-6 font-medium text-gray-500">
-                                            Security
-                                        </dt>
-                                        <dd className="order-1 text-5xl font-extrabold text-indigo-600">24/7</dd>
+                                    <div>
+                                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                            Email
+                                        </label>
+                                        <input
+                                            type="email"
+                                            id="email"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
                                     </div>
-                                    <div className="flex flex-col border-t border-gray-100 p-6 text-center sm:border-0 sm:border-l">
-                                        <dt className="order-2 mt-2 text-lg leading-6 font-medium text-gray-500">
-                                            Transparency
-                                        </dt>
-                                        <dd className="order-1 text-5xl font-extrabold text-indigo-600">100%</dd>
+                                    <div>
+                                        <label htmlFor="message" className="block text-sm font-medium text-gray-700">
+                                            Message
+                                        </label>
+                                        <textarea
+                                            id="message"
+                                            rows={4}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        ></textarea>
                                     </div>
-                                </dl>
+                                    <div>
+                                        <button
+                                            type="submit"
+                                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                        >
+                                            Send Message
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            {/* Contact Information */}
+                            <div className="bg-white p-8 rounded-lg shadow-lg">
+                                <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center">
+                                        <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                        </svg>
+                                        <span className="ml-3 text-gray-600">+1 (555) 123-4567</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                        <span className="ml-3 text-gray-600">info@trustchain.org</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <span className="ml-3 text-gray-600">123 Charity Lane, Blockchain City</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

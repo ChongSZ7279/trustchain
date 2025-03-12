@@ -21,6 +21,8 @@ import UserEdit from './components/UserEdit';
 import TransactionList from './components/TransactionList';
 import TransactionDetails from './components/TransactionDetails';
 import TermsAndConditions from './pages/TermsAndConditions';
+import DonationForm from './components/DonationForm';
+
 
 const router = createBrowserRouter([
   {
@@ -115,6 +117,10 @@ const router = createBrowserRouter([
       {
         path: '/charities/:id/tasks/create',
         element: <TaskForm />
+      },
+      {
+        path: '/charities/:id/donate',
+        element: <DonationForm />
       },
       {
         path: 'tasks/:taskId/edit',

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import BlockchainExplainer from './BlockchainExplainer';
 import charityImage from '../assets/image/charity-8366471_1280.png';
 import childrenImage from '../assets/image/children-5833685_1280.jpg';
 import handImage from '../assets/image/hand-4806608_1280.jpg';
@@ -10,10 +11,39 @@ import jonathon from '../assets/image/Jonat.jpg';
 import sally from '../assets/image/Sally2.png';
 import weiwen from '../assets/image/WeiWen2.png';
 import siewzhen from '../assets/image/SiewZhen.png';
+import { FaHandHoldingHeart, FaChartLine, FaLock, FaEthereum } from 'react-icons/fa';
 
 const Home = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+
+    // Sample featured charities (in a real app, these would come from an API)
+    const featuredCharities = [
+        {
+            id: 1,
+            name: "Clean Water Initiative",
+            description: "Providing clean water to communities in need around the world.",
+            image: africanImage,
+            progress: 65,
+            goal: 50000
+        },
+        {
+            id: 2,
+            name: "Children's Education Fund",
+            description: "Supporting education for underprivileged children globally.",
+            image: childrenImage,
+            progress: 42,
+            goal: 75000
+        },
+        {
+            id: 3,
+            name: "Disaster Relief Program",
+            description: "Immediate assistance for communities affected by natural disasters.",
+            image: handImage,
+            progress: 78,
+            goal: 100000
+        }
+    ];
 
     return (
         <div>
@@ -38,6 +68,12 @@ const Home = () => {
                     <div className="mt-10 max-w-sm mx-auto sm:max-w-none sm:flex sm:justify-center">
                         <div className="space-y-4 sm:space-y-0 sm:space-x-4">
                             <button
+                                onClick={() => navigate('/charities')}
+                                className="flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 sm:px-10"
+                            >
+                                Donate Now
+                            </button>
+                            <button
                                 onClick={() => navigate('/login')}
                                 className="flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 sm:px-10"
                             >
@@ -47,6 +83,161 @@ const Home = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Key Benefits Section */}
+            <div className="py-12 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="lg:text-center">
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Benefits</h2>
+                        <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            Why Choose TrustChain?
+                        </p>
+                        <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+                            Our blockchain-powered platform ensures your donations make a real impact.
+                        </p>
+                    </div>
+
+                    <div className="mt-10">
+                        <div className="space-y-10 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-10">
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
+                                        <FaLock className="h-6 w-6" />
+                                    </div>
+                                </div>
+                                <div className="ml-4">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900">Complete Transparency</h3>
+                                    <p className="mt-2 text-base text-gray-500">
+                                        Every donation is recorded on the blockchain, creating an immutable record that anyone can verify.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
+                                        <FaHandHoldingHeart className="h-6 w-6" />
+                                    </div>
+                                </div>
+                                <div className="ml-4">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900">Direct Impact</h3>
+                                    <p className="mt-2 text-base text-gray-500">
+                                        Fund specific tasks and track exactly how your donation is making a difference.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
+                                        <FaChartLine className="h-6 w-6" />
+                                    </div>
+                                </div>
+                                <div className="ml-4">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900">Real-Time Tracking</h3>
+                                    <p className="mt-2 text-base text-gray-500">
+                                        Monitor the progress of projects and see your contributions at work in real-time.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
+                                        <FaEthereum className="h-6 w-6" />
+                                    </div>
+                                </div>
+                                <div className="ml-4">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900">Blockchain Security</h3>
+                                    <p className="mt-2 text-base text-gray-500">
+                                        Smart contracts ensure funds are only released when predefined conditions are met.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Featured Charities Section */}
+            <div className="py-12 bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center">
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Featured Causes</h2>
+                        <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            Make a Difference Today
+                        </p>
+                        <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
+                            Support these verified charitable organizations and track your impact in real-time.
+                        </p>
+                    </div>
+
+                    <div className="mt-10 grid gap-8 md:grid-cols-3">
+                        {featuredCharities.map((charity) => (
+                            <div key={charity.id} className="bg-white overflow-hidden shadow rounded-lg">
+                                <div className="h-48 w-full overflow-hidden">
+                                    <img 
+                                        src={charity.image} 
+                                        alt={charity.name} 
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="px-4 py-5 sm:p-6">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900">{charity.name}</h3>
+                                    <p className="mt-1 text-sm text-gray-500">{charity.description}</p>
+                                    
+                                    <div className="mt-4">
+                                        <div className="relative pt-1">
+                                            <div className="flex mb-2 items-center justify-between">
+                                                <div>
+                                                    <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-600 bg-indigo-200">
+                                                        Progress
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xs font-semibold inline-block text-indigo-600">
+                                                        {charity.progress}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-indigo-200">
+                                                <div 
+                                                    style={{ width: `${charity.progress}%` }} 
+                                                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"
+                                                ></div>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-gray-500">
+                                            Goal: ${charity.goal.toLocaleString()}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="mt-5">
+                                        <button
+                                            onClick={() => navigate(`/charities/${charity.id}`)}
+                                            className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                        >
+                                            Donate Now
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="mt-10 text-center">
+                        <Link
+                            to="/charities"
+                            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            View All Charities
+                        </Link>
+                    </div>
+                </div>
+            </div>
+
+            {/* Blockchain Explainer Section */}
+            <BlockchainExplainer />
 
             {/* About Us Section */}
             <div id="about" className="py-16 bg-white">

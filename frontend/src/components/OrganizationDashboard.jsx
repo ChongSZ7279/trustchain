@@ -53,8 +53,8 @@ export default function OrganizationDashboard() {
         
         // Fetch organization's charities
         try {
-          const charitiesResponse = await axios.get(`/api/organizations/${organization.id}/charities`);
-          setCharities(charitiesResponse.data);
+        const charitiesResponse = await axios.get(`/api/organizations/${organization.id}/charities`);
+        setCharities(charitiesResponse.data);
         } catch (err) {
           console.error('Error fetching charities:', err);
           setCharities([]); // Set empty array if charities endpoint fails
@@ -124,7 +124,7 @@ export default function OrganizationDashboard() {
               </div>
             </div>
           </div>
-          
+
           {/* Tabs */}
           <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex space-x-8">
@@ -179,10 +179,10 @@ export default function OrganizationDashboard() {
           {activeTab === 'charity' && (
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                  <h2 className="text-lg font-medium text-gray-900 flex items-center">
                   <FaChartBar className="mr-2" />
                   My Charities
-                </h2>
+                  </h2>
                 <Link
                   to="/charities/create"
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
@@ -223,7 +223,7 @@ export default function OrganizationDashboard() {
                             <span className="text-gray-500">Progress</span>
                             <span className="text-gray-900 font-medium">
                               ${charity.fund_received} / ${charity.fund_targeted}
-                            </span>
+                          </span>
                           </div>
                           <div className="mt-2 relative">
                             <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
@@ -237,8 +237,8 @@ export default function OrganizationDashboard() {
                                 className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"
                               ></div>
                             </div>
-                          </div>
-                        </div>
+                      </div>
+                    </div>
                         <div className="mt-4 flex justify-between items-center">
                           <Link
                             to={`/charities/${charity.id}`}
@@ -254,7 +254,7 @@ export default function OrganizationDashboard() {
                             <FaEdit className="mr-2" />
                             Edit
                           </Link>
-                        </div>
+                      </div>
                       </div>
                     </div>
                   ))}
@@ -267,69 +267,69 @@ export default function OrganizationDashboard() {
           {activeTab === 'contact' && (
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <FaPhone className="mr-2" />
-                Contact Information
+                          <FaPhone className="mr-2" />
+                          Contact Information
               </h2>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
+                      <div>
                   <h3 className="text-sm font-medium text-gray-500">Contact Details</h3>
                   <div className="mt-4 space-y-4">
                     <div className="flex items-center">
                       <FaPhone className="text-gray-400 mr-2" />
                       <span className="text-gray-900">{organization.phone_number}</span>
-                    </div>
+                      </div>
                     <div className="flex items-center">
                       <FaEnvelope className="text-gray-400 mr-2" />
                       <span className="text-gray-900">{organization.gmail}</span>
-                    </div>
+                        </div>
                     <div className="flex items-center">
                       <FaMapMarkerAlt className="text-gray-400 mr-2" />
                       <span className="text-gray-900">{organization.register_address}</span>
                     </div>
                   </div>
-                </div>
+                    </div>
 
-                <div>
+                      <div>
                   <h3 className="text-sm font-medium text-gray-500">Social Media</h3>
                   <div className="mt-4 space-y-4">
-                    {organization.website && (
-                      <a
-                        href={organization.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                          {organization.website && (
+                            <a
+                              href={organization.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
-                      >
+                            >
                         <FaGlobe className="mr-2" />
-                        Website
-                      </a>
-                    )}
-                    {organization.facebook && (
-                      <a
-                        href={organization.facebook}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                              Website
+                            </a>
+                          )}
+                          {organization.facebook && (
+                            <a
+                              href={organization.facebook}
+                              target="_blank"
+                              rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
-                      >
-                        <FaFacebook className="mr-2" />
-                        Facebook
-                      </a>
-                    )}
-                    {organization.instagram && (
-                      <a
-                        href={organization.instagram}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                            >
+                              <FaFacebook className="mr-2" />
+                              Facebook
+                            </a>
+                          )}
+                          {organization.instagram && (
+                            <a
+                              href={organization.instagram}
+                              target="_blank"
+                              rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
-                      >
-                        <FaInstagram className="mr-2" />
-                        Instagram
-                      </a>
-                    )}
+                            >
+                              <FaInstagram className="mr-2" />
+                              Instagram
+                            </a>
+                          )}
+                        </div>
+                      </div>
                   </div>
                 </div>
-              </div>
-            </div>
           )}
 
           {/* Representative Tab */}
@@ -347,7 +347,7 @@ export default function OrganizationDashboard() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Name</label>
                       <p className="mt-1 text-sm text-gray-900">{organization.representative_name}</p>
-                    </div>
+                      </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">IC Number</label>
                       <p className="mt-1 text-sm text-gray-900">{organization.representative_ic}</p>
@@ -355,7 +355,7 @@ export default function OrganizationDashboard() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Phone Number</label>
                       <p className="mt-1 text-sm text-gray-900">{organization.representative_phone}</p>
-                    </div>
+                      </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Email</label>
                       <p className="mt-1 text-sm text-gray-900">{organization.representative_email}</p>
@@ -388,7 +388,7 @@ export default function OrganizationDashboard() {
                     </div>
                   </div>
                 </div>
-              </div>
+                </div>
             </div>
           )}
 
@@ -399,7 +399,7 @@ export default function OrganizationDashboard() {
                 <FaHistory className="mr-2" />
                 Transaction History
               </h2>
-
+              
               {loading ? (
                 <div className="flex justify-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>

@@ -104,7 +104,7 @@ export default function OrganizationDetails() {
               <div className="flex-shrink-0">
                 <img
                   src={formatImageUrl(orgData.logo)}
-                  alt={orgData.name}
+                alt={orgData.name}
                   className="h-24 w-24 rounded-lg object-cover bg-gray-100"
                   onError={(e) => {
                     e.target.src = 'https://via.placeholder.com/96?text=Logo';
@@ -116,17 +116,17 @@ export default function OrganizationDetails() {
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900 truncate">{orgData.name}</h1>
                     <p className="text-sm text-gray-500">{orgData.category}</p>
-                  </div>
-                  {canEditOrganization() && (
-                    <button
-                      onClick={() => navigate(`/organizations/${id}/edit`)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
+            </div>
+              {canEditOrganization() && (
+                <button
+                  onClick={() => navigate(`/organizations/${id}/edit`)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                >
                       <FaEdit className="mr-2" />
-                      Edit Organization
-                    </button>
-                  )}
-                </div>
+                  Edit Organization
+                </button>
+              )}
+            </div>
                 <div className="mt-4">
                   <p className="text-gray-700">{orgData.description}</p>
                 </div>
@@ -146,11 +146,11 @@ export default function OrganizationDetails() {
                       Verification Pending
                     </span>
                   )}
-                </div>
+          </div>
               </div>
             </div>
           </div>
-        </div>
+              </div>
 
         {/* Tabs */}
         <div className="bg-white shadow-sm rounded-lg">
@@ -190,7 +190,7 @@ export default function OrganizationDetails() {
                 Contact & Documentation
               </button>
             </nav>
-          </div>
+              </div>
 
           <div className="p-6">
             {/* Charities Tab */}
@@ -280,13 +280,13 @@ export default function OrganizationDetails() {
                     <div className="sm:col-span-1">
                       <dt className="text-sm font-medium text-gray-500">Representative Name</dt>
                       <dd className="mt-1 text-sm text-gray-900">{orgData.representative_name}</dd>
-                    </div>
-                    {orgData.wallet_address && (
-                      <div className="sm:col-span-2">
-                        <dt className="text-sm font-medium text-gray-500">Wallet Address</dt>
-                        <dd className="mt-1 text-sm text-gray-900 font-mono">{orgData.wallet_address}</dd>
-                      </div>
-                    )}
+              </div>
+              {orgData.wallet_address && (
+                <div className="sm:col-span-2">
+                  <dt className="text-sm font-medium text-gray-500">Wallet Address</dt>
+                  <dd className="mt-1 text-sm text-gray-900 font-mono">{orgData.wallet_address}</dd>
+                </div>
+              )}
                   </dl>
                 </div>
               </div>
@@ -326,48 +326,48 @@ export default function OrganizationDetails() {
                 </div>
 
                 {/* Social Media */}
-                {(orgData.website || orgData.facebook || orgData.instagram) && (
+              {(orgData.website || orgData.facebook || orgData.instagram) && (
                   <div>
                     <h2 className="text-lg font-medium text-gray-900 mb-6">Social Media</h2>
                     <div className="bg-gray-50 rounded-lg p-6">
                       <div className="space-y-4">
-                        {orgData.website && (
-                          <a
-                            href={orgData.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                      {orgData.website && (
+                        <a
+                          href={orgData.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
                             className="flex items-center text-indigo-600 hover:text-indigo-900"
-                          >
+                        >
                             <FaGlobe className="mr-2" />
                             <span className="text-sm">Website</span>
-                          </a>
-                        )}
-                        {orgData.facebook && (
-                          <a
-                            href={orgData.facebook}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        </a>
+                      )}
+                      {orgData.facebook && (
+                        <a
+                          href={orgData.facebook}
+                          target="_blank"
+                          rel="noopener noreferrer"
                             className="flex items-center text-indigo-600 hover:text-indigo-900"
-                          >
+                        >
                             <FaFacebook className="mr-2" />
                             <span className="text-sm">Facebook</span>
-                          </a>
-                        )}
-                        {orgData.instagram && (
-                          <a
-                            href={orgData.instagram}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        </a>
+                      )}
+                      {orgData.instagram && (
+                        <a
+                          href={orgData.instagram}
+                          target="_blank"
+                          rel="noopener noreferrer"
                             className="flex items-center text-indigo-600 hover:text-indigo-900"
-                          >
+                        >
                             <FaInstagram className="mr-2" />
                             <span className="text-sm">Instagram</span>
-                          </a>
-                        )}
+                        </a>
+                      )}
                       </div>
                     </div>
-                  </div>
-                )}
+                </div>
+              )}
 
                 {/* Documentation */}
                 <div>
@@ -391,7 +391,7 @@ export default function OrganizationDetails() {
                         ) : (
                           <p className="mt-2 text-sm text-gray-500">No document available</p>
                         )}
-                      </div>
+                </div>
                       <div>
                         <h3 className="text-sm font-medium text-gray-900 flex items-center">
                           <FaFileAlt className="mr-2" />
@@ -409,13 +409,13 @@ export default function OrganizationDetails() {
                         ) : (
                           <p className="mt-2 text-sm text-gray-500">No document available</p>
                         )}
-                      </div>
+                  </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-          </div>
+            </div>
         </div>
       </div>
     </div>

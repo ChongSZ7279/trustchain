@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,7 +20,21 @@ export default function UserRegistration() {
     front_ic_picture: null,
     back_ic_picture: null
   });
+  const [previews, setPreviews] = useState({
+    profile_picture: null,
+    front_ic_picture: null,
+    back_ic_picture: null
+  });
   const [formErrors, setFormErrors] = useState({});
+
+  // Cleanup preview URLs when component unmounts or files change
+  useEffect(() => {
+    return () => {
+      Object.values(previews).forEach(url => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, [previews]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,7 +47,18 @@ export default function UserRegistration() {
   const handleFileChange = (e) => {
     const { name, files: uploadedFiles } = e.target;
     if (uploadedFiles.length > 0) {
-      setFiles(prev => ({ ...prev, [name]: uploadedFiles[0] }));
+      // Clean up previous preview URL
+      if (previews[name]) {
+        URL.revokeObjectURL(previews[name]);
+      }
+      
+      const file = uploadedFiles[0];
+      setFiles(prev => ({ ...prev, [name]: file }));
+      setPreviews(prev => ({ 
+        ...prev, 
+        [name]: URL.createObjectURL(file)
+      }));
+      
       if (formErrors[name]) {
         setFormErrors(prev => ({ ...prev, [name]: '' }));
       }
@@ -271,7 +296,7 @@ export default function UserRegistration() {
               <label htmlFor="profile_picture" className="block text-sm font-medium text-gray-700">
                 Profile Picture (Optional)
               </label>
-              <div className="mt-1">
+              <div className="mt-1 flex items-center space-x-4">
                 <input
                   type="file"
                   name="profile_picture"
@@ -280,6 +305,26 @@ export default function UserRegistration() {
                   onChange={handleFileChange}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
+                {previews.profile_picture && (
+                  <div className="relative w-20 h-20">
+                    <img
+                      src={previews.profile_picture}
+                      alt="Profile preview"
+                      className="object-cover w-full h-full rounded-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        URL.revokeObjectURL(previews.profile_picture);
+                        setPreviews(prev => ({ ...prev, profile_picture: null }));
+                        setFiles(prev => ({ ...prev, profile_picture: null }));
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
                 {formErrors.profile_picture && (
                   <p className="mt-2 text-sm text-red-600">{formErrors.profile_picture}</p>
                 )}
@@ -291,7 +336,7 @@ export default function UserRegistration() {
               <label htmlFor="front_ic_picture" className="block text-sm font-medium text-gray-700">
                 Front IC Picture
               </label>
-              <div className="mt-1">
+              <div className="mt-1 space-y-2">
                 <input
                   type="file"
                   name="front_ic_picture"
@@ -300,6 +345,26 @@ export default function UserRegistration() {
                   onChange={handleFileChange}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
+                {previews.front_ic_picture && (
+                  <div className="relative">
+                    <img
+                      src={previews.front_ic_picture}
+                      alt="Front IC preview"
+                      className="object-cover w-full h-40 rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        URL.revokeObjectURL(previews.front_ic_picture);
+                        setPreviews(prev => ({ ...prev, front_ic_picture: null }));
+                        setFiles(prev => ({ ...prev, front_ic_picture: null }));
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
                 {formErrors.front_ic_picture && (
                   <p className="mt-2 text-sm text-red-600">{formErrors.front_ic_picture}</p>
                 )}
@@ -311,7 +376,7 @@ export default function UserRegistration() {
               <label htmlFor="back_ic_picture" className="block text-sm font-medium text-gray-700">
                 Back IC Picture
               </label>
-              <div className="mt-1">
+              <div className="mt-1 space-y-2">
                 <input
                   type="file"
                   name="back_ic_picture"
@@ -320,6 +385,26 @@ export default function UserRegistration() {
                   onChange={handleFileChange}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
+                {previews.back_ic_picture && (
+                  <div className="relative">
+                    <img
+                      src={previews.back_ic_picture}
+                      alt="Back IC preview"
+                      className="object-cover w-full h-40 rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        URL.revokeObjectURL(previews.back_ic_picture);
+                        setPreviews(prev => ({ ...prev, back_ic_picture: null }));
+                        setFiles(prev => ({ ...prev, back_ic_picture: null }));
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
                 {formErrors.back_ic_picture && (
                   <p className="mt-2 text-sm text-red-600">{formErrors.back_ic_picture}</p>
                 )}

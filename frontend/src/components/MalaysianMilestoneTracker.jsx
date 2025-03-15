@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaCheckCircle, FaClock, FaExclamationTriangle, FaFileAlt, FaLock, FaUnlock } from 'react-icons/fa';
 import { useLocalization } from '../context/LocalizationContext';
 import { useBlockchain } from '../context/BlockchainContext';
+import axios from 'axios';
 
 const MalaysianMilestoneTracker = ({ 
   taskId, 
@@ -16,23 +17,31 @@ const MalaysianMilestoneTracker = ({
   const [loading, setLoading] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState(null);
-  const [verificationDocuments, setVerificationDocuments] = useState(null);
+  const [verificationDocuments, setVerificationDocuments] = useState([]);
   const [verificationNotes, setVerificationNotes] = useState('');
+  const [picturesUploaded, setPicturesUploaded] = useState(0);
+  const [proofUploaded, setProofUploaded] = useState(false);
+  const [showTaxReceipt, setShowTaxReceipt] = useState(false);
 
   useEffect(() => {
-    const fetchTaskBalance = async () => {
+    const fetchTaskData = async () => {
       try {
         setLoading(true);
-        const balance = await getTaskBalance(taskId);
+        const [balance, taskData] = await Promise.all([
+          getTaskBalance(taskId),
+          axios.get(`/api/tasks/${taskId}`)
+        ]);
         setTaskBalance(parseFloat(balance));
+        setPicturesUploaded(taskData.data.pictures_count || 0);
+        setProofUploaded(!!taskData.data.proof);
       } catch (error) {
-        console.error('Error fetching task balance:', error);
+        console.error('Error fetching task data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTaskBalance();
+    fetchTaskData();
   }, [taskId, getTaskBalance]);
 
   const handleMilestoneAction = (milestone, index) => {
@@ -44,38 +53,74 @@ const MalaysianMilestoneTracker = ({
     }
   };
 
-  const handleFileUpload = (e) => {
+  const handlePictureUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    const remainingSlots = 5 - picturesUploaded;
+    const filesToUpload = files.slice(0, remainingSlots);
+
+    try {
+      const formData = new FormData();
+      filesToUpload.forEach(file => {
+        formData.append('pictures[]', file);
+      });
+
+      const response = await axios.post(`/api/tasks/${taskId}/pictures`, formData);
+      setPicturesUploaded(prev => prev + response.data.length);
+    } catch (error) {
+      console.error('Error uploading pictures:', error);
+    }
+  };
+
+  const handleProofUpload = async (e) => {
     if (e.target.files && e.target.files[0]) {
-      setVerificationDocuments(e.target.files[0]);
+      try {
+        const formData = new FormData();
+        formData.append('proof', e.target.files[0]);
+
+        await axios.post(`/api/tasks/${taskId}/proof`, formData);
+        setProofUploaded(true);
+      } catch (error) {
+        console.error('Error uploading proof:', error);
+      }
     }
   };
 
   const handleVerificationSubmit = async (e) => {
     e.preventDefault();
     
-    if (!verificationDocuments) {
+    if (picturesUploaded < 5 || !proofUploaded) {
+      alert('Please upload 5 pictures and 1 proof document before submitting');
       return;
     }
-    
-    setLoading(true);
-    
-    // In a real application, you would upload the documents to your backend
-    // and trigger the smart contract to release funds for this milestone
-    
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      setShowVerificationModal(false);
-      
-      // Reset form
-      setVerificationDocuments(null);
-      setVerificationNotes('');
-      
-      // Notify parent component
+
+    try {
+      await axios.post(`/api/tasks/${taskId}/verify`);
       if (onMilestoneComplete) {
-        onMilestoneComplete(selectedMilestone, currentMilestoneIndex);
+        onMilestoneComplete(selectedMilestone);
       }
-    }, 2000);
+      setShowVerificationModal(false);
+      setShowTaxReceipt(true);
+    } catch (error) {
+      console.error('Error verifying milestone:', error);
+    }
+  };
+
+  const handleDownloadTaxReceipt = async () => {
+    try {
+      const response = await axios.get(`/api/tasks/${taskId}/tax-receipt`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `tax_receipt_${taskId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading tax receipt:', error);
+    }
   };
 
   const getMilestoneStatusIcon = (status) => {
@@ -138,6 +183,65 @@ const MalaysianMilestoneTracker = ({
           </p>
         )}
       </div>
+      
+      {/* Verification Requirements Status */}
+      {isOrganization && (
+        <div className="px-4 py-5 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Verification Requirements</h3>
+          <div className="mt-4 space-y-4">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">Pictures ({picturesUploaded}/5)</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePictureUpload}
+                  disabled={picturesUploaded >= 5}
+                  className="hidden"
+                  id="picture-upload"
+                />
+                <label
+                  htmlFor="picture-upload"
+                  className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                    picturesUploaded >= 5 ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {picturesUploaded >= 5 ? 'Complete' : 'Upload Pictures'}
+                </label>
+              </div>
+              <div className="mt-2 h-2 bg-gray-200 rounded-full">
+                <div
+                  className="h-2 bg-indigo-600 rounded-full"
+                  style={{ width: `${(picturesUploaded / 5) * 100}%` }}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">Proof Document</span>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleProofUpload}
+                  disabled={proofUploaded}
+                  className="hidden"
+                  id="proof-upload"
+                />
+                <label
+                  htmlFor="proof-upload"
+                  className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                    proofUploaded ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {proofUploaded ? 'Complete' : 'Upload Proof'}
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="border-t border-gray-200">
         <ul className="divide-y divide-gray-200">
@@ -280,7 +384,10 @@ const MalaysianMilestoneTracker = ({
                             name="verification-document-upload"
                             type="file"
                             className="sr-only"
-                            onChange={handleFileUpload}
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files);
+                              setVerificationDocuments(files);
+                            }}
                           />
                         </label>
                         <p className="pl-1">or drag and drop</p>
@@ -288,11 +395,11 @@ const MalaysianMilestoneTracker = ({
                       <p className="text-xs text-gray-500">
                         PDF, PNG, JPG up to 10MB
                       </p>
-                      {verificationDocuments && (
-                        <p className="text-xs text-green-500">
-                          <FaCheckCircle className="inline mr-1" /> {verificationDocuments.name}
+                      {verificationDocuments.map((document, index) => (
+                        <p key={index} className="text-xs text-green-500">
+                          <FaCheckCircle className="inline mr-1" /> {document.name}
                         </p>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -318,7 +425,7 @@ const MalaysianMilestoneTracker = ({
                   <button
                     type="submit"
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm"
-                    disabled={!verificationDocuments || loading}
+                    disabled={verificationDocuments.length < 1 || loading}
                   >
                     {loading ? 'Processing...' : 'Complete Milestone'}
                   </button>
@@ -331,6 +438,32 @@ const MalaysianMilestoneTracker = ({
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tax Receipt Modal */}
+      {showTaxReceipt && (
+        <div className="fixed z-10 inset-0 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Download Tax Receipt</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Your donation has been processed. You can now download your tax receipt.
+              </p>
+              <button
+                onClick={handleDownloadTaxReceipt}
+                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Download Tax Receipt
+              </button>
+              <button
+                onClick={() => setShowTaxReceipt(false)}
+                className="mt-2 w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

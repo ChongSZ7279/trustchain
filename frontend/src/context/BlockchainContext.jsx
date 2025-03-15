@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import CharityABI from '../contracts/CharityABI.json';
 import { useAuth } from './AuthContext';
+import { toast } from 'react-toastify';
 
 const BlockchainContext = createContext(null);
 
@@ -12,11 +13,13 @@ export const BlockchainProvider = ({ children }) => {
   const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [platformFee, setPlatformFee] = useState(1); // 1%
+  const [minDonationAmount, setMinDonationAmount] = useState('0.001');
   const [transactionHistory, setTransactionHistory] = useState([]);
   const { user, organization } = useAuth();
 
-  // Contract address - should be stored in an environment variable in production
-  const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // Example address
+  // Contract address from environment variable
+  const contractAddress = process.env.REACT_APP_CHARITY_CONTRACT_ADDRESS;
 
   useEffect(() => {
     const initBlockchain = async () => {
@@ -24,7 +27,6 @@ export const BlockchainProvider = ({ children }) => {
         setLoading(true);
         setError(null);
 
-        // Check if MetaMask is installed
         if (window.ethereum) {
           // Create a new provider
           const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -42,12 +44,24 @@ export const BlockchainProvider = ({ children }) => {
           const charityContract = new ethers.Contract(contractAddress, CharityABI, web3Signer);
           setContract(charityContract);
 
+          // Get platform fee and min donation amount
+          const fee = await charityContract.PLATFORM_FEE();
+          setPlatformFee(fee.toNumber());
+          
+          const minAmount = await charityContract.minDonationAmount();
+          setMinDonationAmount(ethers.utils.formatEther(minAmount));
+
           // Listen for account changes
           window.ethereum.on('accountsChanged', (accounts) => {
             setAccount(accounts[0]);
           });
+
+          // Listen for chain changes
+          window.ethereum.on('chainChanged', () => {
+            window.location.reload();
+          });
         } else {
-          setError('MetaMask is not installed. Please install it to use this application.');
+          setError('MetaMask is not installed. Please install it to use blockchain features.');
         }
       } catch (err) {
         console.error('Error initializing blockchain:', err);
@@ -59,13 +73,13 @@ export const BlockchainProvider = ({ children }) => {
 
     initBlockchain();
 
-    // Cleanup function
     return () => {
       if (window.ethereum) {
         window.ethereum.removeAllListeners('accountsChanged');
+        window.ethereum.removeAllListeners('chainChanged');
       }
     };
-  }, []);
+  }, [contractAddress]);
 
   // Fetch transaction history for the current user or organization
   useEffect(() => {
@@ -91,6 +105,17 @@ export const BlockchainProvider = ({ children }) => {
     fetchTransactionHistory();
   }, [contract, user, organization]);
 
+  // Calculate total amount including platform fee
+  const calculateTotalAmount = (amount) => {
+    const baseAmount = ethers.utils.parseEther(amount.toString());
+    const fee = baseAmount.mul(platformFee).div(100);
+    return {
+      baseAmount,
+      fee,
+      total: baseAmount.add(fee)
+    };
+  };
+
   // Donate to a charity
   const donateToCharity = async (charityId, amount) => {
     if (!contract || !signer) {
@@ -101,19 +126,26 @@ export const BlockchainProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Convert amount to wei (1 ether = 10^18 wei)
-      const amountInWei = ethers.utils.parseEther(amount.toString());
+      const { total } = calculateTotalAmount(amount);
 
-      // Call the donate function on the smart contract
-      const tx = await contract.donate(charityId, { value: amountInWei });
+      // Call the donate function
+      const tx = await contract.donate(charityId, { value: total });
       
       // Wait for the transaction to be mined
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      // Get the DonationReceived event
+      const event = receipt.events?.find(e => e.event === 'DonationReceived');
+      if (event) {
+        const [charityId, donor, amount, fee, timestamp] = event.args;
+        toast.success(`Donation of ${ethers.utils.formatEther(amount)} ETH successful!`);
+      }
 
       return tx;
     } catch (err) {
       console.error('Error donating to charity:', err);
-      setError('Transaction failed. Please try again.');
+      setError(err.message || 'Transaction failed. Please try again.');
+      toast.error(err.message || 'Transaction failed. Please try again.');
       throw err;
     } finally {
       setLoading(false);
@@ -130,22 +162,107 @@ export const BlockchainProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Convert amount to wei
-      const amountInWei = ethers.utils.parseEther(amount.toString());
+      const { total } = calculateTotalAmount(amount);
 
-      // Call the fundTask function on the smart contract
-      const tx = await contract.fundTask(taskId, { value: amountInWei });
+      // Call the fundTask function
+      const tx = await contract.fundTask(taskId, { value: total });
       
       // Wait for the transaction to be mined
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      // Get the TaskFunded event
+      const event = receipt.events?.find(e => e.event === 'TaskFunded');
+      if (event) {
+        const [taskId, donor, amount, fee, timestamp] = event.args;
+        toast.success(`Task funding of ${ethers.utils.formatEther(amount)} ETH successful!`);
+      }
 
       return tx;
     } catch (err) {
       console.error('Error funding task:', err);
-      setError('Transaction failed. Please try again.');
+      setError(err.message || 'Transaction failed. Please try again.');
+      toast.error(err.message || 'Transaction failed. Please try again.');
       throw err;
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add a milestone
+  const addMilestone = async (taskId, description, amount, deadline) => {
+    if (!contract || !signer) {
+      throw new Error('Blockchain not initialized');
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const tx = await contract.addMilestone(
+        taskId,
+        description,
+        ethers.utils.parseEther(amount.toString()),
+        Math.floor(deadline.getTime() / 1000)
+      );
+      
+      await tx.wait();
+      toast.success('Milestone added successfully!');
+
+      return tx;
+    } catch (err) {
+      console.error('Error adding milestone:', err);
+      setError(err.message || 'Failed to add milestone.');
+      toast.error(err.message || 'Failed to add milestone.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Complete a milestone
+  const completeMilestone = async (taskId, milestoneIndex, proofHash) => {
+    if (!contract || !signer) {
+      throw new Error('Blockchain not initialized');
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const tx = await contract.completeMilestone(taskId, milestoneIndex, proofHash);
+      await tx.wait();
+      toast.success('Milestone completed successfully!');
+
+      return tx;
+    } catch (err) {
+      console.error('Error completing milestone:', err);
+      setError(err.message || 'Failed to complete milestone.');
+      toast.error(err.message || 'Failed to complete milestone.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get milestone details
+  const getMilestone = async (taskId, milestoneIndex) => {
+    if (!contract) {
+      throw new Error('Blockchain not initialized');
+    }
+
+    try {
+      const milestone = await contract.getMilestone(taskId, milestoneIndex);
+      return {
+        description: milestone.description,
+        amount: ethers.utils.formatEther(milestone.amount),
+        completed: milestone.completed,
+        fundsReleased: milestone.fundsReleased,
+        deadline: new Date(milestone.deadline.toNumber() * 1000),
+        proofHash: milestone.proofHash
+      };
+    } catch (err) {
+      console.error('Error getting milestone:', err);
+      throw err;
     }
   };
 
@@ -179,21 +296,29 @@ export const BlockchainProvider = ({ children }) => {
     }
   };
 
-  const value = {
-    provider,
-    signer,
-    contract,
-    account,
-    loading,
-    error,
-    transactionHistory,
-    donateToCharity,
-    fundTask,
-    getCharityBalance,
-    getTaskBalance
-  };
-
-  return <BlockchainContext.Provider value={value}>{children}</BlockchainContext.Provider>;
+  return (
+    <BlockchainContext.Provider value={{
+      provider,
+      signer,
+      contract,
+      account,
+      loading,
+      error,
+      platformFee,
+      minDonationAmount,
+      transactionHistory,
+      donateToCharity,
+      fundTask,
+      addMilestone,
+      completeMilestone,
+      getMilestone,
+      getCharityBalance,
+      getTaskBalance,
+      calculateTotalAmount
+    }}>
+      {children}
+    </BlockchainContext.Provider>
+  );
 };
 
 export const useBlockchain = () => {

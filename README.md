@@ -10,6 +10,10 @@ TrustChain is a transparent charity platform that leverages blockchain technolog
 - **Transaction History**: Complete transparency with all transactions recorded on the blockchain
 - **User Dashboard**: Track your donations and see their impact
 - **Organization Dashboard**: Manage charities and view donation statistics
+- **Milestone Verification**: Verify task milestones
+- **Smart Contract Integration**: Ethereum smart contracts for transparency and accountability
+- **Transparent Fund Allocation**: Funds are allocated transparently
+- **Tax Receipt Generation**: Generate tax receipts for donations
 
 ## Smart Contract Integration
 
@@ -111,6 +115,163 @@ All transactions are recorded both on the blockchain and in the platform's datab
 - Only the contract owner can withdraw task funds
 - All functions include proper validation and error handling
 - The contract uses the latest Solidity version (0.8.0+) which includes overflow protection
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Setup Instructions
+
+### Prerequisites
+
+- PHP 8.1+
+- Composer
+- Node.js 16+
+- npm or yarn
+- MySQL or SQLite
+- XAMPP (for local development)
+- MetaMask or another Ethereum wallet
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/trustchain.git
+cd trustchain
+```
+
+2. Set up the backend:
+```bash
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+3. Configure your database in the `.env` file:
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=trustchain
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+4. Set up the frontend:
+```bash
+cd ../frontend
+npm install
+cp .env.example .env
+```
+
+5. Configure the frontend `.env` file:
+```
+VITE_API_URL=http://localhost:8000
+VITE_CHARITY_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+```
+
+### Running the Application
+
+1. Start the backend server:
+```bash
+cd backend
+php artisan serve
+```
+
+2. Start the frontend development server:
+```bash
+cd frontend
+npm run dev
+```
+
+3. Access the application at `http://localhost:5173`
+
+## Demo Data Setup
+
+TrustChain comes with a set of demo data to help you explore the platform's features. To set up the demo data:
+
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
+
+2. Run the setup command:
+```bash
+php artisan app:setup-demo-data
+```
+
+This will:
+- Run database migrations
+- Create a storage link
+- Seed the database with demo users, organizations, charities, tasks, and transactions
+- Generate placeholder images and documents
+
+If you want to start with a fresh database, use the `--fresh` option:
+```bash
+php artisan app:setup-demo-data --fresh
+```
+
+### Demo Credentials
+
+After setting up the demo data, you can log in with the following credentials:
+
+**User Account:**
+- Email: john.doe@example.com
+- Password: password123
+
+**Organization Account:**
+- Email: contact@hopefoundation.org
+- Password: password123
+
+## Smart Contract Integration
+
+TrustChain uses Ethereum smart contracts to ensure transparency and accountability. The main contract is located at `frontend/src/contracts/CharityContract.sol`.
+
+### Key Features of the Smart Contract
+
+- **Secure Donation Processing**: All donations are processed through the smart contract with a small platform fee (1%)
+- **Milestone-based Fund Release**: Funds for tasks are released only when milestones are verified
+- **Transparent Transaction History**: All transactions are recorded on the blockchain and can be verified
+- **Proof Verification**: Completed tasks require proof documents and verification before funds are released
+- **Platform Fee Management**: A small fee is collected to support platform maintenance
+
+### Contract Security Features
+
+- **ReentrancyGuard**: Protection against reentrancy attacks
+- **Ownable**: Access control for administrative functions
+- **Pausable**: Ability to pause the contract in case of emergencies
+- **Minimum Donation**: Configurable minimum donation amount to prevent dust attacks
+
+### Blockchain Interaction
+
+To interact with the blockchain features:
+
+1. Install MetaMask or another Ethereum wallet browser extension
+2. Connect your wallet to the application when prompted
+3. Make sure you have some test ETH in your wallet (for testnet usage)
+4. When making a donation or funding a task, select "Blockchain" as the payment method
+
+### Local Blockchain Development
+
+For local development, you can use Hardhat or Ganache:
+
+1. Install Hardhat:
+```bash
+npm install --save-dev hardhat
+```
+
+2. Start a local blockchain:
+```bash
+npx hardhat node
+```
+
+3. Deploy the contract:
+```bash
+npx hardhat run scripts/deploy.js --network localhost
+```
+
+4. Update the contract address in your `.env` file
 
 ## License
 

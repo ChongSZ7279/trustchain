@@ -21,12 +21,19 @@ import {
   FaMoneyBillWave,
   FaReceipt
 } from 'react-icons/fa';
+import { ethers } from 'ethers';
 
 export default function DonationForm({ charityId, charityName, onSuccess }) {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
-  const { account, connectWallet } = useBlockchain();
+  const { 
+    account, 
+    connectWallet, 
+    platformFee, 
+    minDonationAmount,
+    calculateTotalAmount 
+  } = useBlockchain();
   const { 
     formatCurrency, 
     convertMyrToEth, 
@@ -38,64 +45,51 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [anonymous, setAnonymous] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('fpx'); // Default to FPX (Malaysian online banking)
+  const [paymentMethod, setPaymentMethod] = useState('fpx');
   const [receiptRequired, setReceiptRequired] = useState(false);
   
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [isBlockchainEnabled, setIsBlockchainEnabled] = useState(false);
   const [blockchainTxHash, setBlockchainTxHash] = useState('');
   const [showBlockchainInfo, setShowBlockchainInfo] = useState(false);
   
-  // Charity details
-  const [charityDetails, setCharityDetails] = useState(null);
-  const [charityBalance, setCharityBalance] = useState(null);
-  
   // Multi-step form
-  const [currentStep, setCurrentStep] = useState(1); // 1: Form, 2: Processing, 3: Success
+  const [currentStep, setCurrentStep] = useState(1);
   
   // Smart contract configuration
   const contractAddress = import.meta.env.VITE_CHARITY_CONTRACT_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3';
   
-  // Fetch charity details and blockchain balance
-  useEffect(() => {
-    const fetchCharityDetails = async () => {
-      try {
-        const actualCharityId = charityId || id;
-        if (!actualCharityId) return;
-        
-        const response = await axios.get(`/api/charities/${actualCharityId}`);
-        setCharityDetails(response.data);
-        
-        // If blockchain is selected and account is connected, fetch blockchain balance
-        if (isBlockchainEnabled && account) {
-          try {
-            const web3 = new Web3(window.ethereum);
-            const charityContract = new web3.eth.Contract(CharityABI, contractAddress);
-            const balance = await charityContract.methods.getCharityBalance(actualCharityId).call();
-            setCharityBalance(web3.utils.fromWei(balance, 'ether'));
-          } catch (err) {
-            console.error('Error fetching blockchain balance:', err);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching charity details:', err);
-        setError('Failed to load charity details');
-      }
-    };
+  // Calculate fees and total
+  const calculateFees = () => {
+    if (!amount || paymentMethod !== 'blockchain') return null;
     
-    fetchCharityDetails();
-  }, [charityId, id, isBlockchainEnabled, account]);
+    const ethAmount = convertMyrToEth(amount);
+    const { baseAmount, fee, total } = calculateTotalAmount(ethAmount);
+    
+    return {
+      baseAmount: ethers.utils.formatEther(baseAmount),
+      fee: ethers.utils.formatEther(fee),
+      total: ethers.utils.formatEther(total)
+    };
+  };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate amount
     if (!amount || parseFloat(amount) <= 0) {
       setError('Please enter a valid donation amount');
       return;
+    }
+    
+    // Check minimum amount for blockchain donations
+    if (paymentMethod === 'blockchain') {
+      const ethAmount = convertMyrToEth(amount);
+      if (parseFloat(ethAmount) < parseFloat(minDonationAmount)) {
+        setError(`Minimum donation amount is ${minDonationAmount} ETH`);
+        return;
+      }
     }
     
     try {
@@ -106,7 +100,6 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
       const actualCharityId = charityId || id;
       
       if (paymentMethod === 'blockchain') {
-        // Handle blockchain donation
         if (!window.ethereum) {
           setError('Please install MetaMask to make blockchain donations');
           setCurrentStep(1);
@@ -114,42 +107,24 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
         }
         
         try {
-          // Request account access if needed
           if (!account) {
             await connectWallet();
           }
           
-          const web3 = new Web3(window.ethereum);
-          const accounts = await web3.eth.getAccounts();
-          const userAccount = accounts[0];
+          const ethAmount = convertMyrToEth(amount).toString();
           
-          // Create contract instance
-          const charityContract = new web3.eth.Contract(CharityABI, contractAddress);
+          // Donate using the contract
+          const tx = await donateToCharity(actualCharityId, ethAmount);
+          setBlockchainTxHash(tx.hash);
           
-          // Convert MYR amount to ETH for display
-          const ethAmount = convertMyrToEth(amount).toFixed(6);
-          
-          // Convert amount to wei
-          const amountInWei = web3.utils.toWei(ethAmount, 'ether');
-          
-          // Make donation transaction
-          const transaction = await charityContract.methods.donate(actualCharityId).send({
-            from: userAccount,
-            value: amountInWei,
-            gas: 200000
-          });
-          
-          setBlockchainTxHash(transaction.transactionHash);
-          
-          // Record transaction in backend
+          // Record in backend
           await axios.post('/api/transactions', {
             charity_id: actualCharityId,
             amount: ethAmount,
             amount_myr: amount,
             message: message,
             anonymous: anonymous,
-            transaction_hash: transaction.transactionHash,
-            contract_address: contractAddress,
+            transaction_hash: tx.hash,
             type: 'donation',
             payment_method: 'blockchain',
             user_id: anonymous ? null : user?.id,
@@ -163,13 +138,13 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
             onSuccess({
               amount: ethAmount,
               amountMyr: amount,
-              txHash: transaction.transactionHash,
+              txHash: tx.hash,
               method: 'blockchain'
             });
           }
         } catch (err) {
           console.error('Blockchain transaction error:', err);
-          setError('Transaction failed: ' + (err.message || 'Unknown error'));
+          setError(err.message || 'Transaction failed. Please try again.');
           setCurrentStep(1);
         }
       } else {
@@ -211,7 +186,7 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
       }
     } catch (err) {
       console.error('Error processing donation:', err);
-      setError('Failed to process donation: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+      setError(err.message || 'Failed to process donation');
       setCurrentStep(1);
     } finally {
       setLoading(false);
@@ -224,76 +199,33 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
   
   const handlePaymentMethodChange = (method) => {
     setPaymentMethod(method);
-    if (method === 'blockchain') {
-      setIsBlockchainEnabled(true);
-    } else {
-      setIsBlockchainEnabled(false);
-    }
   };
   
   const renderDonationStep = () => {
     return (
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <FaExclamationTriangle className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">{error}</h3>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Payment Method Selection */}
+        <MalaysianPaymentOptions
+          selectedMethod={paymentMethod}
+          onSelectMethod={handlePaymentMethodChange}
+          showBlockchain={true}
+        />
         
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center w-8 h-8 bg-indigo-600 rounded-full text-white">
-                1
-              </div>
-              <span className="mt-2 text-xs text-indigo-600 font-medium">Donation</span>
-            </div>
-            <div className="flex-1 h-1 mx-2 bg-gray-200">
-              <div className="h-1 bg-indigo-600" style={{ width: '0%' }}></div>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center w-8 h-8 bg-gray-200 rounded-full text-gray-500">
-                2
-              </div>
-              <span className="mt-2 text-xs text-gray-500 font-medium">Processing</span>
-            </div>
-            <div className="flex-1 h-1 mx-2 bg-gray-200">
-              <div className="h-1 bg-indigo-600" style={{ width: '0%' }}></div>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center w-8 h-8 bg-gray-200 rounded-full text-gray-500">
-                3
-              </div>
-              <span className="mt-2 text-xs text-gray-500 font-medium">Confirmation</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Donation Amount */}
+        {/* Amount Input */}
         <div>
           <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
             Donation Amount {paymentMethod === 'blockchain' ? '(MYR → ETH)' : '(MYR)'}
           </label>
           <div className="mt-1 relative rounded-md shadow-sm">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-sm">
-                {paymentMethod === 'blockchain' ? 'RM' : 'RM'}
-              </span>
+              <span className="text-gray-500 sm:text-sm">RM</span>
             </div>
             <input
               type="text"
               name="amount"
               id="amount"
               className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-12 sm:text-sm border-gray-300 rounded-md"
-              placeholder={paymentMethod === 'blockchain' ? '50' : '50'}
+              placeholder="50"
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               required
@@ -307,9 +239,9 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
             )}
           </div>
           
-          {/* Quick amount buttons - Malaysian amounts */}
+          {/* Quick amount buttons */}
           <div className="mt-2 grid grid-cols-4 gap-2">
-            {[10, 50, 100, 500].map((value) => (
+            {[50, 100, 500, 1000].map((value) => (
               <button
                 key={value}
                 type="button"
@@ -324,9 +256,30 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
               </button>
             ))}
           </div>
+          
+          {/* Show fees for blockchain donations */}
+          {paymentMethod === 'blockchain' && amount && (
+            <div className="mt-2 text-sm text-gray-500">
+              {(() => {
+                const fees = calculateFees();
+                if (!fees) return null;
+                
+                return (
+                  <div className="space-y-1">
+                    <p>Base amount: Ξ{fees.baseAmount}</p>
+                    <p>Platform fee ({platformFee}%): Ξ{fees.fee}</p>
+                    <p className="font-medium">Total: Ξ{fees.total}</p>
+                    <p className="text-xs">
+                      Minimum donation: Ξ{minDonationAmount}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
         
-        {/* Message */}
+        {/* Message Input */}
         <div>
           <label htmlFor="message" className="block text-sm font-medium text-gray-700">
             Message (Optional)
@@ -337,115 +290,54 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
               name="message"
               rows={3}
               className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-              placeholder="Add a message with your donation"
+              placeholder="Add a message of support..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
           </div>
         </div>
         
-        {/* Anonymous donation */}
-        <div className="flex items-start">
-          <div className="flex items-center h-5">
-            <input
-              id="anonymous"
-              name="anonymous"
-              type="checkbox"
-              className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
-              checked={anonymous}
-              onChange={(e) => setAnonymous(e.target.checked)}
-            />
-          </div>
-          <div className="ml-3 text-sm">
-            <label htmlFor="anonymous" className="font-medium text-gray-700 flex items-center">
-              <FaUserSecret className="mr-2 text-gray-500" />
-              Donate anonymously
-            </label>
-            <p className="text-gray-500">Your name will not be displayed publicly</p>
-          </div>
+        {/* Anonymous Donation */}
+        <div className="flex items-center">
+          <input
+            id="anonymous"
+            name="anonymous"
+            type="checkbox"
+            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            checked={anonymous}
+            onChange={(e) => setAnonymous(e.target.checked)}
+          />
+          <label htmlFor="anonymous" className="ml-2 block text-sm text-gray-900">
+            Make this donation anonymous
+          </label>
         </div>
         
-        {/* Receipt for tax deduction */}
-        <div className="flex items-start">
-          <div className="flex items-center h-5">
+        {/* Tax Receipt */}
+        {!anonymous && (
+          <div className="flex items-center">
             <input
               id="receipt"
               name="receipt"
               type="checkbox"
-              className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               checked={receiptRequired}
               onChange={(e) => setReceiptRequired(e.target.checked)}
             />
-          </div>
-          <div className="ml-3 text-sm">
-            <label htmlFor="receipt" className="font-medium text-gray-700 flex items-center">
-              <FaReceipt className="mr-2 text-gray-500" />
-              I need a receipt for tax deduction
+            <label htmlFor="receipt" className="ml-2 block text-sm text-gray-900">
+              Request tax receipt
             </label>
-            <p className="text-gray-500">
-              Get an official receipt for tax deduction under LHDN Malaysia
-            </p>
           </div>
-        </div>
+        )}
         
-        {/* Malaysian Payment Methods */}
-        <MalaysianPaymentOptions 
-          selectedMethod={paymentMethod}
-          onSelectMethod={handlePaymentMethodChange}
-          showBlockchain={true}
-        />
-        
-        {/* Blockchain Info */}
-        {paymentMethod === 'blockchain' && (
-          <div className="rounded-md bg-indigo-50 p-4">
+        {/* Error Message */}
+        {error && (
+          <div className="rounded-md bg-red-50 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
-                <FaInfoCircle className="h-5 w-5 text-indigo-400" />
+                <FaExclamationTriangle className="h-5 w-5 text-red-400" />
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-indigo-800">Blockchain Donation</h3>
-                <div className="mt-2 text-sm text-indigo-700">
-                  <p>
-                    Your donation will be processed through the Ethereum blockchain, providing complete transparency and traceability.
-                  </p>
-                  <ul className="list-disc pl-5 mt-2 space-y-1">
-                    <li>You'll need a wallet like MetaMask to proceed</li>
-                    <li>Your donation will be recorded on the blockchain</li>
-                    <li>Transaction fees (gas) will apply</li>
-                    <li>Your MYR amount will be converted to ETH at current rates</li>
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => setShowBlockchainInfo(!showBlockchainInfo)}
-                    className="mt-2 text-indigo-600 hover:text-indigo-500 font-medium flex items-center"
-                  >
-                    {showBlockchainInfo ? 'Hide Details' : 'Learn More'} 
-                    <FaArrowRight className={`ml-1 h-3 w-3 transform transition-transform ${showBlockchainInfo ? 'rotate-90' : ''}`} />
-                  </button>
-                </div>
-                
-                {showBlockchainInfo && (
-                  <div className="mt-4 bg-white p-4 rounded-md border border-indigo-100">
-                    <h4 className="text-sm font-medium text-gray-900">How Blockchain Donations Work</h4>
-                    <p className="mt-2 text-sm text-gray-600">
-                      When you donate using blockchain:
-                    </p>
-                    <ol className="list-decimal pl-5 mt-2 space-y-2 text-sm text-gray-600">
-                      <li>Your Ethereum wallet (like MetaMask) will open to confirm the transaction</li>
-                      <li>Funds are sent directly to a smart contract (no intermediaries)</li>
-                      <li>The transaction is permanently recorded on the Ethereum blockchain</li>
-                      <li>The charity can only access funds according to predefined rules</li>
-                      <li>You can track your donation's impact through our platform</li>
-                    </ol>
-                    <div className="mt-3 flex items-center">
-                      <FaLock className="text-indigo-600 mr-2" />
-                      <span className="text-xs text-gray-900">Contract Address:</span>
-                      <span className="ml-2 text-xs font-mono text-gray-700 truncate">
-                        {contractAddress}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <h3 className="text-sm font-medium text-red-800">{error}</h3>
               </div>
             </div>
           </div>
@@ -462,16 +354,6 @@ export default function DonationForm({ charityId, charityName, onSuccess }) {
               <>
                 <FaEthereum className="mr-2 h-5 w-5" />
                 Donate with Ethereum
-              </>
-            ) : paymentMethod === 'fpx' ? (
-              <>
-                <FaMoneyBillWave className="mr-2 h-5 w-5" />
-                Donate with FPX
-              </>
-            ) : paymentMethod === 'card' ? (
-              <>
-                <FaCreditCard className="mr-2 h-5 w-5" />
-                Donate with Card
               </>
             ) : (
               <>

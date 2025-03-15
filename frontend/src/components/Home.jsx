@@ -11,7 +11,11 @@ import jonathon from '../assets/image/Jonat.jpg';
 import sally from '../assets/image/Sally2.png';
 import weiwen from '../assets/image/WeiWen2.png';
 import siewzhen from '../assets/image/SiewZhen.png';
+<<<<<<< HEAD
 import { FaHandHoldingHeart, FaChartLine, FaLock, FaEthereum } from 'react-icons/fa';
+=======
+import AIGenerator from "./Recommendation";
+>>>>>>> 393a803fa2cf947ac017ec5a0e0548134340ba14
 
 const Home = () => {
     const { user } = useAuth();
@@ -266,6 +270,21 @@ const Home = () => {
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recomendation Section */}
+            <div id="Recommendation" className="py-16 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="lg:text-center">
+                        <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Recommendation</h2>
+                        <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            Our Story
+                        </p>
+                    </div>
+                    <div className="min-h-screen flex items-center justify-center bg-gray-200">
+                    <AIGenerator userHistory={["Work in a childcare center"]}/>
                     </div>
                 </div>
             </div>

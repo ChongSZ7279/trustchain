@@ -37,7 +37,7 @@ export default function OrganizationCard({ organization }) {
   const canEditOrganization = () => user && (user.ic_number === organization.representative_id);
 
   return (
-    <div className="bg-white overflow-hidden shadow-md rounded-lg border border-gray-200 w-80 flex flex-col mt-4  ">
+    <div className="bg-white overflow-hidden shadow-md rounded-lg border border-gray-200 w-96 flex flex-col mt-4  ">
       
       {/* Row 1: Logo & Organization Info */}
       <div className="p-4 flex items-center space-x-4">
@@ -52,18 +52,20 @@ export default function OrganizationCard({ organization }) {
         <div className="flex-grow">
           <div className="flex items-center justify-between">
             <div>
-              {/* Verification Badge */}
-              {organization.is_verified ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  <FaCheckCircle className="mr-1" /> Verified
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  <FaExclamationTriangle className="mr-1" /> Pending
-                </span>
-              )}
               <h3 className="text-lg font-medium text-gray-900">{organization.name}</h3>
-              <p className="text-sm text-gray-500">{organization.category}</p>
+              <div className="flex items-center space-x-2 mt-2">
+                  <p className="text-sm text-gray-500">{organization.category}</p>
+                  {/* Verification Badge */}
+                  {organization.is_verified ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <FaCheckCircle className="mr-1" /> Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <FaExclamationTriangle className="mr-1" /> Pending
+                    </span>
+                  )}
+              </div>
             </div>
 
             {/* Thumbs Up & Follower Count */}
@@ -85,7 +87,7 @@ export default function OrganizationCard({ organization }) {
 
       {/* Row 2: Cover Image */}
       <img
-        className="w-full h-48 object-cover"
+        className="w-full h-48 object-cover p-2"
         src={formatImageUrl(organization.cover_image_path) || 'https://via.placeholder.com/300x200'}
         alt={`${organization.name} cover`}
       />

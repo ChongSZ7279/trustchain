@@ -11,6 +11,7 @@ use App\Http\Controllers\TaskPictureController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\OrganizationFollowerController;
 use App\Http\Controllers\CharityFollowerController;
+use App\Http\Controllers\DonationController;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
@@ -73,6 +74,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/charities/{charityId}/transactions', [TransactionController::class, 'getCharityTransactions']);
     Route::get('/tasks/{taskId}/transactions', [TransactionController::class, 'getTaskTransactions']);
     Route::get('/users/{userId}/transactions', [TransactionController::class, 'getUserTransactions']);
+
+    // Donation routes
+    Route::apiResource('donations', DonationController::class);
+    Route::get('/user/donations', [DonationController::class, 'userDonations']);
+    Route::get('/charity/{charityId}/donations', [DonationController::class, 'charityDonations']);
 });
 
 // Add a test route to check storage configuration

@@ -26,6 +26,7 @@ class Organization extends Authenticatable
         'instagram',
         'others',
         'logo',
+        'cover_image_path',
         'statutory_declaration',
         'verified_document',
         'is_verified',
@@ -44,5 +45,22 @@ class Organization extends Authenticatable
     public function charities()
     {
         return $this->hasMany(Charity::class);
+    }
+
+    /**
+     * Get the users that follow this organization.
+     */
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'organization_followers', 'organization_id', 'user_ic')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the follower count for this organization.
+     */
+    public function getFollowerCountAttribute()
+    {
+        return $this->followers()->count();
     }
 } 

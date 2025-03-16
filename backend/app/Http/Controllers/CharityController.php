@@ -12,12 +12,38 @@ class CharityController extends Controller
     public function index()
     {
         $charities = Charity::with('organization')->get();
+        
+        // Add follower count to each charity
+        $charities->each(function ($charity) {
+            $charity->follower_count = $charity->followers()->count();
+            
+            // Check if the authenticated user follows this charity
+            $user = Auth::user();
+            if ($user) {
+                $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
+            } else {
+                $charity->is_following = false;
+            }
+        });
+        
         return response()->json($charities);
     }
 
     public function show($id)
     {
         $charity = Charity::with(['organization', 'tasks'])->findOrFail($id);
+        
+        // Add follower count
+        $charity->follower_count = $charity->followers()->count();
+        
+        // Check if the authenticated user follows this charity
+        $user = Auth::user();
+        if ($user) {
+            $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
+        } else {
+            $charity->is_following = false;
+        }
+        
         return response()->json($charity);
     }
 
@@ -119,6 +145,20 @@ class CharityController extends Controller
         $charities = Charity::where('organization_id', $organizationId)
             ->with('tasks')
             ->get();
+            
+        // Add follower count to each charity
+        $charities->each(function ($charity) {
+            $charity->follower_count = $charity->followers()->count();
+            
+            // Check if the authenticated user follows this charity
+            $user = Auth::user();
+            if ($user) {
+                $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
+            } else {
+                $charity->is_following = false;
+            }
+        });
+        
         return response()->json($charities);
     }
 } 

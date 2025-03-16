@@ -190,11 +190,11 @@ const Home = () => {
                                 index === currentImageIndex ? 'opacity-100' : 'opacity-0'
                             }`}
                         >
-                            <img
-                                className="h-full w-full object-cover"
+                    <img
+                        className="h-full w-full object-cover"
                                 src={image.src}
                                 alt={image.alt}
-                            />
+                    />
                             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-500 mix-blend-multiply opacity-70" />
                         </div>
                     ))}
@@ -279,27 +279,27 @@ const Home = () => {
                                 <p className="text-lg text-gray-700 text-justify">
                                     By leveraging blockchain's immutable ledger, we provide a secure and transparent way to track donations, from the moment they are made to the moment they are used.
                                 </p>
-                            </div>
-                        </div>
                     </div>
-                
-                    {/* Mission and Vision Section */}
+                </div>
+            </div>
+
+            {/* Mission and Vision Section */}
                     <div className="py-16">
                         <div className="max-w-7xl mx-auto">
                             <div className="flex flex-col md:flex-row justify-center items-center space-y-8 md:space-y-0 md:space-x-10">
-                                {/* Mission */}
+                        {/* Mission */}
                                 <div className="bg-white p-8 rounded-lg shadow-lg md:w-1/2 transform transition-transform hover:scale-105">
                                     <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">Our Mission</h3>
                                     <p className="text-gray-700 text-lg">
-                                        To create a transparent and efficient platform that connects donors with charitable organizations, ensuring that every contribution reaches those in need through blockchain-powered verification and tracking.
-                                    </p>
-                                </div>
-                                {/* Vision */}
+                                To create a transparent and efficient platform that connects donors with charitable organizations, ensuring that every contribution reaches those in need through blockchain-powered verification and tracking.
+                            </p>
+                        </div>
+                        {/* Vision */}
                                 <div className="bg-white p-8 rounded-lg shadow-lg md:w-1/2 transform transition-transform hover:scale-105">
                                     <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">Our Vision</h3>
                                     <p className="text-gray-700 text-lg">
-                                        To become the world's leading blockchain-based charitable platform, setting new standards for transparency and trust in philanthropy while making a lasting impact on global communities.
-                                    </p>
+                                To become the world's leading blockchain-based charitable platform, setting new standards for transparency and trust in philanthropy while making a lasting impact on global communities.
+                            </p>
                                 </div>
                             </div>
                         </div>
@@ -353,20 +353,20 @@ const Home = () => {
                                         >
                                             <div className={`bg-gradient-to-br from-indigo-50 to-white p-8 rounded-xl shadow-xl ${position === 0 ? 'w-[500px]' : 'w-[400px]'}`}>
                                                 <div className="flex items-center mb-6">
-                                                    <div className="relative">
+                                <div className="relative">
                                                         <div className="absolute inset-0 bg-indigo-200 rounded-full transform -rotate-6"></div>
                                                         <img
                                                             src={testimonial.image}
                                                             alt={`Testimonial from ${testimonial.name}`}
                                                             className="h-16 w-16 rounded-full object-cover border-2 border-white relative z-10"
-                                                        />
-                                                    </div>
+                                    />
+                                </div>
                                                     <div className="ml-6">
                                                         <h4 className="text-xl font-bold text-gray-800">{testimonial.name}</h4>
                                                         <p className="text-indigo-600 font-medium">{testimonial.role}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="relative">
+                                </div>
+                            </div>
+                                <div className="relative">
                                                     <div className="absolute -top-4 -left-2 text-indigo-300 text-6xl opacity-30">"</div>
                                                     <p className="text-gray-700 text-lg relative z-10 italic">
                                                         {testimonial.quote}
@@ -384,8 +384,8 @@ const Home = () => {
                                                         </div>
                                                     </div>
                                                 )}
-                                            </div>
-                                        </div>
+                                </div>
+                                </div>
                                     );
                                 })}
                             </div>
@@ -461,25 +461,25 @@ const Home = () => {
                         {/* Contact Form - 50% Width */}
                         <div className="w-full md:w-1/2 flex flex-col">
                             <form className="space-y-6 flex-1">
-                                <div>
-                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                                        Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="name"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    <div>
+                                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                            Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="name"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="TrustChain"
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        id="email"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                            Email
+                                        </label>
+                                        <input
+                                            type="email"
+                                            id="email"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="info@trustchain.org"
                                     />
                                 </div>
@@ -492,29 +492,29 @@ const Home = () => {
                                         id="subject"
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="How can we help you?"
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                                        Message
-                                    </label>
-                                    <textarea
-                                        id="message"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="message" className="block text-sm font-medium text-gray-700">
+                                            Message
+                                        </label>
+                                        <textarea
+                                            id="message"
                                         rows={6}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="We would love to hear from you"
-                                    ></textarea>
-                                </div>
-                                <div>
-                                    <button
-                                        type="submit"
+                                        ></textarea>
+                                    </div>
+                                    <div>
+                                        <button
+                                            type="submit"
                                         className="w-full flex justify-center py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition-transform hover:scale-105"
-                                    >
-                                        Send Message
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                                        >
+                                            Send Message
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
 
                         {/* Google Map - 50% Width & Full Height */}
                         <div className="w-full md:w-1/2 flex-1 rounded-lg overflow-hidden shadow-lg">

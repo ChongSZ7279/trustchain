@@ -20,6 +20,8 @@ import TaskPictureManager from './components/TaskPictureManager';
 import UserEdit from './components/UserEdit';
 import TransactionList from './components/TransactionList';
 import TransactionDetails from './components/TransactionDetails';
+import DonationForm from './components/DonationForm';
+import DonationDetails from './components/DonationDetails';
 import TermsAndConditions from './pages/TermsAndConditions';
 
 const router = createBrowserRouter([
@@ -131,6 +133,14 @@ const router = createBrowserRouter([
       {
         path: '/transactions/:id',
         element: <TransactionDetails />
+      },
+      {
+        path: '/charities/:id/donate',
+        element: <DonationForm />
+      },
+      {
+        path: '/donations/:id',
+        element: <DonationDetails />
       }
     ]
   }

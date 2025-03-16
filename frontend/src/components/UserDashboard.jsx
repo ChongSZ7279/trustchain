@@ -46,6 +46,7 @@ export default function UserDashboard() {
   const [completedCharities, setCompletedCharities] = useState([]);
   const [inProgressCharities, setInProgressCharities] = useState([]);
   const [followedOrganizations, setFollowedOrganizations] = useState([]);
+  const [followedCharities, setFollowedCharities] = useState([]);
   
 
   useEffect(() => {
@@ -117,6 +118,15 @@ export default function UserDashboard() {
         } catch (err) {
           console.error('Error fetching followed organizations:', err);
           setFollowedOrganizations([]);
+        }
+        
+        // Fetch followed charities
+        try {
+          const followedCharitiesRes = await axios.get('/api/user/followed-charities');
+          setFollowedCharities(followedCharitiesRes.data);
+        } catch (err) {
+          console.error('Error fetching followed charities:', err);
+          setFollowedCharities([]);
         }
       } catch (err) {
         console.error('Error in fetchUserData:', err);
@@ -262,6 +272,17 @@ export default function UserDashboard() {
               >
                 <FaThumbsUp className="mr-2" />
                 Followed Organizations
+              </button>
+              <button
+                onClick={() => setActiveTab('followed-charities')}
+                className={`${
+                  activeTab === 'followed-charities'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+              >
+                <FaHeart className="mr-2" />
+                Followed Charities
               </button>
             </nav>
           </div>
@@ -529,6 +550,79 @@ export default function UserDashboard() {
                           <FaExternalLinkAlt className="mr-2" />
                           View Details
                         </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Followed Charities Tab */}
+          {activeTab === 'followed-charities' && (
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <FaHeart className="mr-2 text-red-500" />
+                Charities You Follow
+              </h2>
+              
+              {followedCharities.length === 0 ? (
+                <div className="text-center py-8">
+                  <FaHeart className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No followed charities</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    You haven't followed any charities yet.
+                  </p>
+                  <div className="mt-6">
+                    <Link
+                      to="/charities"
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      <FaHandHoldingUsd className="mr-2" />
+                      Browse Charities
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {followedCharities.map(charity => (
+                    <div key={charity.id} className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      {charity.picture_path && (
+                        <img
+                          src={formatImageUrl(charity.picture_path)}
+                          alt={charity.name}
+                          className="w-full h-40 object-cover"
+                        />
+                      )}
+                      <div className="p-4">
+                        <h3 className="text-lg font-medium text-gray-900">{charity.name}</h3>
+                        <p className="mt-1 text-sm text-gray-500">{charity.category}</p>
+                        <p className="mt-2 text-sm text-gray-600 line-clamp-3">
+                          {charity.description}
+                        </p>
+                        <div className="mt-4">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Progress</span>
+                            <span className="font-medium">${charity.fund_received} / ${charity.fund_targeted}</span>
+                          </div>
+                          <div className="mt-1">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                              <div 
+                                className="bg-indigo-600 h-2.5 rounded-full" 
+                                style={{ width: `${Math.min(100, (charity.fund_received / charity.fund_targeted) * 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <Link
+                            to={`/charities/${charity.id}`}
+                            className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                          >
+                            <FaExternalLinkAlt className="mr-2" />
+                            View Details
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ))}

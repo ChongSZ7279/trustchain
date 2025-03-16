@@ -20,7 +20,7 @@ export default function DonationForm() {
   const [useBlockchain, setUseBlockchain] = useState(false);
   const [blockchainTxHash, setBlockchainTxHash] = useState('');
   const [showBlockchainInfo, setShowBlockchainInfo] = useState(false);
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -72,8 +72,8 @@ export default function DonationForm() {
           anonymous,
           payment_method: paymentMethod
         });
-        
-        setSuccess(true);
+            
+            setSuccess(true);
         setTimeout(() => {
           navigate(`/charities/${id}`);
         }, 3000);
@@ -85,7 +85,7 @@ export default function DonationForm() {
       setLoading(false);
     }
   };
-
+  
   const handleAmountClick = (value) => {
     setAmount(value);
   };
@@ -104,8 +104,8 @@ export default function DonationForm() {
           {success ? (
             <div className="px-4 py-5 sm:p-6">
               <div className="rounded-md bg-green-50 p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
+            <div className="flex">
+              <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
@@ -142,92 +142,92 @@ export default function DonationForm() {
                       <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                    </div>
-                  </div>
-                </div>
-              )}
-
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">{error}</h3>
+              </div>
+            </div>
+          </div>
+        )}
+        
               <div className="space-y-6">
-                <div>
-                  <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+        <div>
+          <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
                     Donation Amount (USD)
-                  </label>
+          </label>
                   <div className="mt-1">
-                    <input
+            <input
                       type="number"
-                      name="amount"
-                      id="amount"
+              name="amount"
+              id="amount"
                       min="1"
                       step="0.01"
-                      value={amount}
+              value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
                       placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div className="mt-2 grid grid-cols-4 gap-2">
+              required
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-4 gap-2">
                     {[10, 25, 50, 100].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => handleAmountClick(value)}
-                        className={`py-2 px-4 border rounded-md text-sm font-medium ${
-                          amount === value.toString()
-                            ? 'bg-indigo-600 text-white'
-                            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleAmountClick(value)}
+                className={`py-2 px-4 border rounded-md text-sm font-medium ${
+                  amount === value.toString()
+                    ? 'bg-indigo-600 text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
                         ${value}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                    Message (Optional)
-                  </label>
-                  <div className="mt-1">
-                    <textarea
-                      id="message"
-                      name="message"
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div>
+          <label htmlFor="message" className="block text-sm font-medium text-gray-700">
+            Message (Optional)
+          </label>
+          <div className="mt-1">
+            <textarea
+              id="message"
+              name="message"
                       rows="3"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
                       className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
                       placeholder="Add a message to your donation"
                     ></textarea>
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <input
-                      id="anonymous"
-                      name="anonymous"
-                      type="checkbox"
-                      checked={anonymous}
-                      onChange={(e) => setAnonymous(e.target.checked)}
+          </div>
+        </div>
+        
+        <div className="flex items-start">
+          <div className="flex items-center h-5">
+            <input
+              id="anonymous"
+              name="anonymous"
+              type="checkbox"
+              checked={anonymous}
+              onChange={(e) => setAnonymous(e.target.checked)}
                       className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                    />
-                  </div>
-                  <div className="ml-3 text-sm">
+            />
+          </div>
+          <div className="ml-3 text-sm">
                     <label htmlFor="anonymous" className="font-medium text-gray-700">
                       Make donation anonymous
-                    </label>
-                    <p className="text-gray-500">Your name will not be displayed publicly</p>
-                  </div>
-                </div>
-
+            </label>
+            <p className="text-gray-500">Your name will not be displayed publicly</p>
+          </div>
+        </div>
+        
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Payment Method</label>
                   <div className="mt-2 space-y-4">
                     <div className="flex items-center">
-                      <input
+            <input
                         id="blockchain"
                         name="payment_method"
                         type="radio"
@@ -237,17 +237,17 @@ export default function DonationForm() {
                       />
                       <label htmlFor="blockchain" className="ml-3 block text-sm font-medium text-gray-700">
                         Blockchain (Ethereum)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowBlockchainInfo(!showBlockchainInfo)}
+            </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowBlockchainInfo(!showBlockchainInfo)}
                         className="ml-2 text-indigo-600 hover:text-indigo-500 text-sm"
-                      >
+                  >
                         {showBlockchainInfo ? 'Hide Info' : 'Info'}
-                      </button>
-                    </div>
-                    
-                    {showBlockchainInfo && (
+                  </button>
+                </div>
+                
+                {showBlockchainInfo && (
                       <div className="ml-7 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
                         <p>Blockchain donations are processed through Ethereum smart contracts, providing:</p>
                         <ul className="list-disc pl-5 mt-2 space-y-1">
@@ -296,9 +296,9 @@ export default function DonationForm() {
                       <label htmlFor="paypal" className="ml-3 block text-sm font-medium text-gray-700">
                         PayPal
                       </label>
-                    </div>
-                  </div>
-                </div>
+              </div>
+            </div>
+          </div>
 
                 <div className="flex justify-end">
                   <button
@@ -308,8 +308,8 @@ export default function DonationForm() {
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
+          <button
+            type="submit"
                     disabled={loading || blockchainLoading}
                     className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
                       (loading || blockchainLoading) ? 'opacity-75 cursor-not-allowed' : ''
@@ -322,12 +322,12 @@ export default function DonationForm() {
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         Processing...
-                      </>
-                    ) : (
+              </>
+            ) : (
                       'Donate Now'
-                    )}
-                  </button>
-                </div>
+            )}
+          </button>
+        </div>
               </div>
             </form>
           )}

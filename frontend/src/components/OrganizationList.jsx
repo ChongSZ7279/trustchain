@@ -1,20 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { formatImageUrl } from '../utils/helpers';
+import OrganizationCard from './OrganizationCard';
 import { 
   FaBuilding, 
   FaSearch, 
   FaFilter,
-  FaEdit,
-  FaExternalLinkAlt,
-  FaCheckCircle,
-  FaExclamationTriangle,
-  FaGlobe,
-  FaPhone,
-  FaEnvelope,
-  FaMapMarkerAlt,
   FaMoneyBillWave,
   FaTimes,
   FaUndo
@@ -22,7 +14,7 @@ import {
 
 export default function OrganizationList() {
   const navigate = useNavigate();
-  const { user, organization } = useAuth();
+  const { user } = useAuth();
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,8 +37,8 @@ export default function OrganizationList() {
   ];
   
   const statusOptions = [
-    { value: 'verified', label: 'Verified', icon: <FaCheckCircle className="text-green-500" /> },
-    { value: 'pending', label: 'Pending', icon: <FaExclamationTriangle className="text-yellow-500" /> }
+    { value: 'verified', label: 'Verified' },
+    { value: 'pending', label: 'Pending' }
   ];
 
   useEffect(() => {
@@ -135,10 +127,6 @@ export default function OrganizationList() {
     
     return matchesSearch && matchesCategory && matchesFundRange && matchesStatus;
   });
-
-  const canEditOrganization = (org) => {
-    return organization?.id === org.id || org.representative_id === user?.ic_number;
-  };
 
   if (loading) {
     return (
@@ -305,8 +293,7 @@ export default function OrganizationList() {
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <label htmlFor={`status-${status.value}`} className="ml-2 flex items-center text-sm text-gray-700">
-                      {status.icon}
-                      <span className="ml-1">{status.label}</span>
+                      <span>{status.label}</span>
                     </label>
                   </div>
                 ))}
@@ -318,7 +305,7 @@ export default function OrganizationList() {
               onClick={applyFilters}
               className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              <FaTimes className="mr-2" />
+              <FaFilter className="mr-2" />
               Apply Filters
             </button>
           </div>
@@ -338,119 +325,9 @@ export default function OrganizationList() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6">
                 {filteredOrganizations.map(org => (
-                  <div
-                    key={org.id}
-                    className="bg-white overflow-hidden shadow-sm rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <div className="p-6">
-                      <div className="flex items-start space-x-4">
-                        <div className="flex-shrink-0">
-                          <img
-                            className="h-16 w-16 rounded-lg object-cover bg-gray-100"
-                            src={formatImageUrl(org.logo)}
-                            alt={org.name}
-                            onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/64?text=Logo';
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-medium text-gray-900 truncate">
-                              {org.name}
-                            </h3>
-                            {org.is_verified ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <FaCheckCircle className="mr-1" />
-                                Verified
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                <FaExclamationTriangle className="mr-1" />
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-1 text-sm text-gray-500">{org.category}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <p className="text-sm text-gray-600 line-clamp-3">
-                          {org.description}
-                        </p>
-                      </div>
-
-                      {/* Target Fund Display */}
-                      {org.target_fund && (
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-500 flex items-center">
-                              <FaMoneyBillWave className="mr-1 text-green-600" />
-                              Target Fund:
-                            </span>
-                            <span className="font-medium">${org.target_fund.toLocaleString()}</span>
-                          </div>
-                          {org.current_fund && (
-                            <div className="mt-1">
-                              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div 
-                                  className="bg-green-600 h-2.5 rounded-full" 
-                                  style={{ width: `${Math.min(100, (org.current_fund / org.target_fund) * 100)}%` }}
-                                ></div>
-                              </div>
-                              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>${org.current_fund.toLocaleString()} raised</span>
-                                <span>{Math.round((org.current_fund / org.target_fund) * 100)}%</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="mt-4 space-y-2">
-                        {org.phone_number && (
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <FaPhone className="mr-2 text-gray-400" />
-                            {org.phone_number}
-                          </p>
-                        )}
-                        {org.gmail && (
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <FaEnvelope className="mr-2 text-gray-400" />
-                            {org.gmail}
-                          </p>
-                        )}
-                        {org.register_address && (
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <FaMapMarkerAlt className="mr-2 text-gray-400" />
-                            {org.register_address}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="mt-6 flex items-center justify-between">
-                        <Link
-                          to={`/organizations/${org.id}`}
-                          className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-900"
-                        >
-                          <FaExternalLinkAlt className="mr-2" />
-                          View Details
-                        </Link>
-                        {canEditOrganization(org) && (
-                          <button
-                            onClick={() => navigate(`/organizations/${org.id}/edit`)}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
-                          >
-                            <FaEdit className="mr-2" />
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <OrganizationCard key={org.id} organization={org} />
                 ))}
               </div>
             )}

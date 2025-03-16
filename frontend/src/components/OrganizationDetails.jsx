@@ -22,7 +22,8 @@ import {
   FaLink,
   FaWallet,
   FaArrowLeft,
-  FaPlus
+  FaPlus,
+  FaThumbsUp
 } from 'react-icons/fa';
 
 export default function OrganizationDetails() {
@@ -34,6 +35,9 @@ export default function OrganizationDetails() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('charities');
   const [charities, setCharities] = useState([]);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   useEffect(() => {
     fetchOrganizationDetails();
@@ -48,11 +52,33 @@ export default function OrganizationDetails() {
       ]);
       setOrgData(orgResponse.data);
       setCharities(charitiesResponse.data);
+      
+      // Set follow status and follower count
+      setIsFollowing(orgResponse.data.is_following || false);
+      setFollowerCount(orgResponse.data.follower_count || 0);
     } catch (err) {
       setError('Failed to fetch organization details');
       console.error('Error fetching organization details:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleFollow = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setIsFollowLoading(true);
+      const response = await axios.post(`/api/organizations/${id}/follow`);
+      setIsFollowing(response.data.is_following);
+      setFollowerCount(response.data.follower_count);
+    } catch (error) {
+      console.error('Error toggling follow status:', error);
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
@@ -97,6 +123,25 @@ export default function OrganizationDetails() {
           <span className="text-gray-900">{orgData.name}</span>
         </nav>
 
+        {/* Cover Image */}
+        {orgData.cover_image_path && (
+          <div className="relative w-full h-64 mb-6 rounded-lg overflow-hidden shadow-sm">
+            <img
+              src={formatImageUrl(orgData.cover_image_path)}
+              alt={`${orgData.name} cover`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = 'https://via.placeholder.com/1200x300?text=Cover+Image';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 p-6">
+              <h1 className="text-3xl font-bold text-white">{orgData.name}</h1>
+              <p className="text-sm text-white/80">{orgData.category}</p>
+            </div>
+          </div>
+        )}
+
         {/* Organization Header */}
         <div className="bg-white shadow-sm rounded-lg mb-6">
           <div className="p-6">
@@ -114,18 +159,34 @@ export default function OrganizationDetails() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 truncate">{orgData.name}</h1>
-                    <p className="text-sm text-gray-500">{orgData.category}</p>
+                    <h1 className={`text-2xl font-bold text-gray-900 truncate ${orgData.cover_image_path ? 'sr-only' : ''}`}>{orgData.name}</h1>
+                    <p className={`text-sm text-gray-500 ${orgData.cover_image_path ? 'sr-only' : ''}`}>{orgData.category}</p>
                   </div>
-                  {canEditOrganization() && (
-                    <button
-                      onClick={() => navigate(`/organizations/${id}/edit`)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      <FaEdit className="mr-2" />
-                      Edit Organization
-                    </button>
-                  )}
+                  <div className="flex items-center space-x-3">
+                    <div className="flex flex-col items-center">
+                      <button
+                        onClick={toggleFollow}
+                        disabled={isFollowLoading}
+                        className={`p-2 rounded-full transition-colors ${
+                          isFollowing
+                            ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                            : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'
+                        }`}
+                      >
+                        <FaThumbsUp className={`h-5 w-5 ${isFollowLoading ? 'opacity-50' : ''}`} />
+                      </button>
+                      <span className="text-xs text-gray-500 mt-1">{followerCount}</span>
+                    </div>
+                    {canEditOrganization() && (
+                      <button
+                        onClick={() => navigate(`/organizations/${id}/edit`)}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        <FaEdit className="mr-2" />
+                        Edit Organization
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-4">
                   <p className="text-gray-700">{orgData.description}</p>

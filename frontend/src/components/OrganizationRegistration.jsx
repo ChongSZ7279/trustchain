@@ -25,6 +25,7 @@ export default function OrganizationRegistration() {
   });
   const [files, setFiles] = useState({
     logo: null,
+    cover_image_path: null,
     statutory_declaration: null,
     verified_document: null
   });
@@ -81,6 +82,7 @@ export default function OrganizationRegistration() {
     if (!files.logo) errors.logo = 'Organization logo is required';
     if (!files.statutory_declaration) errors.statutory_declaration = 'Statutory declaration is required';
     if (!files.verified_document) errors.verified_document = 'Verified document is required';
+    // Cover image is optional, so no validation needed
 
     return errors;
   };
@@ -556,6 +558,25 @@ export default function OrganizationRegistration() {
                   {formErrors.logo && (
                     <p className="mt-2 text-sm text-red-600">{formErrors.logo}</p>
                   )}
+                </div>
+              </div>
+
+              <div className="sm:col-span-6">
+                <label htmlFor="cover_image_path" className="block text-sm font-medium text-gray-700">
+                  Cover Image (Optional)
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="file"
+                    name="cover_image_path"
+                    id="cover_image_path"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Recommended size: 1200 x 300 pixels. This image will appear at the top of your organization profile.
+                  </p>
                 </div>
               </div>
 

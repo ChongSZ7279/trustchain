@@ -13,12 +13,38 @@ class OrganizationController extends Controller
     public function index()
     {
         $organizations = Organization::all();
+        
+        // Add follower count to each organization
+        $organizations->each(function ($organization) {
+            $organization->follower_count = $organization->followers()->count();
+            
+            // Check if the authenticated user follows this organization
+            $user = Auth::user();
+            if ($user) {
+                $organization->is_following = $organization->followers()->where('user_ic', $user->ic_number)->exists();
+            } else {
+                $organization->is_following = false;
+            }
+        });
+        
         return response()->json($organizations);
     }
 
     public function show($id)
     {
         $organization = Organization::findOrFail($id);
+        
+        // Add follower count
+        $organization->follower_count = $organization->followers()->count();
+        
+        // Check if the authenticated user follows this organization
+        $user = Auth::user();
+        if ($user) {
+            $organization->is_following = $organization->followers()->where('user_ic', $user->ic_number)->exists();
+        } else {
+            $organization->is_following = false;
+        }
+        
         return response()->json($organization);
     }
 
@@ -64,6 +90,7 @@ class OrganizationController extends Controller
             'facebook' => 'nullable|url',
             'instagram' => 'nullable|url',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'cover_image_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'statutory_declaration' => 'nullable|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:2048',
             'verified_document' => 'nullable|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:2048',
         ]);
@@ -75,6 +102,14 @@ class OrganizationController extends Controller
                 Storage::disk('public')->delete($organization->logo);
             }
             $validated['logo'] = $request->file('logo')->store('organization_logos', 'public');
+        }
+
+        if ($request->hasFile('cover_image_path')) {
+            // Delete old cover image if exists
+            if ($organization->cover_image_path) {
+                Storage::disk('public')->delete($organization->cover_image_path);
+            }
+            $validated['cover_image_path'] = $request->file('cover_image_path')->store('organization_covers', 'public');
         }
 
         if ($request->hasFile('statutory_declaration')) {
@@ -125,6 +160,9 @@ class OrganizationController extends Controller
         // Delete associated files
         if ($organization->logo) {
             Storage::disk('public')->delete($organization->logo);
+        }
+        if ($organization->cover_image_path) {
+            Storage::disk('public')->delete($organization->cover_image_path);
         }
         if ($organization->statutory_declaration) {
             Storage::disk('public')->delete($organization->statutory_declaration);

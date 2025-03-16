@@ -32,6 +32,7 @@ export default function OrganizationEdit() {
     facebook: '',
     instagram: '',
     logo: null,
+    cover_image_path: null,
     statutory_declaration: null,
     verified_document: null
   });
@@ -39,6 +40,7 @@ export default function OrganizationEdit() {
   const [error, setError] = useState('');
   const [previewUrls, setPreviewUrls] = useState({
     logo: null,
+    cover_image_path: null,
     statutory_declaration: null,
     verified_document: null
   });
@@ -60,12 +62,14 @@ export default function OrganizationEdit() {
       facebook: organization.facebook || '',
       instagram: organization.instagram || '',
       logo: null,
+      cover_image_path: null,
       statutory_declaration: null,
       verified_document: null
     });
 
     setPreviewUrls({
       logo: organization.logo ? formatImageUrl(organization.logo) : null,
+      cover_image_path: organization.cover_image_path ? formatImageUrl(organization.cover_image_path) : null,
       statutory_declaration: organization.statutory_declaration ? formatImageUrl(organization.statutory_declaration) : null,
       verified_document: organization.verified_document ? formatImageUrl(organization.verified_document) : null
     });
@@ -107,7 +111,7 @@ export default function OrganizationEdit() {
     try {
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
-        if (key !== 'logo' && key !== 'statutory_declaration' && key !== 'verified_document') {
+        if (key !== 'logo' && key !== 'cover_image_path' && key !== 'statutory_declaration' && key !== 'verified_document') {
           formDataToSend.append(key, formData[key]);
         }
       });
@@ -115,6 +119,9 @@ export default function OrganizationEdit() {
 
       if (formData.logo) {
         formDataToSend.append('logo', formData.logo);
+      }
+      if (formData.cover_image_path) {
+        formDataToSend.append('cover_image_path', formData.cover_image_path);
       }
       if (formData.statutory_declaration) {
         formDataToSend.append('statutory_declaration', formData.statutory_declaration);
@@ -317,28 +324,58 @@ export default function OrganizationEdit() {
 
               {/* Documents Section */}
               <div className="bg-gray-50 p-6 rounded-lg">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Documents</h2>
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Documents & Images</h2>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
                       <FaImage className="mr-2" />
                       Organization Logo
                     </label>
-                    <div className="mt-2 flex items-center space-x-4">
+                    <div className="mt-1 flex items-center space-x-4">
                       {previewUrls.logo && (
-                        <img
-                          src={previewUrls.logo}
-                          alt="Logo Preview"
-                          className="h-20 w-20 object-cover rounded-lg border border-gray-200"
-                        />
+                        <div className="relative w-24 h-24 rounded-lg overflow-hidden">
+                          <img
+                            src={previewUrls.logo}
+                            alt="Logo Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                       )}
                       <input
                         type="file"
                         name="logo"
-                        onChange={handleFileChange}
                         accept="image/*"
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        onChange={handleFileChange}
+                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                       />
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaImage className="mr-2" />
+                      Cover Image
+                    </label>
+                    <div className="mt-1 flex flex-col space-y-4">
+                      {previewUrls.cover_image_path && (
+                        <div className="relative w-full h-32 rounded-lg overflow-hidden">
+                          <img
+                            src={previewUrls.cover_image_path}
+                            alt="Cover Image Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        name="cover_image_path"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Recommended size: 1200 x 300 pixels. This image will appear at the top of your organization profile.
+                      </p>
                     </div>
                   </div>
 
@@ -347,24 +384,23 @@ export default function OrganizationEdit() {
                       <FaFileAlt className="mr-2" />
                       Statutory Declaration
                     </label>
-                    <div className="mt-2 flex items-center space-x-4">
+                    <div className="mt-1 flex items-center space-x-4">
                       {previewUrls.statutory_declaration && (
                         <a
                           href={previewUrls.statutory_declaration}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-500 flex items-center"
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
                         >
-                          <FaFileAlt className="mr-2" />
-                          View Current Document
+                          View Current
                         </a>
                       )}
                       <input
                         type="file"
                         name="statutory_declaration"
+                        accept=".pdf,.doc,.docx"
                         onChange={handleFileChange}
-                        accept=".pdf,image/*"
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                       />
                     </div>
                   </div>
@@ -374,24 +410,23 @@ export default function OrganizationEdit() {
                       <FaFileAlt className="mr-2" />
                       Verified Document
                     </label>
-                    <div className="mt-2 flex items-center space-x-4">
+                    <div className="mt-1 flex items-center space-x-4">
                       {previewUrls.verified_document && (
                         <a
                           href={previewUrls.verified_document}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-500 flex items-center"
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
                         >
-                          <FaFileAlt className="mr-2" />
-                          View Current Document
+                          View Current
                         </a>
                       )}
                       <input
                         type="file"
                         name="verified_document"
+                        accept=".pdf,.doc,.docx"
                         onChange={handleFileChange}
-                        accept=".pdf,image/*"
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                       />
                     </div>
                   </div>

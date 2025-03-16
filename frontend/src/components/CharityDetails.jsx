@@ -19,7 +19,9 @@ import {
   FaMoneyBillWave,
   FaClock,
   FaTag,
-  FaBullseye
+  FaBullseye,
+  FaHeart,
+  FaUsers
 } from 'react-icons/fa';
 
 export default function CharityDetails() {
@@ -33,6 +35,8 @@ export default function CharityDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('tasks');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
 
   useEffect(() => {
     fetchCharityData();
@@ -47,6 +51,14 @@ export default function CharityDetails() {
       ]);
       setCharity(charityRes.data);
       setTasks(tasksRes.data);
+      
+      // Set follower status
+      if (charityRes.data.is_following !== undefined) {
+        setIsFollowing(charityRes.data.is_following);
+      }
+      if (charityRes.data.follower_count !== undefined) {
+        setFollowerCount(charityRes.data.follower_count);
+      }
       
       // Try to fetch donations and transactions, but don't fail if they're not available
       try {
@@ -63,6 +75,17 @@ export default function CharityDetails() {
       } catch (err) {
         console.log('Transactions endpoint not available yet');
         setTransactions([]);
+      }
+      
+      // Check follow status if user is logged in
+      if (user) {
+        try {
+          const followStatusRes = await axios.get(`/api/charities/${id}/follow-status`);
+          setIsFollowing(followStatusRes.data.is_following);
+          setFollowerCount(followStatusRes.data.follower_count);
+        } catch (err) {
+          console.error('Error checking follow status:', err);
+        }
       }
     } catch (err) {
       setError('Failed to fetch charity details');
@@ -88,6 +111,21 @@ export default function CharityDetails() {
       setTasks(tasks.filter(task => task.id !== taskId));
     } catch (err) {
       console.error('Error deleting task:', err);
+    }
+  };
+
+  const handleToggleFollow = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`/api/charities/${id}/follow`);
+      setIsFollowing(response.data.is_following);
+      setFollowerCount(response.data.follower_count);
+    } catch (err) {
+      console.error('Error toggling follow status:', err);
     }
   };
 
@@ -148,16 +186,44 @@ export default function CharityDetails() {
                   <FaTag className="text-gray-400 mr-2" />
                   <span className="text-gray-600">{charity.category}</span>
                 </div>
+                <div className="mt-2 flex items-center text-sm text-gray-500">
+                  <FaUsers className="mr-1.5" />
+                  <span>{followerCount} {followerCount === 1 ? 'Follower' : 'Followers'}</span>
+                </div>
               </div>
-              {canManageCharity() && (
-                <Link
-                  to={`/charities/${id}/edit`}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <FaEdit className="mr-2" />
-                  Edit Charity
-                </Link>
-              )}
+              <div className="flex space-x-3">
+                {user && (
+                  <button
+                    onClick={handleToggleFollow}
+                    className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                      isFollowing
+                        ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                        : 'border-transparent text-white bg-indigo-600 hover:bg-indigo-700'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <FaHeart className="mr-2 text-red-500" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <FaHeart className="mr-2" />
+                        Follow
+                      </>
+                    )}
+                  </button>
+                )}
+                {canManageCharity() && (
+                  <Link
+                    to={`/charities/${id}/edit`}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <FaEdit className="mr-2" />
+                    Edit Charity
+                  </Link>
+                )}
+              </div>
             </div>
 
             <div className="mt-6">

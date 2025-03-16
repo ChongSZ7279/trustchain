@@ -67,6 +67,7 @@ class AuthController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'logo' => 'required|image|max:2048',
+                'cover_image_path' => 'nullable|image|max:5120',
                 'category' => 'required|string',
                 'description' => 'required|string',
                 'objectives' => 'required|string',
@@ -89,9 +90,14 @@ class AuthController extends Controller
             }
 
             // Handle file uploads
-            $orgData = $request->except(['logo', 'statutory_declaration', 'verified_document']);
+            $orgData = $request->except(['logo', 'cover_image_path', 'statutory_declaration', 'verified_document']);
             
             $orgData['logo'] = $request->file('logo')->store('organization_logos', 'public');
+            
+            if ($request->hasFile('cover_image_path')) {
+                $orgData['cover_image_path'] = $request->file('cover_image_path')->store('organization_covers', 'public');
+            }
+            
             $orgData['statutory_declaration'] = $request->file('statutory_declaration')->store('organization_documents', 'public');
             $orgData['verified_document'] = $request->file('verified_document')->store('organization_documents', 'public');
             

@@ -9,6 +9,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskPictureController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\OrganizationFollowerController;
+use App\Http\Controllers\CharityFollowerController;
 use Illuminate\Support\Facades\Storage;
 
 // Public routes
@@ -36,6 +38,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Protected organization routes
     Route::match(['put', 'patch'], '/organizations/{id}', [OrganizationController::class, 'update']);
     Route::delete('/organizations/{id}', [OrganizationController::class, 'destroy']);
+
+    // Organization follower routes
+    Route::post('/organizations/{organizationId}/follow', [OrganizationFollowerController::class, 'toggleFollow']);
+    Route::get('/organizations/{organizationId}/follow-status', [OrganizationFollowerController::class, 'checkFollowStatus']);
+    Route::get('/user/followed-organizations', [OrganizationFollowerController::class, 'getFollowedOrganizations']);
+
+    // Charity follower routes
+    Route::post('/charities/{charityId}/follow', [CharityFollowerController::class, 'toggleFollow']);
+    Route::get('/charities/{charityId}/follow-status', [CharityFollowerController::class, 'checkFollowStatus']);
+    Route::get('/user/followed-charities', [CharityFollowerController::class, 'getFollowedCharities']);
 
     // Protected charity routes
     Route::post('/charities', [CharityController::class, 'store']);

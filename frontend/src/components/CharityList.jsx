@@ -15,7 +15,9 @@ import {
   FaExternalLinkAlt,
   FaEdit,
   FaCheckCircle,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaHeart,
+  FaUsers
 } from 'react-icons/fa';
 
 export default function CharityList() {
@@ -226,6 +228,19 @@ export default function CharityList() {
                     <span className="mx-2">•</span>
                     <FaCalendarAlt className="mr-1.5" />
                     <span>{new Date(charity.created_at).toLocaleDateString()}</span>
+                    {charity.follower_count !== undefined && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <FaUsers className="mr-1.5" />
+                        <span>{charity.follower_count} {charity.follower_count === 1 ? 'Follower' : 'Followers'}</span>
+                      </>
+                    )}
+                    {charity.is_following && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                        <FaHeart className="mr-1 text-red-500" />
+                        Following
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-6 flex items-center justify-between">

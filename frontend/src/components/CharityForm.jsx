@@ -28,6 +28,7 @@ export default function CharityForm() {
     description: '',
     objective: '',
     fund_targeted: '',
+    picture_path: null,
   });
   const [files, setFiles] = useState({
     picture_path: null,
@@ -60,14 +61,23 @@ export default function CharityForm() {
         return;
       }
 
-      // Ensure all values are properly set, using empty strings as fallbacks
+      // Set all form data including the picture_path
       setFormData({
         name: charity.name || '',
         category: charity.category || '',
         description: charity.description || '',
         objective: charity.objective || '',
         fund_targeted: charity.fund_targeted || '',
+        picture_path: charity.picture_path || null
       });
+
+      // If there's an existing picture, set it in the preview
+      if (charity.picture_path) {
+        setPreviewUrls(prev => ({
+          ...prev,
+          picture_path: formatImageUrl(charity.picture_path)
+        }));
+      }
 
       // Clear any existing form errors when populating the form
       setFormErrors({});
@@ -99,8 +109,16 @@ export default function CharityForm() {
   const handleFileChange = (e) => {
     const { name, files: uploadedFiles } = e.target;
     if (uploadedFiles.length > 0) {
-      setFiles(prev => ({ ...prev, [name]: uploadedFiles[0] }));
-      // Only clear error if the form has been submitted once
+      const file = uploadedFiles[0];
+      setFiles(prev => ({ ...prev, [name]: file }));
+      
+      // Create preview URL for images
+      if (file.type.startsWith('image/')) {
+        const previewUrl = URL.createObjectURL(file);
+        setPreviewUrls(prev => ({ ...prev, [name]: previewUrl }));
+      }
+      
+      // Clear error if form was previously submitted
       if (isSubmitted && formErrors[name]) {
         setFormErrors(prev => ({ ...prev, [name]: '' }));
       }
@@ -141,38 +159,38 @@ export default function CharityForm() {
       setLoading(true);
       const formDataToSend = new FormData();
       
-      // Log the form data before sending
-      console.log('Form data being sent:', formData);
-      
-      // Append form data, ensuring values are converted to strings
-      formDataToSend.append('name', formData.name.toString());
-      formDataToSend.append('category', formData.category.toString());
-      formDataToSend.append('description', formData.description.toString());
-      formDataToSend.append('objective', formData.objective.toString());
-      formDataToSend.append('fund_targeted', formData.fund_targeted.toString());
+      // Append basic form fields
+      Object.keys(formData).forEach(key => {
+        if (key !== 'picture_path' && formData[key] !== null && formData[key] !== undefined) {
+          formDataToSend.append(key, formData[key].toString());
+        }
+      });
 
-      // Add organization_id to the form data
+      // Add organization_id if available
       if (organization?.id) {
         formDataToSend.append('organization_id', organization.id.toString());
       }
 
-      // Append files if they exist
+      // Append files only if they are selected
       if (files.picture_path) {
         formDataToSend.append('picture_path', files.picture_path);
+        console.log('Appending new picture:', files.picture_path.name);
       }
       if (files.verified_document) {
         formDataToSend.append('verified_document', files.verified_document);
-      }
-
-      // Log the FormData entries for debugging
-      for (let pair of formDataToSend.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
+        console.log('Appending document:', files.verified_document.name);
       }
 
       let response;
       if (id) {
-        // For PUT requests, we need to append the _method field
+        // For PUT requests, append _method field
         formDataToSend.append('_method', 'PUT');
+        
+        // Log the form data being sent
+        for (let [key, value] of formDataToSend.entries()) {
+          console.log(`Sending form data - ${key}:`, value instanceof File ? value.name : value);
+        }
+
         response = await axios.post(`/api/charities/${id}`, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -193,12 +211,8 @@ export default function CharityForm() {
     } catch (err) {
       console.error('Error saving charity:', err);
       if (err.response?.data?.errors) {
-        // Show all validation errors
-        const serverErrors = err.response.data.errors;
-        console.log('Validation errors:', serverErrors);
-        setFormErrors(serverErrors);
+        setFormErrors(err.response.data.errors);
       } else if (err.response?.data?.message) {
-        // Show the error message from the server
         setError(err.response.data.message);
       } else {
         setError('Failed to save charity. Please try again.');
@@ -362,9 +376,9 @@ export default function CharityForm() {
                       Charity Picture
                     </label>
                     <div className="mt-2 flex items-center space-x-4">
-                      {previewUrls.picture_path && (
+                      {(previewUrls.picture_path || formData.picture_path) && (
                         <img
-                          src={previewUrls.picture_path}
+                          src={previewUrls.picture_path || formatImageUrl(formData.picture_path)}
                           alt="Picture Preview"
                           className="h-20 w-20 object-cover rounded-lg border border-gray-200"
                         />

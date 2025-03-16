@@ -238,24 +238,25 @@ const Home = () => {
             <div id="about" className="bg-indigo-50 min-h-screen py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Heading with zoom-up animation */}
-                    <div className="relative py-10 overflow-hidden" ref={aboutHeadingRef}>
-                        <div 
-                            className={`text-center transition-all duration-1000 ease-out
-                                ${visibleHeadings.about ? 'opacity-100' : 'opacity-0'}
-                            `}
-                            style={{ 
-                                transform: `scale(${headingScales.about}) translateY(${headingPositions.about}px)`,
-                                transformOrigin: 'center bottom'
-                            }}
+                    <motion.div 
+                        initial={{ y: 100, opacity: 0, scale: 0.5 }}
+                        whileInView={{ y: 0, opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ 
+                            duration: 1,
+                            ease: [0.6, 0.01, -0.05, 0.95],
+                            opacity: { duration: 0.6 },
+                            scale: { duration: 0.8 }
+                        }}
+                        className="text-center relative py-10 overflow-hidden"
+                        ref={aboutHeadingRef}
+                    >
+                        <motion.h2
+                            className="text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 tracking-tight"
                         >
-                            <div className="relative inline-block">
-                                <h2 className="text-3xl text-indigo-600 font-bold tracking-wide uppercase">
-                                    About Us
-                                </h2>
-                                <div className="absolute -bottom-2 left-0 w-full h-1 bg-indigo-600"></div>
-                            </div>
-                        </div>
-                    </div>
+                            About Us
+                        </motion.h2>
+                    </motion.div>
                     
                     <div className="mt-8">
                         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2">
@@ -311,24 +312,25 @@ const Home = () => {
             <div className="bg-white min-h-screen py-16 flex items-center">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                     {/* Heading with zoom-up animation */}
-                    <div className="relative py-10 overflow-hidden" ref={testimonialsHeadingRef}>
-                        <div 
-                            className={`text-center transition-all duration-1000 ease-out
-                                ${visibleHeadings.testimonials ? 'opacity-100' : 'opacity-0'}
-                            `}
-                            style={{ 
-                                transform: `scale(${headingScales.testimonials}) translateY(${headingPositions.testimonials}px)`,
-                                transformOrigin: 'center bottom'
-                            }}
+                    <motion.div 
+                        initial={{ y: 100, opacity: 0, scale: 0.5 }}
+                        whileInView={{ y: 0, opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ 
+                            duration: 1,
+                            ease: [0.6, 0.01, -0.05, 0.95],
+                            opacity: { duration: 0.6 },
+                            scale: { duration: 0.8 }
+                        }}
+                        className="text-center relative py-10 overflow-hidden"
+                        ref={testimonialsHeadingRef}
+                    >
+                        <motion.h2
+                            className="text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 tracking-tight"
                         >
-                            <div className="relative inline-block">
-                                <h2 className="text-3xl text-indigo-600 font-bold tracking-wide uppercase">
-                                    Testimonials
-                                </h2>
-                                <div className="absolute -bottom-2 left-0 w-full h-1 bg-indigo-600"></div>
-                            </div>
-                        </div>
-                    </div>
+                            Testimonials
+                        </motion.h2>
+                    </motion.div>
                     
                     <div className="mt-8">
                         {/* Improved Testimonial Carousel */}
@@ -435,23 +437,21 @@ const Home = () => {
             {/* Contact Section - Indigo-50 Background */}
             <div id="contact" className="bg-indigo-50 min-h-screen py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Heading Animation */}
+                    {/* Contact Section Heading */}
                     <motion.div 
-                        initial={{ scale: 0.5, opacity: 0, y: 50 }} // Start small & lower position
-                        animate={{ scale: [0.5, 1.5, 1], opacity: [0, 1, 1], y: [50, 0, 0] }}
-                        transition={{ duration: 1.8, ease: "easeOut", times: [0, 0.5, 1] }} // Zoom, hold, then shrink
+                        initial={{ y: 100, opacity: 0, scale: 0.5 }}
+                        whileInView={{ y: 0, opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ 
+                            duration: 1,
+                            ease: [0.6, 0.01, -0.05, 0.95],
+                            opacity: { duration: 0.6 },
+                            scale: { duration: 0.8 }
+                        }}
                         className="text-center relative overflow-hidden"
                     >
                         <motion.h2
-                            initial={{ backgroundSize: "100% 0%", opacity: 1 }} // No gradient initially
-                            animate={{ backgroundSize: "100% 100%", opacity: 1 }} // Slowly reveal gradient
-                            transition={{ duration: 1.5, ease: "easeInOut", delay: 0.8 }} // Delayed color reveal
-                            className="text-4xl font-bold uppercase bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
-                            style={{
-                                backgroundRepeat: "no-repeat",
-                                backgroundPosition: "bottom",
-                                backgroundSize: "100% 0%",
-                            }}
+                            className="text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 tracking-tight"
                         >
                             Contact Us
                         </motion.h2>
@@ -517,13 +517,41 @@ const Home = () => {
                             </div>
 
                         {/* Google Map - 50% Width & Full Height */}
-                        <div className="w-full md:w-1/2 flex-1 rounded-lg overflow-hidden shadow-lg">
-                            <iframe 
-                                className="w-full h-full"
-                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3168.626248348173!2d-122.08424968469265!3d37.42199957982537!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808fba0281720e07%3A0x80d49c4a7aabb6e1!2sGoogleplex!5e0!3m2!1sen!2sus!4v1641767402635!5m2!1sen!2sus" 
+                        <div className="w-full md:w-1/2 flex-1 rounded-lg overflow-hidden shadow-lg relative">
+                            {/* World Map with Custom Pins */}
+                            <iframe
+                                className="w-full h-full min-h-[600px]"
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d26245469.5648655!2d-95.712891!3d37.09024!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzfCsDA1JzI0LjkiTiA5NcKwNDInMTIuMyJX!5e0!3m2!1sen!2sus!4v1616093740079!5m2!1sen!2sus"
                                 allowFullScreen="" 
-                                loading="lazy" 
+                                loading="lazy"
                             ></iframe>
+
+                            {/* Location Markers */}
+                            <div className="absolute top-4 right-4 bg-white p-4 rounded-lg shadow-md z-10">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Our Global Presence</h3>
+                                <ul className="space-y-2">
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-indigo-600 mr-2"></div>
+                                        <span className="text-sm text-gray-600">United States - HQ</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+                                        <span className="text-sm text-gray-600">United Kingdom</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-pink-500 mr-2"></div>
+                                        <span className="text-sm text-gray-600">Singapore</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-indigo-400 mr-2"></div>
+                                        <span className="text-sm text-gray-600">Kenya</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-purple-400 mr-2"></div>
+                                        <span className="text-sm text-gray-600">Brazil</span>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>

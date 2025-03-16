@@ -34,7 +34,11 @@ const router = createBrowserRouter([
       },
       {
         path: '/organizations',
-        element: <OrganizationList />
+        element: <OrganizationList />,
+        handle: {
+          title: "Organizations",
+          subtitle: "Browse through our list of organizations"
+        }
       },
       {
         path: '/organizations/:id',

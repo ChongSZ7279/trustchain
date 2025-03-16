@@ -322,7 +322,7 @@ const Home = () => {
                             opacity: { duration: 0.6 },
                             scale: { duration: 0.8 }
                         }}
-                        className="text-center relative py-10 overflow-hidden"
+                        className="text-center relative py-6 overflow-hidden"
                         ref={testimonialsHeadingRef}
                     >
                         <motion.h2
@@ -332,9 +332,9 @@ const Home = () => {
                         </motion.h2>
                     </motion.div>
                     
-                    <div className="mt-8">
+                    <div className="mt-4">
                         {/* Improved Testimonial Carousel */}
-                        <div className="relative h-[500px] overflow-hidden">
+                        <div className="relative h-[400px] overflow-hidden">
                             <div className="flex justify-center items-center h-full">
                                 {testimonials.map((testimonial, index) => {
                                     // Calculate position: -1 for left, 0 for center, 1 for right

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import SidebarFilters from '../components/SidebarFilters';
 import { FaFilter, FaTimes, FaBars } from 'react-icons/fa';
 
 export default function MainLayout() {
@@ -33,8 +32,8 @@ export default function MainLayout() {
                   {isSidebarOpen ? <FaTimes /> : <FaBars />}
                 </button>
               </div>
-              {/* Render Outlet for SidebarFilters */}
-              <div className="sidebar-content">
+              {/* Render the current page's filters */}
+              <div className="p-4">
                 <Outlet context={{ isSidebarOpen, setIsSidebarOpen, showSidebar, location: 'sidebar' }} />
               </div>
             </aside>

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
+import SidebarFilters from './SidebarFilters';
 import { 
   FaHandHoldingHeart,
-  FaSearch,
-  FaFilter,
   FaPlus,
   FaMoneyBillWave,
   FaTag,
@@ -24,11 +23,30 @@ export default function CharityList() {
   const [charities, setCharities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [categories, setCategories] = useState([]);
   const { organization } = useAuth();
   const navigate = useNavigate();
+  const { isSidebarOpen, showSidebar, location } = useOutletContext();
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [fundRange, setFundRange] = useState({ min: 0, max: 100000 });
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
+
+  // Available filter options
+  const categoryOptions = [
+    'Education',
+    'Healthcare',
+    'Environment',
+    'Youth Development',
+    'Disaster Relief',
+    'Other'
+  ];
+  
+  const statusOptions = [
+    { value: 'verified', label: 'Verified' },
+    { value: 'pending', label: 'Pending' }
+  ];
 
   useEffect(() => {
     fetchCharities();
@@ -39,10 +57,6 @@ export default function CharityList() {
       setLoading(true);
       const response = await axios.get('/api/charities');
       setCharities(response.data);
-      
-      // Extract unique categories
-      const uniqueCategories = [...new Set(response.data.map(charity => charity.category))];
-      setCategories(uniqueCategories);
     } catch (err) {
       setError('Failed to fetch charities');
       console.error('Error fetching charities:', err);
@@ -51,25 +65,118 @@ export default function CharityList() {
     }
   };
 
-  // Filter charities based on search term and category
+  const toggleCategory = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const toggleStatus = (status) => {
+    setSelectedStatuses(prev => 
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  const handleFundRangeChange = (e, type) => {
+    const value = parseInt(e.target.value, 10) || 0;
+    setFundRange(prev => ({
+      ...prev,
+      [type]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedCategories([]);
+    setFundRange({ min: 0, max: 100000 });
+    setSelectedStatuses([]);
+  };
+
+  const applyFilters = () => {
+    console.log('Applied filters:', {
+      search: searchTerm,
+      categories: selectedCategories,
+      fundRange,
+      statuses: selectedStatuses
+    });
+  };
+
+  // Filter charities based on all criteria
   const filteredCharities = charities.filter(charity => {
-    const matchesSearch = charity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         charity.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || charity.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    // Search term filter
+    const matchesSearch = searchTerm === '' || 
+      charity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      charity.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Category filter
+    const matchesCategory = selectedCategories.length === 0 || 
+      selectedCategories.includes(charity.category);
+    
+    // Fund range filter
+    const targetFund = charity.fund_targeted || 0;
+    const matchesFundRange = targetFund >= fundRange.min && targetFund <= fundRange.max;
+    
+    // Status filter
+    const isVerified = charity.is_verified;
+    const matchesStatus = selectedStatuses.length === 0 || 
+      (selectedStatuses.includes('verified') && isVerified) ||
+      (selectedStatuses.includes('pending') && !isVerified);
+    
+    return matchesSearch && matchesCategory && matchesFundRange && matchesStatus;
   });
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-red-800">{error}</h3>
+          <button
+            onClick={fetchCharities}
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render filters in sidebar
+  if (location === 'sidebar') {
+    return (
+      <SidebarFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedCategories={selectedCategories}
+        toggleCategory={toggleCategory}
+        fundRange={fundRange}
+        handleFundRangeChange={handleFundRangeChange}
+        selectedStatuses={selectedStatuses}
+        toggleStatus={toggleStatus}
+        applyFilters={applyFilters}
+        resetFilters={resetFilters}
+        categoryOptions={categoryOptions}
+        statusOptions={statusOptions}
+      />
+    );
+  }
+
+  // Render main content
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -92,75 +199,22 @@ export default function CharityList() {
           )}
         </div>
 
-        {error && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
-            <div className="flex items-center">
-              <FaExclamationTriangle className="text-red-400 mr-2" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Search and Filter Section */}
-        <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 flex items-center">
-                <FaSearch className="mr-2" />
-                Search Charities
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <input
-                  type="text"
-                  name="search"
-                  id="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full rounded-md border-gray-300 pr-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  placeholder="Search by name or description"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <FaSearch className="h-4 w-4 text-gray-400" />
-                </div>
+        {/* Charities Grid */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredCharities.length === 0 ? (
+            <div className="col-span-full bg-white shadow-sm rounded-lg">
+              <div className="text-center py-12">
+                <FaHandHoldingHeart className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No charities found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
+                    ? 'Try adjusting your search or filter criteria'
+                    : 'Charities will appear here once they are created'}
+                </p>
               </div>
             </div>
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 flex items-center">
-                <FaFilter className="mr-2" />
-                Filter by Category
-              </label>
-              <select
-                id="category"
-                name="category"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 pr-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              >
-                <option value="">All Categories</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Charities Grid */}
-        {filteredCharities.length === 0 ? (
-          <div className="bg-white shadow-sm rounded-lg">
-            <div className="text-center py-12">
-              <FaHandHoldingHeart className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No charities found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || selectedCategory 
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'Charities will appear here once they are created'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredCharities.map((charity) => (
+          ) : (
+            filteredCharities.map((charity) => (
               <div
                 key={charity.id}
                 className="bg-white overflow-hidden shadow-sm rounded-lg hover:shadow-md transition-shadow"
@@ -263,9 +317,9 @@ export default function CharityList() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

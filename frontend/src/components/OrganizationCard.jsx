@@ -39,6 +39,14 @@ export default function OrganizationCard({ organization }) {
   return (
     <div className="bg-white overflow-hidden shadow-md rounded-lg border border-gray-200 w-96 flex flex-col mt-4  ">
       
+      
+      {/* Row 2: Cover Image */}
+      <img
+        className="w-full h-48 object-cover p-2"
+        src={formatImageUrl(organization.cover_image_path) || 'https://via.placeholder.com/300x200'}
+        alt={`${organization.name} cover`}
+      />
+      
       {/* Row 1: Logo & Organization Info */}
       <div className="p-4 flex items-center space-x-4">
         {/* Organization Logo */}
@@ -84,13 +92,6 @@ export default function OrganizationCard({ organization }) {
           </div>
         </div>
       </div>
-
-      {/* Row 2: Cover Image */}
-      <img
-        className="w-full h-48 object-cover p-2"
-        src={formatImageUrl(organization.cover_image_path) || 'https://via.placeholder.com/300x200'}
-        alt={`${organization.name} cover`}
-      />
       
       {/* Row 3: Objective */}
       <div className="p-4">

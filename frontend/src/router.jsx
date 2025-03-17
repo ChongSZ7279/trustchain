@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout';
 import GuestLayout from './layouts/GuestLayout';
 import ProtectedLayout from './layouts/ProtectedLayout';
 import AuthLayout from './layouts/AuthLayout';
+import Auth2Layout from './layouts/Auth2Layout';
 import Home from './components/Home';
 import Login from './components/Login';
 import UserRegistration from './components/UserRegistration';
@@ -23,6 +24,9 @@ import TransactionDetails from './components/TransactionDetails';
 import DonationForm from './components/DonationForm';
 import DonationDetails from './components/DonationDetails';
 import TermsAndConditions from './pages/TermsAndConditions';
+import Register from './components/Register';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword'; 
 
 const router = createBrowserRouter([
   {
@@ -70,6 +74,14 @@ const router = createBrowserRouter([
         }
       },
       {
+        path: '/register',
+        element: <Register />,
+        handle: {
+          title: "Create Your Account",
+          subtitle: "Join our community and start making a difference"
+        }
+      },
+      {
         path: '/register/user',
         element: <UserRegistration />,
         handle: {
@@ -83,6 +95,22 @@ const router = createBrowserRouter([
         handle: {
           title: "Register Your Organization",
           subtitle: "Join our platform and make a positive impact in the community"
+        }
+      },
+      {
+        path: '/forgot-password',
+        element: <ForgotPassword />,
+        handle: {
+          title: "Forgot Password",
+          subtitle: "Please enter your email to reset your password"
+        }
+      },
+      {
+        path: '/reset-password',
+        element: <ResetPassword />,
+        handle: {
+          title: "Reset Password",
+          subtitle: "Please enter your new password"
         }
       }
     ]

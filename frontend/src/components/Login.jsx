@@ -1,17 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
+import { FaArrowRight, FaLock, FaEnvelope, FaExclamationTriangle, FaEye, FaEyeSlash } from 'react-icons/fa';
+import axios from 'axios';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, loading, error } = useAuth();
+  const { login, testLogin, loading, error: authError } = useAuth();
   const [formData, setFormData] = useState({
-    gmail: '',
-    password: '',
-    type: 'user'
+    email: '',
+    password: ''
   });
   const [formErrors, setFormErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Clear auth errors when component mounts or unmounts
+  useEffect(() => {
+    return () => {
+      // Reset any auth errors when component unmounts
+      if (authError) {
+        // If your auth context has a clearError function, call it here
+      }
+    };
+  }, []);
+
+  // Update errors from auth context
+  useEffect(() => {
+    if (authError) {
+      setFormErrors(prev => ({ ...prev, general: authError }));
+    }
+  }, [authError]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,13 +39,17 @@ export default function Login() {
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
+    // Clear general error when user starts typing
+    if (formErrors.general) {
+      setFormErrors(prev => ({ ...prev, general: '' }));
+    }
   };
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.gmail) errors.gmail = 'Gmail is required';
-    if (!formData.gmail.endsWith('@gmail.com')) {
-      errors.gmail = 'Please enter a valid Gmail address';
+    if (!formData.email) errors.email = 'Email is required';
+    else if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      errors.email = 'Please enter a valid email address';
     }
     if (!formData.password) errors.password = 'Password is required';
     return errors;
@@ -39,175 +63,290 @@ export default function Login() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
+      console.log('Submitting login form with email:', formData.email);
+      
       const response = await login(formData);
       console.log('Login successful:', response);
-      navigate(formData.type === 'user' ? '/user/dashboard' : '/organization/dashboard');
+      
+      // The backend should return the user type in the response
+      // Navigate based on the returned user type
+      const userType = response.account_type || 'user';
+      const dashboardPath = userType === 'user' ? '/user/dashboard' : '/organization/dashboard';
+      
+      console.log('Navigating to:', dashboardPath);
+      navigate(dashboardPath);
     } catch (err) {
       console.error('Login error:', err);
-      if (err.response?.data?.errors) {
+      setLoginAttempts(prev => prev + 1);
+      
+      if (err.response?.status === 500) {
+        console.error('Server error details:', {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        });
+        
+        // Check for database connection error
+        if (err.response.data?.error_type === 'database_connection') {
+          setFormErrors({ 
+            general: 'Database connection error. Please make sure your database server is running or contact support.',
+            details: err.response.data.error
+          });
+        } else {
+          setFormErrors({ 
+            general: 'A server error occurred. Please try again later or contact support.'
+          });
+        }
+      } else if (err.response?.data?.errors) {
         setFormErrors(err.response.data.errors);
       } else if (err.response?.data?.message) {
-        setFormErrors({ general: err.response.data.message });
+        setFormErrors({ 
+          general: err.response.data.message,
+          // Add specific field errors if they exist
+          ...(err.response.data.email ? { email: err.response.data.email } : {}),
+          ...(err.response.data.password ? { password: err.response.data.password } : {})
+        });
+      } else if (err.request) {
+        // The request was made but no response was received
+        setFormErrors({ 
+          general: 'Network error. Please check your connection and try again.'
+        });
       } else {
-        setFormErrors({ general: 'Login failed. Please try again.' });
+        setFormErrors({ 
+          general: loginAttempts >= 2 
+            ? 'Multiple login attempts failed. Please check your credentials or reset your password.' 
+            : 'Login failed. Please check your email and password.'
+        });
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTestLogin = async (e) => {
+    e.preventDefault();
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      console.log('Testing login with email:', formData.email);
+      
+      const response = await testLogin(formData);
+      console.log('Test login response:', response);
+      
+      // Show test results
+      setFormErrors({ 
+        general: 'Test login response received. Check console for details.' 
+      });
+    } catch (err) {
+      console.error('Test login error:', err);
+      
+      if (err.response?.status === 500) {
+        console.error('Test server error details:', {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        });
+        
+        setFormErrors({ 
+          general: 'A server error occurred during test. Check console for details.'
+        });
+      } else {
+        setFormErrors({ 
+          general: 'Test login failed. Check console for details.'
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const testDatabaseConnection = async () => {
+    try {
+      setIsSubmitting(true);
+      const response = await axios.get('http://localhost:8000/api/test-database');
+      console.log('Database test response:', response.data);
+      
+      if (response.data.status === 'success') {
+        setFormErrors({
+          general: 'Database connection successful!',
+          details: `Connected to ${response.data.database_name} with ${response.data.tables.length} tables.`
+        });
+      } else {
+        setFormErrors({
+          general: 'Database connection test failed.',
+          details: response.data.error
+        });
+      }
+    } catch (err) {
+      console.error('Database test error:', err);
+      setFormErrors({
+        general: 'Database connection test failed.',
+        details: err.message
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <>
-      <div className="space-y-8">
-        {/* Role Selection */}
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => setFormData(prev => ({ ...prev, type: 'user' }))}
-            className={`p-4 text-center rounded-lg border-2 transition-all ${
-              formData.type === 'user'
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                : 'border-gray-200 hover:border-indigo-300'
-            }`}
-          >
-            <div className="flex flex-col items-center space-y-2">
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="font-medium">Individual User</span>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormData(prev => ({ ...prev, type: 'organization' }))}
-            className={`p-4 text-center rounded-lg border-2 transition-all ${
-              formData.type === 'organization'
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                : 'border-gray-200 hover:border-indigo-300'
-            }`}
-          >
-            <div className="flex flex-col items-center space-y-2">
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span className="font-medium">Organization</span>
-            </div>
-          </button>
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mb-4">
+          <FaLock className="h-8 w-8 text-indigo-600" />
         </div>
+        <h2 className="text-xl font-semibold text-gray-800">Sign in to your account</h2>
+        <p className="text-gray-500 text-sm mt-1">Enter your credentials to access your account</p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {formErrors.general && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    {formErrors.general}
-                  </h3>
-                </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {formErrors.general && (
+          <div className="rounded-md bg-red-50 p-4 animate-fadeIn">
+            <div className="flex">
+              <FaExclamationTriangle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  {formErrors.general}
+                </h3>
+                {formErrors.details && (
+                  <p className="mt-1 text-xs text-red-700">
+                    {formErrors.details}
+                  </p>
+                )}
+                {loginAttempts >= 3 && (
+                  <div className="mt-2 text-sm text-red-700">
+                    <Link to="/forgot-password" className="font-medium underline">
+                      Forgot your password?
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-
-          <div>
-            <label htmlFor="gmail" className="block text-sm font-medium text-gray-700">
-              Gmail
-            </label>
-            <div className="mt-1">
-              <input
-                id="gmail"
-                name="gmail"
-                type="email"
-                required
-                value={formData.gmail}
-                onChange={handleChange}
-                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              {formErrors.gmail && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.gmail}</p>
-              )}
-            </div>
           </div>
+        )}
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <div className="mt-1">
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              {formErrors.password && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.password}</p>
-              )}
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <div className="relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaEnvelope className="h-5 w-5 text-gray-400" />
             </div>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              className={`appearance-none block w-full pl-10 pr-3 py-2 border ${
+                formErrors.email ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+              } rounded-md shadow-sm placeholder-gray-400 focus:outline-none`}
+              placeholder="your@email.com"
+            />
           </div>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <Link to="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Forgot your password?
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-4 text-sm text-gray-600">
-            <p>
-              By logging in, you agree to our{' '}
-              <Link to="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
-                Terms and Conditions
-              </Link>
-              {' '}and{' '}
-              <Link to="/terms#privacy" className="text-blue-600 hover:text-blue-800 font-medium">
-                Privacy Policy
-              </Link>
+          {formErrors.email && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <FaExclamationTriangle className="mr-1 h-3 w-3" /> {formErrors.email}
             </p>
-          </div>
+          )}
+        </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            Password
+          </label>
+          <div className="relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaLock className="h-5 w-5 text-gray-400" />
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+              className={`appearance-none block w-full pl-10 pr-10 py-2 border ${
+                formErrors.password ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+              } rounded-md shadow-sm placeholder-gray-400 focus:outline-none`}
+              placeholder="••••••••"
+            />
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+              >
+                {showPassword ? (
+                  <FaEyeSlash className="h-5 w-5" />
+                ) : (
+                  <FaEye className="h-5 w-5" />
+                )}
+              </button>
             </div>
           </div>
+          {formErrors.password && (
+            <p className="mt-2 text-sm text-red-600 flex items-center">
+              <FaExclamationTriangle className="mr-1 h-3 w-3" /> {formErrors.password}
+            </p>
+          )}
+        </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            <Link
-              to="/register/user"
-              className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-            >
-              Register as User
-            </Link>
-            <Link
-              to="/register/organization"
-              className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-            >
-              Register as Organization
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              name="remember-me"
+              type="checkbox"
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+              Remember me
+            </label>
+          </div>
+          <div className="text-sm">
+            <Link to="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500 transition">
+              Forgot your password?
             </Link>
           </div>
         </div>
-      </div>
-    </>
+
+        <div>
+          <button
+            type="submit"
+            disabled={loading || isSubmitting}
+            className={`w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all ${
+              (loading || isSubmitting) ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
+          >
+            {loading || isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in...
+              </>
+            ) : (
+              <>
+                Sign in <FaArrowRight className="ml-2" />
+              </>
+            )}
+          </button>
+        </div>
+        
+        
+      </form>
+    </div>
   );
 } 

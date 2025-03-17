@@ -13,8 +13,11 @@ use App\Http\Controllers\OrganizationFollowerController;
 use App\Http\Controllers\CharityFollowerController;
 use App\Http\Controllers\DonationController;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\TestController;
+use Illuminate\Support\Facades\Log;
 
 // Public routes
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/user', [AuthController::class, 'registerUser']);
 Route::post('/register/organization', [AuthController::class, 'registerOrganization']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -92,5 +95,37 @@ Route::get('/storage-test', function () {
         'storage_path' => storage_path('app/public'),
         'public_path' => public_path('storage'),
         'app_url' => config('app.url')
+    ]);
+});
+
+// Add test routes
+Route::post('/test-login', [TestController::class, 'testLogin']);
+Route::get('/test-database', [TestController::class, 'testDatabase']);
+
+// Debug route for file uploads
+Route::post('/test-upload', function (Request $request) {
+    Log::info('Test upload request received', [
+        'all_data' => $request->all(),
+        'has_files' => $request->hasFile('test_file'),
+        'files' => $request->allFiles(),
+        'headers' => $request->header(),
+        'content_type' => $request->header('Content-Type'),
+    ]);
+    
+    if ($request->hasFile('test_file')) {
+        $file = $request->file('test_file');
+        $path = $file->store('test_uploads', 'public');
+        return response()->json([
+            'message' => 'File uploaded successfully',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime' => $file->getMimeType(),
+        ]);
+    }
+    
+    return response()->json([
+        'message' => 'No file uploaded',
+        'data' => $request->all(),
     ]);
 }); 

@@ -81,17 +81,20 @@ export default function CharityCard({ charity }) {
       className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
     >
       {/* Cover Image */}
-      <div className="relative">
-        <div className="w-full h-48 bg-gray-200">
+      <div className="relative p-4">
+        <div 
+          className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden relative"
+          style={{ boxShadow: "6px 6px 10px rgba(0, 0, 0, 0.2)" }}
+        >
           {imageError || !charity.picture_path ? (
-            <div className="w-full h-full flex items-center justify-center bg-gray-200">
+            <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg">
               <FaImage className="h-12 w-12 text-gray-400" />
             </div>
           ) : (
             <img
               src={formatImageUrl(charity.picture_path)}
               alt={charity.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-lg"
               onError={(e) => {
                 console.error('Failed to load charity image:', charity.picture_path);
                 setImageError(true);
@@ -101,7 +104,7 @@ export default function CharityCard({ charity }) {
         </div>
         
         {/* Like button positioned on the top right */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-4 right-4">
           <button
             onClick={toggleFollow}
             disabled={isLoading}
@@ -125,29 +128,23 @@ export default function CharityCard({ charity }) {
         <div className="flex flex-col">
           <h3 className="text-xl font-bold text-gray-900 mb-2">{charity.name}</h3>
           
-          <div className="flex items-center mt-1 space-x-2">
-            <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium flex items-center">
-              <FaTag className="mr-1 text-blue-500" />
+          <div className="flex flex-wrap gap-2 mb-2">
+            <span className="px-3 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-800">
               {charity.category || 'CATEGORY'}
-            </div>
+            </span>
             
             {charity.is_verified ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                <FaCheckCircle className="mr-1 text-green-500" /> Verified
+              <span className="px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 flex items-center">
+                <FaCheckCircle className="mr-1" /> VERIFIED
               </span>
             ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">
-                <FaExclamationTriangle className="mr-1 text-yellow-500" /> Pending
+              <span className="px-3 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center">
+                <FaExclamationTriangle className="mr-1" /> PENDING
               </span>
             )}
           </div>
         </div>
         
-        {/* Description */}
-        <p className="text-sm text-gray-600 mt-4 line-clamp-3">
-          {charity.description}
-        </p>
-
         {/* Fund Progress */}
         <div className="mt-4">
           <div className="flex justify-between items-center mb-2">
@@ -170,36 +167,9 @@ export default function CharityCard({ charity }) {
         </div>
       </div>
 
-      {/* More Details (expandable) */}
-      <motion.div
-        initial={false}
-        animate={{ height: showDetails ? 'auto' : 0, opacity: showDetails ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
-        className="overflow-hidden"
-      >
-        <div className="p-4 border-t border-gray-100 bg-gray-50">
-          <div className="flex items-center text-sm text-gray-500 mb-2">
-            <FaChartBar className="mr-1.5 text-indigo-400" />
-            <span>{charity.tasks?.length || 0} Tasks</span>
-          </div>
-          
-          <div className="flex items-center text-sm text-gray-500 mb-2">
-            <FaCalendarAlt className="mr-1.5 text-indigo-400" />
-            <span>{new Date(charity.created_at).toLocaleDateString()}</span>
-          </div>
-          
-          {charity.follower_count !== undefined && (
-            <div className="flex items-center text-sm text-gray-500">
-              <FaUsers className="mr-1.5 text-indigo-400" />
-              <span>{charity.follower_count} {charity.follower_count === 1 ? 'Follower' : 'Followers'}</span>
-            </div>
-          )}
-        </div>
-      </motion.div>
-
       {/* Actions */}
-      <div className="p-4 border-t border-gray-100 flex justify-between mt-auto">
-        <div className="flex space-x-3">
+      <div className="p-4 border-t border-gray-100 flex justify-end mt-auto">
+        <div className="flex space-x-4">
           <Link
             to={`/charities/${charity.id}`}
             className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
@@ -216,21 +186,6 @@ export default function CharityCard({ charity }) {
           )}
         </div>
         
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center transition-colors duration-200"
-        >
-          {showDetails ? 'Less Details' : 'More Details'}
-          {showDetails ? <FaChevronUp className="ml-1" /> : <FaChevronDown className="ml-1" />}
-        </button>
-      </div>
-      
-      {/* Follower count */}
-      <div className="px-4 pb-3 text-xs text-gray-500 flex justify-end">
-        <span className="flex items-center">
-          <FaHeart className="text-red-400 mr-1 h-3 w-3" />
-          {followerCount} {followerCount === 1 ? 'follower' : 'followers'}
-        </span>
       </div>
     </motion.div>
   );

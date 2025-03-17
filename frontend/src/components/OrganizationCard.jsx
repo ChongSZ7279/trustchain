@@ -87,44 +87,48 @@ export default function OrganizationCard({ organization }) {
       className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
     >
       {/* Cover Image */}
-      <div className="relative">
-        <div className="w-full h-48 bg-gray-200">
-          {coverImageError || !organization.cover_image_path ? (
-            <div className="w-full h-full flex items-center justify-center bg-gray-200">
-              <FaImage className="h-12 w-12 text-gray-400" />
-            </div>
-          ) : (
-            <img
-              className="w-full h-full object-cover"
-              src={formatImageUrl(organization.cover_image_path)}
-              alt={`${organization.name} cover`}
-              onError={(e) => {
-                console.error('Failed to load cover image:', organization.cover_image_path);
-                setCoverImageError(true);
-              }}
-            />
-          )}
-        </div>
-        
-        {/* Like button positioned on the top right */}
-        <div className="absolute top-2 right-2">
-          <button
-            onClick={toggleFollow}
-            disabled={isLoading}
-            className={`p-2 rounded-full transition-colors shadow-md ${
-              isFollowing 
-                ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
-                : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
-            }`}
-          >
-            {isFollowing ? (
-              <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-            ) : (
-              <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-            )}
-          </button>
-        </div>
+    <div className="relative p-4"> 
+      <div 
+        className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden relative"
+        style={{ boxShadow: "6px 6px 10px rgba(0, 0, 0, 0.2)" }} // Custom shadow on bottom-right
+      >
+        {coverImageError || !organization.cover_image_path ? (
+          <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg">
+            <FaImage className="h-12 w-12 text-gray-400" />
+          </div>
+        ) : (
+          <img
+            className="w-full h-full object-cover rounded-lg"
+            src={formatImageUrl(organization.cover_image_path)}
+            alt={`${organization.name} cover`}
+            onError={(e) => {
+              console.error('Failed to load cover image:', organization.cover_image_path);
+              setCoverImageError(true);
+            }}
+          />
+        )}
       </div>
+      
+      {/* Like button positioned on the top right */}
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={toggleFollow}
+          disabled={isLoading}
+          className={`p-2 rounded-full transition-colors shadow-md ${
+            isFollowing 
+              ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
+              : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
+          }`}
+        >
+          {isFollowing ? (
+            <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
+          ) : (
+            <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
+          )}
+        </button>
+      </div>
+    </div>
+
       
       {/* Organization Info with Logo */}
       <div className="p-4 flex-grow">
@@ -179,39 +183,11 @@ export default function OrganizationCard({ organization }) {
           </div>
         </div>
         
-        {/* Description */}
-        <p className="text-sm text-gray-600 mt-4 line-clamp-3">{organization.description}</p>
       </div>
 
-      {/* More Details (expandable) */}
-      <motion.div
-        initial={false}
-        animate={{ height: showDetails ? 'auto' : 0, opacity: showDetails ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
-        className="overflow-hidden"
-      >
-        <div className="p-4 border-t border-gray-100 bg-gray-50">
-          {organization.phone_number && (
-            <p className="text-sm text-gray-600 flex items-center mb-2">
-              <FaPhone className="mr-2 text-indigo-400" /> {organization.phone_number}
-            </p>
-          )}
-          {organization.gmail && (
-            <p className="text-sm text-gray-600 flex items-center mb-2">
-              <FaEnvelope className="mr-2 text-indigo-400" /> {organization.gmail}
-            </p>
-          )}
-          {organization.register_address && (
-            <p className="text-sm text-gray-600 flex items-center">
-              <FaMapMarkerAlt className="mr-2 text-indigo-400" /> {organization.register_address}
-            </p>
-          )}
-        </div>
-      </motion.div>
-
       {/* Actions */}
-      <div className="p-4 border-t border-gray-100 flex justify-between mt-auto">
-        <div className="flex space-x-3">
+      <div className="p-4 border-t border-gray-100 flex justify-end mt-auto">
+        <div className="flex space-x-4">
           <Link 
             to={`/organizations/${organization.id}`} 
             className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
@@ -227,23 +203,9 @@ export default function OrganizationCard({ organization }) {
             </button>
           )}
         </div>
-        
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center transition-colors duration-200"
-        >
-          {showDetails ? 'Less Details' : 'More Details'}
-          {showDetails ? <FaChevronUp className="ml-1" /> : <FaChevronDown className="ml-1" />}
-        </button>
       </div>
+
       
-      {/* Follower count */}
-      <div className="px-4 pb-3 text-xs text-gray-500 flex justify-end">
-        <span className="flex items-center">
-          <FaHeart className="text-red-400 mr-1 h-3 w-3" />
-          {followerCount} {followerCount === 1 ? 'follower' : 'followers'}
-        </span>
-      </div>
     </motion.div>
   );
 }

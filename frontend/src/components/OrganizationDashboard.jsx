@@ -37,6 +37,7 @@ export default function OrganizationDashboard() {
   const [error, setError] = useState('');
   const [charities, setCharities] = useState([]);
   const [activeTab, setActiveTab] = useState('charity');
+  const [totalDonations, setTotalDonations] = useState(0);
 
   useEffect(() => {
     if (!organization) {
@@ -51,23 +52,17 @@ export default function OrganizationDashboard() {
       try {
         setLoading(true);
         
-        // Fetch organization's charities
-        try {
-          const charitiesResponse = await axios.get(`/api/organizations/${organization.id}/charities`);
-          setCharities(charitiesResponse.data);
-        } catch (err) {
-          console.error('Error fetching charities:', err);
-          setCharities([]); // Set empty array if charities endpoint fails
-        }
+        // Fetch charities associated with this organization
+        const charitiesResponse = await axios.get(`/organizations/${organization.id}/charities`);
+        setCharities(charitiesResponse.data);
         
-        // Fetch transactions
-        try {
-          const transactionsResponse = await axios.get(`/api/organizations/${organization.id}/transactions`);
-          setTransactions(transactionsResponse.data);
-        } catch (err) {
-          console.error('Error fetching transactions:', err);
-          setTransactions([]); // Set empty array if transactions endpoint fails
-        }
+        // Fetch recent transactions
+        const transactionsResponse = await axios.get(`/organizations/${organization.id}/transactions`);
+        setTransactions(transactionsResponse.data);
+        
+        // Calculate total donations
+        const total = transactionsResponse.data.reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
+        setTotalDonations(total);
       } catch (err) {
         console.error('Error in fetchOrganizationData:', err);
         setError('Failed to load some organization data');

@@ -109,31 +109,26 @@ export default function OrganizationEdit() {
     setError('');
 
     try {
+      setSubmitting(true);
+      
+      // Create FormData object for file uploads
       const formDataToSend = new FormData();
+      
+      // Append all form fields to FormData
       Object.keys(formData).forEach(key => {
-        if (key !== 'logo' && key !== 'cover_image_path' && key !== 'statutory_declaration' && key !== 'verified_document') {
+        if (key === 'logo' || key === 'cover_image_path') {
+          if (formData[key] && formData[key] instanceof File) {
+            formDataToSend.append(key, formData[key]);
+          }
+        } else {
           formDataToSend.append(key, formData[key]);
         }
       });
-      formDataToSend.append('_method', 'PUT');
-
-      if (formData.logo) {
-        formDataToSend.append('logo', formData.logo);
-      }
-      if (formData.cover_image_path) {
-        formDataToSend.append('cover_image_path', formData.cover_image_path);
-      }
-      if (formData.statutory_declaration) {
-        formDataToSend.append('statutory_declaration', formData.statutory_declaration);
-      }
-      if (formData.verified_document) {
-        formDataToSend.append('verified_document', formData.verified_document);
-      }
-
-      const response = await axios.post(`/api/organizations/${organization.id}`, formDataToSend, {
+      
+      // Use PUT method for update
+      const response = await axios.post(`/organizations/${organization.id}`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
       });
 

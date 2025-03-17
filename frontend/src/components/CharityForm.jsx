@@ -50,32 +50,34 @@ export default function CharityForm() {
   const fetchCharity = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/charities/${id}`);
-      const charity = response.data;
+      const response = await axios.get(`/charities/${id}`);
+      const charityData = response.data;
 
-      console.log('Loaded charity data:', charity);
+      console.log('Loaded charity data:', charityData);
 
       // Check if user has permission to edit
-      if (!canManageCharity(charity)) {
+      if (!canManageCharity(charityData)) {
         navigate('/charities');
         return;
       }
 
       // Set all form data including the picture_path
       setFormData({
-        name: charity.name || '',
-        category: charity.category || '',
-        description: charity.description || '',
-        objective: charity.objective || '',
-        fund_targeted: charity.fund_targeted || '',
-        picture_path: charity.picture_path || null
+        name: charityData.name || '',
+        category: charityData.category || '',
+        description: charityData.description || '',
+        objective: charityData.objective || '',
+        fund_targeted: charityData.fund_targeted || '',
+        picture_path: charityData.picture_path || null,
+        status: charityData.status || 'pending',
+        organization_id: charityData.organization_id || organization?.id
       });
 
       // If there's an existing picture, set it in the preview
-      if (charity.picture_path) {
+      if (charityData.picture_path) {
         setPreviewUrls(prev => ({
           ...prev,
-          picture_path: formatImageUrl(charity.picture_path)
+          picture_path: formatImageUrl(charityData.picture_path)
         }));
       }
 
@@ -159,50 +161,32 @@ export default function CharityForm() {
       setLoading(true);
       const formDataToSend = new FormData();
       
-      // Append basic form fields
+      // Append all form fields to FormData
       Object.keys(formData).forEach(key => {
-        if (key !== 'picture_path' && formData[key] !== null && formData[key] !== undefined) {
-          formDataToSend.append(key, formData[key].toString());
+        if (key === 'logo' || key === 'cover_image') {
+          if (formData[key] && formData[key] instanceof File) {
+            formDataToSend.append(key, formData[key]);
+          }
+        } else {
+          formDataToSend.append(key, formData[key]);
         }
       });
-
-      // Add organization_id if available
-      if (organization?.id) {
-        formDataToSend.append('organization_id', organization.id.toString());
-      }
-
-      // Append files only if they are selected
-      if (files.picture_path) {
-        formDataToSend.append('picture_path', files.picture_path);
-        console.log('Appending new picture:', files.picture_path.name);
-      }
-      if (files.verified_document) {
-        formDataToSend.append('verified_document', files.verified_document);
-        console.log('Appending document:', files.verified_document.name);
-      }
-
+      
       let response;
+      
       if (id) {
-        // For PUT requests, append _method field
-        formDataToSend.append('_method', 'PUT');
-        
-        // Log the form data being sent
-        for (let [key, value] of formDataToSend.entries()) {
-          console.log(`Sending form data - ${key}:`, value instanceof File ? value.name : value);
-        }
-
-        response = await axios.post(`/api/charities/${id}`, formDataToSend, {
+        // Update existing charity
+        response = await axios.post(`/charities/${id}`, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json',
-          }
+          },
         });
       } else {
+        // Create new charity
         response = await axios.post('/charities', formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json',
-          }
+          },
         });
       }
 

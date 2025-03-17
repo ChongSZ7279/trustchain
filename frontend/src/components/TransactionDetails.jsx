@@ -14,10 +14,10 @@ export default function TransactionDetails() {
   const [blockchainDetails, setBlockchainDetails] = useState(null);
 
   useEffect(() => {
-    const fetchTransaction = async () => {
+    const fetchTransactionDetails = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/api/transactions/${id}`);
+        const response = await axios.get(`/transactions/${id}`);
         setTransaction(response.data);
         
         // Attempt to verify on blockchain
@@ -39,14 +39,14 @@ export default function TransactionDetails() {
           }
         }
       } catch (err) {
-        console.error('Error fetching transaction:', err);
-        setError('Failed to load transaction details');
+        console.error('Error fetching transaction details:', err);
+        setError('Failed to fetch transaction details');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTransaction();
+    fetchTransactionDetails();
   }, [id, contract]);
 
   // Format date to a readable format

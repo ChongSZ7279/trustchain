@@ -55,25 +55,27 @@ export default function TaskForm({ mode = 'create' }) {
         
         if (mode === 'edit' || taskId) {
           // Fetch task data when editing
-          const response = await axios.get(`/api/tasks/${taskId}`);
-          const task = response.data;
-          console.log('Fetched task:', task); // Debug log
+          const response = await axios.get(`/tasks/${taskId}`);
+          const taskData = response.data;
+          console.log('Fetched task:', taskData); // Debug log
           
           // Check if user owns the charity
-          if (task.charity.organization_id !== organization.id) {
+          if (taskData.charity.organization_id !== organization.id) {
             console.error('User does not own this charity');
             navigate('/charities');
             return;
           }
 
           setFormData({
-            name: task.name || '',
-            description: task.description || '',
-            fund_targeted: task.fund_targeted || '',
-            status: task.status || 'pending',
+            name: taskData.name || '',
+            description: taskData.description || '',
+            fund_targeted: taskData.fund_targeted || '',
+            status: taskData.status || 'pending',
+            required_volunteers: taskData.required_volunteers || 1,
+            charity_id: taskData.charity_id || charityId
           });
 
-          setCharity(task.charity);
+          setCharity(taskData.charity);
         } else if (mode === 'create' || charityId) {
           // Verify charityId exists when creating
           if (!charityId) {
@@ -83,7 +85,7 @@ export default function TaskForm({ mode = 'create' }) {
           }
 
           // Fetch charity data when creating new task
-          const response = await axios.get(`/api/charities/${charityId}`);
+          const response = await axios.get(`/charities/${charityId}`);
           const charityData = response.data;
           console.log('Fetched charity:', charityData); // Debug log
           
@@ -141,22 +143,21 @@ export default function TaskForm({ mode = 'create' }) {
       }
 
       let response;
-      if (mode === 'edit' || taskId) {
-        formDataToSend.append('_method', 'PUT');
-        response = await axios.post(`/api/tasks/${taskId}`, formDataToSend, {
+      if (taskId) {
+        // Update existing task
+        response = await axios.post(`/tasks/${taskId}`, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json',
           },
         });
         
         // Navigate back to charity details
         navigate(`/charities/${charity.id}`);
-      } else if (mode === 'create' || charityId) {
-        response = await axios.post(`/api/charities/${charityId}/tasks`, formDataToSend, {
+      } else {
+        // Create new task
+        response = await axios.post(`/charities/${charityId}/tasks`, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json',
           },
         });
         

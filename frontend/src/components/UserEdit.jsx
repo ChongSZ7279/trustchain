@@ -132,7 +132,7 @@ export default function UserEdit() {
         formDataToSend.append('back_ic_picture', formData.back_ic_picture);
       }
 
-      const response = await axios.post(`/api/users/${user.ic_number}`, formDataToSend, {
+      const response = await axios.post(`/users/${user.ic_number}`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

@@ -25,6 +25,7 @@ import {
   FaExternalLinkAlt,
   FaChevronDown
 } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 export default function CharityDetails() {
   const { id } = useParams();
@@ -40,6 +41,8 @@ export default function CharityDetails() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [taskDeleteLoading, setTaskDeleteLoading] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     fetchCharityData();
@@ -48,47 +51,38 @@ export default function CharityDetails() {
   const fetchCharityData = async () => {
     try {
       setLoading(true);
-      const [charityRes, tasksRes] = await Promise.all([
-        axios.get(`/api/charities/${id}`),
-        axios.get(`/api/charities/${id}/tasks`)
+      const [charityResponse, tasksResponse] = await Promise.all([
+        axios.get(`/charities/${id}`),
+        axios.get(`/charities/${id}/tasks`)
       ]);
-      setCharity(charityRes.data);
-      setTasks(tasksRes.data);
+      setCharity(charityResponse.data);
+      setTasks(tasksResponse.data);
       
       // Set follower status
-      if (charityRes.data.is_following !== undefined) {
-        setIsFollowing(charityRes.data.is_following);
+      if (charityResponse.data.is_following !== undefined) {
+        setIsFollowing(charityResponse.data.is_following);
       }
-      if (charityRes.data.follower_count !== undefined) {
-        setFollowerCount(charityRes.data.follower_count);
+      if (charityResponse.data.follower_count !== undefined) {
+        setFollowerCount(charityResponse.data.follower_count);
       }
       
-      // Try to fetch donations and transactions, but don't fail if they're not available
-      try {
-        const donationsRes = await axios.get(`/api/charities/${id}/donations`);
+      // Fetch donations if user is authorized
+      if (user && (user.role === 'admin' || user.ic_number === charity?.representative_id)) {
+        const donationsRes = await axios.get(`/charities/${id}/donations`);
         setDonations(donationsRes.data);
-      } catch (err) {
-        console.log('Donations endpoint not available yet');
-        setDonations([]);
       }
 
-      try {
-        const transactionsRes = await axios.get(`/api/charities/${id}/transactions`);
+      // Fetch transactions if user is authorized
+      if (user && (user.role === 'admin' || user.ic_number === charity?.representative_id)) {
+        const transactionsRes = await axios.get(`/charities/${id}/transactions`);
         setTransactions(transactionsRes.data);
-      } catch (err) {
-        console.log('Transactions endpoint not available yet');
-        setTransactions([]);
       }
       
-      // Check follow status if user is logged in
+      // Get follow status
       if (user) {
-        try {
-          const followStatusRes = await axios.get(`/api/charities/${id}/follow-status`);
-          setIsFollowing(followStatusRes.data.is_following);
-          setFollowerCount(followStatusRes.data.follower_count);
-        } catch (err) {
-          console.error('Error checking follow status:', err);
-        }
+        const followStatusRes = await axios.get(`/charities/${id}/follow-status`);
+        setIsFollowing(followStatusRes.data.is_following);
+        setFollowerCount(followStatusRes.data.follower_count);
       }
     } catch (err) {
       setError('Failed to fetch charity details');
@@ -107,28 +101,41 @@ export default function CharityDetails() {
     return Math.min(100, (charity.fund_received / charity.fund_targeted) * 100);
   };
 
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
+  const deleteTask = async (taskId) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
     try {
-      await axios.delete(`/api/tasks/${taskId}`);
-      setTasks(tasks.filter(task => task.id !== taskId));
-    } catch (err) {
-      console.error('Error deleting task:', err);
+      setTaskDeleteLoading(true);
+      await axios.delete(`/tasks/${taskId}`);
+      // Remove the deleted task from the tasks array
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    } finally {
+      setTaskDeleteLoading(false);
     }
   };
 
-  const handleToggleFollow = async () => {
+  const toggleFollow = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
-    
+
     try {
-      const response = await axios.post(`/api/charities/${id}/follow`);
+      setFollowLoading(true);
+      const response = await axios.post(`/charities/${id}/follow`);
       setIsFollowing(response.data.is_following);
-      setFollowerCount(response.data.follower_count);
-    } catch (err) {
-      console.error('Error toggling follow status:', err);
+      setCharity(prev => ({
+        ...prev,
+        follower_count: response.data.follower_count
+      }));
+    } catch (error) {
+      console.error('Error toggling follow status:', error);
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -183,7 +190,7 @@ export default function CharityDetails() {
               {/* Action Buttons */}
               <div className="flex gap-4">
                 <button
-                  onClick={handleToggleFollow}
+                  onClick={toggleFollow}
                   className={`flex-1 inline-flex justify-center items-center px-6 py-3 border text-base font-medium rounded-lg transition-colors ${
                     isFollowing
                       ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'

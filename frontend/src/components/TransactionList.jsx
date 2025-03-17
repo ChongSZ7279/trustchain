@@ -30,7 +30,7 @@ export default function TransactionList() {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/transactions');
+        const response = await axios.get('/transactions');
         setTransactions(response.data);
       } catch (err) {
         console.error('Error fetching transactions:', err);

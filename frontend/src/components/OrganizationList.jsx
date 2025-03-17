@@ -43,7 +43,7 @@ export default function OrganizationList() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/api/organizations');
+      const response = await axios.get('/organizations');
       setOrganizations(response.data);
     } catch (err) {
       console.error('Error fetching organizations:', err);

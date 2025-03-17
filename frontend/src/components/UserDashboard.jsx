@@ -65,7 +65,7 @@ export default function UserDashboard() {
         
         // Fetch user's transactions
         try {
-          const transactionsRes = await axios.get(`/api/users/${user.ic_number}/transactions`);
+          const transactionsRes = await axios.get(`/users/${user.ic_number}/transactions`);
           setTransactions(transactionsRes.data);
           
           // Calculate total donation amount
@@ -95,7 +95,7 @@ export default function UserDashboard() {
 
         // Fetch user's charities
         try {
-          const charitiesRes = await axios.get(`/api/users/${user.ic_number}/charities`);
+          const charitiesRes = await axios.get(`/users/${user.ic_number}/charities`);
           const charities = charitiesRes.data;
           
           // Split charities into completed and in progress
@@ -113,7 +113,7 @@ export default function UserDashboard() {
         
         // Fetch followed organizations
         try {
-          const followedOrgsRes = await axios.get('/api/user/followed-organizations');
+          const followedOrgsRes = await axios.get('/user/followed-organizations');
           setFollowedOrganizations(followedOrgsRes.data);
         } catch (err) {
           console.error('Error fetching followed organizations:', err);
@@ -122,7 +122,7 @@ export default function UserDashboard() {
         
         // Fetch followed charities
         try {
-          const followedCharitiesRes = await axios.get('/api/user/followed-charities');
+          const followedCharitiesRes = await axios.get('/user/followed-charities');
           setFollowedCharities(followedCharitiesRes.data);
         } catch (err) {
           console.error('Error fetching followed charities:', err);

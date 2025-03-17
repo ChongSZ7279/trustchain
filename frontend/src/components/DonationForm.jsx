@@ -61,7 +61,7 @@ export default function DonationForm() {
           setBlockchainTxHash(txHash);
           
           // Create donation record
-          const donationResponse = await axios.post('/api/donations', {
+          const donationResponse = await axios.post('/donations', {
             amount: finalAmount,
             currency_type: isBlockchainEnabled ? 'ETH' : currencyType,
             cause_id: id,
@@ -87,7 +87,7 @@ export default function DonationForm() {
       } else {
         // Traditional payment processing
         // Create donation record
-        const donationResponse = await axios.post('/api/donations', {
+        const donationResponse = await axios.post('/donations', {
           amount: amount,
           currency_type: currencyType,
           cause_id: id,

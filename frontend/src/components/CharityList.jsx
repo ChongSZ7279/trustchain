@@ -55,7 +55,7 @@ export default function CharityList() {
   const fetchCharities = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/charities');
+      const response = await axios.get('/charities');
       setCharities(response.data);
     } catch (err) {
       setError('Failed to fetch charities');

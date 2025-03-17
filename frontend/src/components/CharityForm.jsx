@@ -198,7 +198,7 @@ export default function CharityForm() {
           }
         });
       } else {
-        response = await axios.post('/api/charities', formDataToSend, {
+        response = await axios.post('/charities', formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
             'Accept': 'application/json',

@@ -62,7 +62,7 @@ export default function TaskFundingForm({ taskId, taskName, charityId, onSuccess
           setTransactionHash(transaction.transactionHash);
           
           // Record transaction in backend
-          const response = await axios.post('/api/transactions', {
+          const response = await axios.post('/transactions', {
             task_id: taskId,
             charity_id: charityId,
             amount: amount,

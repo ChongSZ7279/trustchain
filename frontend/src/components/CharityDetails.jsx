@@ -23,7 +23,11 @@ import {
   FaHeart,
   FaUsers,
   FaExternalLinkAlt,
-  FaChevronDown
+  FaChevronDown,
+  FaShare,
+  FaCalendarAlt,
+  FaInfoCircle,
+  FaCommentAlt
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
@@ -37,16 +41,19 @@ export default function CharityDetails() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState('milestones');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [taskDeleteLoading, setTaskDeleteLoading] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [donationAmount, setDonationAmount] = useState('');
+  const [showDonationModal, setShowDonationModal] = useState(false);
 
   useEffect(() => {
     fetchCharityData();
+    // Reset scroll position when viewing a new charity
+    window.scrollTo(0, 0);
   }, [id]);
 
   const fetchCharityData = async () => {
@@ -172,38 +179,99 @@ export default function CharityDetails() {
       setFollowLoading(true);
       const response = await axios.post(`/charities/${id}/follow`);
       setIsFollowing(response.data.is_following);
-      setCharity(prev => ({
-        ...prev,
-        follower_count: response.data.follower_count
-      }));
+      setFollowerCount(response.data.follower_count);
+      toast.success(isFollowing ? 'Unfollowed successfully' : 'Following this charity');
     } catch (error) {
       console.error('Error toggling follow status:', error);
+      toast.error('Failed to update follow status');
     } finally {
       setFollowLoading(false);
     }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: charity?.name,
+        text: `Check out ${charity?.name} on our platform!`,
+        url: window.location.href
+      }).catch(err => console.error('Error sharing:', err));
+    } else {
+      // Fallback - copy URL to clipboard
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => toast.success('URL copied to clipboard!'))
+        .catch(err => console.error('Error copying to clipboard:', err));
+    }
+  };
+
+  const handleQuickDonate = (amount) => {
+    setDonationAmount(amount);
+    setShowDonationModal(true);
+  };
+
+  const submitDonation = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    
+    // Validate the donation amount
+    const amount = parseFloat(donationAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid donation amount');
+      return;
+    }
+    
+    // Close the modal and navigate to the donation page
+    setShowDonationModal(false);
+    navigate(`/charities/${id}/donate?amount=${amount}`);
   };
 
   const formatCurrency = (amount) => {
     return typeof amount === 'number' ? amount.toLocaleString() : '0';
   };
 
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  const getTimeRemaining = () => {
+    if (!charity?.end_date) return null;
+    
+    const endDate = new Date(charity.end_date);
+    const now = new Date();
+    const timeRemaining = endDate - now;
+    
+    if (timeRemaining <= 0) return 'Ended';
+    
+    const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+    return `${days} days left`;
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading charity details...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !charity) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-red-800">{error || 'Charity not found'}</h3>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-xl shadow-md max-w-md">
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">{error || 'Charity not found'}</h3>
+          <p className="mt-2 text-gray-600">We couldn't find the charity you're looking for. It may have been removed or the URL might be incorrect.</p>
           <button
             onClick={() => navigate('/charities')}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
+            <FaArrowLeft className="mr-2" />
             Back to Charities
           </button>
         </div>
@@ -212,403 +280,588 @@ export default function CharityDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation breadcrumb */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <nav className="flex" aria-label="Breadcrumb">
+            <ol className="flex items-center space-x-4">
+              <li>
+                <div>
+                  <Link to="/charities" className="text-gray-400 hover:text-gray-500">
+                    All Charities
+                  </Link>
+                </div>
+              </li>
+              <li>
+                <div className="flex items-center">
+                  <svg className="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+                  </svg>
+                  <span className="ml-4 text-sm font-medium text-gray-700 truncate max-w-xs">
+                    {charity?.name}
+                  </span>
+                </div>
+              </li>
+            </ol>
+          </nav>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Section 1: Main Info */}
+        {/* Hero Section */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6">
+          <div className="relative h-80 lg:h-96">
+            <img
+              src={formatImageUrl(charity?.picture_path) || 'https://via.placeholder.com/800x600'}
+              alt={charity?.name || 'Charity'}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+              <div className="p-6 lg:p-8 w-full">
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 mb-4">
+                  <FaTag className="mr-2" />
+                  {charity?.category || 'Uncategorized'}
+                </div>
+                <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">{charity?.name}</h1>
+                
+                {/* Verification Badge */}
+                <div className="flex items-center mb-4">
+                  {charity?.is_verified ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <FaCheckCircle className="mr-1" />
+                      Verified Organization
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <FaExclamationTriangle className="mr-1" />
+                      Pending Verification
+                    </span>
+                  )}
+                  
+                  {/* Time remaining */}
+                  {getTimeRemaining() && (
+                    <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <FaClock className="mr-1" />
+                      {getTimeRemaining()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6">
             {/* Left Column - Details */}
-            <div className="space-y-6">
-              {/* Category */}
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
-                <FaTag className="mr-2" />
-                {charity?.category || 'Uncategorized'}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Description */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">About this charity</h2>
+                <p className="text-gray-600 leading-relaxed">{charity?.description}</p>
               </div>
 
-              {/* Project Name */}
-              <h1 className="text-3xl font-bold text-gray-900">{charity?.name}</h1>
-
-              {/* Description */}
-              <p className="text-gray-600">{charity?.description}</p>
+              {/* Quick Donate Buttons */}
+              <div className="bg-gray-50 rounded-xl p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Donate</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {[10, 25, 50, 100, 250, 500].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => handleQuickDonate(amount)}
+                      className="bg-white border border-gray-200 rounded-lg py-3 px-4 hover:bg-indigo-50 hover:border-indigo-300 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <span className="block text-lg font-semibold text-gray-900">${amount}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center">
+                  <div className="flex-1 mr-3">
+                    <input
+                      type="number"
+                      value={donationAmount}
+                      onChange={(e) => setDonationAmount(e.target.value)}
+                      placeholder="Custom amount"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <button
+                    onClick={() => navigate(`/charities/${id}/donate?amount=${donationAmount}`)}
+                    className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                    disabled={!donationAmount}
+                  >
+                    Donate Now
+                  </button>
+                </div>
+              </div>
 
               {/* Action Buttons */}
               <div className="flex gap-4">
                 <button
                   onClick={toggleFollow}
+                  disabled={followLoading}
                   className={`flex-1 inline-flex justify-center items-center px-6 py-3 border text-base font-medium rounded-lg transition-colors ${
+                    followLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  } ${
                     isFollowing
                       ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                       : 'border-transparent text-white bg-blue-600 hover:bg-blue-700'
                   }`}
                 >
-                  {isFollowing ? (
-                    <>
-                      <FaHeart className="mr-2 text-red-500" />
-                      Following
-                    </>
+                  {followLoading ? (
+                    <div className="mr-2 h-5 w-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+                  ) : isFollowing ? (
+                    <FaHeart className="mr-2 text-red-500" />
                   ) : (
-                    <>
-                      <FaHeart className="mr-2" />
-                      Follow
-                    </>
+                    <FaHeart className="mr-2" />
                   )}
+                  {isFollowing ? 'Following' : 'Follow'}
                 </button>
 
                 <button
-                  onClick={() => navigate(`/charities/${id}/donate`)}
-                  className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+                  onClick={handleShare}
+                  className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                 >
-                  <FaHandHoldingHeart className="mr-2" />
-                  Donate
+                  <FaShare className="mr-2" />
+                  Share
                 </button>
               </div>
-            </div>
 
-            {/* Right Column - Picture */}
-            <div className="relative h-[400px] rounded-xl overflow-hidden">
-              <img
-                src={formatImageUrl(charity?.picture_path) || 'https://via.placeholder.com/800x600'}
-                alt={charity?.name || 'Charity'}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-
-          {/* Funding Progress Bar */}
-          <div className="border-t border-gray-100 p-6 bg-gray-50">
-            <div className="max-w-3xl mx-auto">
-              <div className="flex justify-between items-baseline mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    ${formatCurrency(charity?.fund_received)}
-                    <span className="text-gray-500 text-lg font-normal"> raised of ${formatCurrency(charity?.fund_targeted)}</span>
-                  </h2>
-                  <p className="text-gray-500 mt-1">{calculateProgress()}% towards goal</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-500">Total Donors</p>
-                  <p className="text-2xl font-bold text-gray-900">{followerCount}</p>
-                </div>
-              </div>
-              
-              <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500"
-                  style={{ width: `${calculateProgress()}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Find Out More Section - Expandable */}
-          <div className="border-t border-gray-100">
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-            >
-              <span className="text-lg font-medium text-gray-900">Find Out More</span>
-              <FaChevronDown className={`transform transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showDetails && (
-              <div className="px-6 pb-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Category Details */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">Category</h3>
-                    <p className="text-gray-600">{charity?.category}</p>
-                  </div>
-
-                  {/* Verification Status */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">Verification Status</h3>
-                    <div className="flex items-center">
-                      {charity?.is_verified ? (
-                        <>
-                          <FaCheckCircle className="text-green-500 mr-2" />
-                          <span className="text-green-700">Verified Organization</span>
-                        </>
-                      ) : (
-                        <>
-                          <FaExclamationTriangle className="text-yellow-500 mr-2" />
-                          <span className="text-yellow-700">Pending Verification</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Extended Description */}
-                  <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">About Us</h3>
-                    <p className="text-gray-600">{charity?.extended_description || charity?.description}</p>
-                  </div>
-
-                  {/* Documents Section */}
-                  {charity?.documents && charity.documents.length > 0 && (
-                    <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
-                      <h3 className="font-medium text-gray-900 mb-4">Verified Documents</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {charity.documents.map((doc, index) => (
-                          <div key={index} className="flex items-center space-x-3 p-3 bg-white rounded-lg">
-                            <FaFileAlt className="text-blue-500" />
-                            <span className="flex-1 text-gray-600">{doc.name}</span>
-                            <a
-                              href={formatImageUrl(doc.file_path)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              View
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Section 2: Tabs */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="border-b border-gray-200">
-            <nav className="flex">
-              <button
-                onClick={() => setActiveTab('milestones')}
-                className={`${
-                  activeTab === 'milestones'
-                    ? 'border-indigo-500 text-indigo-600 bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } flex-1 py-4 px-8 text-center border-b-2 font-medium text-sm transition-colors duration-200`}
-              >
-                <div className="flex items-center justify-center">
-                  <FaTasks className="mr-2" />
-                  Milestones
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('transactions')}
-                className={`${
-                  activeTab === 'transactions'
-                    ? 'border-indigo-500 text-indigo-600 bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } flex-1 py-4 px-8 text-center border-b-2 font-medium text-sm transition-colors duration-200`}
-              >
-                <div className="flex items-center justify-center">
-                  <FaExchangeAlt className="mr-2" />
-                  Transactions
-                </div>
-              </button>
-            </nav>
-          </div>
-
-          <div className="p-6">
-            {activeTab === 'milestones' && (
-              <div className="relative">
-                {/* Timeline Line */}
-                <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-blue-200"></div>
-                
-                {/* Timeline Items */}
-                <div className="space-y-12">
-                  {tasks.map((task, index) => (
-                    <div
-                      key={task.id}
-                      className={`flex items-center ${
-                        index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'
-                      }`}
+              {/* Tabs */}
+              <div className="mt-8">
+                <div className="border-b border-gray-200">
+                  <nav className="flex space-x-8">
+                    <button
+                      onClick={() => setActiveTab('milestones')}
+                      className={`${
+                        activeTab === 'milestones'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      } py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
                     >
-                      {/* Content Side */}
-                      <div className="w-5/12 relative">
-                        {/* Main Task Content */}
-                        <div className="bg-white p-6 rounded-lg shadow-sm border-2 border-blue-200">
-                          <div className="space-y-4">
-                            {/* Task Name and Completion Time */}
-                            <div className="flex justify-between items-start">
-                              <h3 className="text-xl font-semibold text-gray-900">{task.name}</h3>
-                              {task.completed_at && (
-                                <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center">
-                                  <FaCheckCircle className="mr-1" />
-                                  Completed {new Date(task.completed_at).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
+                      <div className="flex items-center">
+                        <FaTasks className="mr-2" />
+                        Milestones
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('transactions')}
+                      className={`${
+                        activeTab === 'transactions'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      } py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                    >
+                      <div className="flex items-center">
+                        <FaExchangeAlt className="mr-2" />
+                        Transactions
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('about')}
+                      className={`${
+                        activeTab === 'about'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      } py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                    >
+                      <div className="flex items-center">
+                        <FaInfoCircle className="mr-2" />
+                        About
+                      </div>
+                    </button>
+                  </nav>
+                </div>
 
-                            {/* Task Description */}
-                            <p className="text-gray-600">{task.description}</p>
-
-                            {/* Task Image */}
-                            {task.image && (
-                              <div className="relative h-48 rounded-lg overflow-hidden">
-                                <img
-                                  src={formatImageUrl(task.image)}
-                                  alt={task.name}
-                                  className="w-full h-full object-cover"
-                                />
+                <div className="py-6">
+                  {activeTab === 'milestones' && (
+                    <div className="relative">
+                      {tasks.length > 0 && (
+                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-blue-200"></div>
+                      )}
+                      
+                      {/* Timeline Items */}
+                      <div className="space-y-8">
+                        {tasks.map((task, index) => (
+                          <div key={task.id} className="relative pl-10">
+                            {/* Timeline Point */}
+                            <div className="absolute left-0 top-0 flex items-center">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                                task.status === 'completed' 
+                                  ? 'bg-green-100 border-green-500 text-green-600' 
+                                  : 'bg-blue-100 border-blue-500 text-blue-600'
+                              }`}>
+                                {task.status === 'completed' ? (
+                                  <FaCheckCircle className="h-4 w-4" />
+                                ) : (
+                                  <FaClock className="h-4 w-4" />
+                                )}
                               </div>
-                            )}
-
-                            {/* Progress Bar */}
-                            {task.fund_targeted && (
-                              <div className="mt-4">
-                                <div className="flex justify-between text-sm mb-1">
-                                  <span className="text-gray-500">Progress</span>
-                                  <span className="font-medium text-blue-600">
-                                    ${formatCurrency(task.current_amount)} / ${formatCurrency(task.fund_targeted)}
+                            </div>
+                            
+                            {/* Task Content */}
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                              {/* Task header */}
+                              <div className="p-4 border-b border-gray-100">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
+                                    <p className="text-sm text-gray-500 mt-1 flex items-center">
+                                      <FaCalendarAlt className="mr-1" />
+                                      {formatDate(task.created_at)}
+                                    </p>
+                                  </div>
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    task.status === 'completed'
+                                      ? 'bg-green-100 text-green-800'
+                                      : task.status === 'in_progress'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
+                                    {task.status === 'in_progress' && <FaClock className="mr-1" />}
+                                    {task.status?.charAt(0).toUpperCase() + task.status?.slice(1).replace('_', ' ')}
                                   </span>
                                 </div>
-                                <div className="h-2 bg-blue-50 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-blue-500"
-                                    style={{
-                                      width: `${Math.min(
-                                        (task.current_amount / task.fund_targeted) * 100,
-                                        100
-                                      )}%`,
-                                    }}
-                                  ></div>
-                                </div>
                               </div>
-                            )}
-
-                            {/* Task Status */}
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={`px-3 py-1 rounded-full ${
-                                task.status === 'completed'
-                                  ? 'bg-green-50 text-green-700'
-                                  : task.status === 'in_progress'
-                                  ? 'bg-blue-50 text-blue-700'
-                                  : 'bg-gray-50 text-gray-700'
-                              }`}>
-                                {task.status === 'completed' && <FaCheckCircle className="inline mr-1" />}
-                                {task.status === 'in_progress' && <FaClock className="inline mr-1" />}
-                                {task.status?.charAt(0).toUpperCase() + task.status?.slice(1).replace('_', ' ')}
-                              </span>
                               
-                              {/* Time Box */}
-                              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg px-3 py-1">
-                                <span className="text-blue-700 font-medium">
-                                  {new Date(task.created_at).toLocaleTimeString([], { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit'
-                                  })}
+                              {/* Task body */}
+                              <div className="p-4">
+                                <p className="text-gray-600">{task.description}</p>
+                                
+                                {/* Task Image */}
+                                {task.image && (
+                                  <div className="mt-4 relative h-48 rounded-lg overflow-hidden">
+                                    <img
+                                      src={formatImageUrl(task.image)}
+                                      alt={task.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Progress Bar */}
+                                {task.fund_targeted > 0 && (
+                                  <div className="mt-4">
+                                    <div className="flex justify-between text-sm mb-2">
+                                      <span className="text-gray-500">Funding Progress</span>
+                                      <span className="font-medium text-blue-600">
+                                        ${formatCurrency(task.current_amount)} / ${formatCurrency(task.fund_targeted)}
+                                      </span>
+                                    </div>
+                                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                                        style={{
+                                          width: `${Math.min(
+                                            (task.current_amount / task.fund_targeted) * 100,
+                                            100
+                                          )}%`,
+                                        }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Task Completion */}
+                                {task.completed_at && (
+                                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                                    <div className="flex items-center">
+                                      <FaCheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                                      <div>
+                                        <span className="font-medium text-green-700">Completed</span>
+                                        <span className="text-sm text-green-600 ml-2">
+                                          {formatDate(task.completed_at)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {tasks.length === 0 && (
+                          <div className="text-center py-8">
+                            <div className="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
+                              <FaTasks className="mx-auto h-12 w-12 text-gray-400" />
+                              <h3 className="mt-4 text-lg font-medium text-gray-900">No milestones yet</h3>
+                              <p className="mt-2 text-sm text-gray-500">
+                                This charity hasn't added any milestones yet. Check back later for updates.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'transactions' && (
+                    <div className="overflow-x-auto rounded-lg border border-gray-200">
+                      {transactions.length > 0 ? (
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Transaction ID
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Type
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {transactions.map(transaction => (
+                              <tr key={transaction.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {formatDate(transaction.created_at)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                  {transaction.transaction_hash?.slice(0, 8) || transaction.id}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    transaction.type === 'donation' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {transaction.type === 'donation' ? (
+                                      <FaHandHoldingHeart className="mr-1" />
+                                    ) : (
+                                      <FaExchangeAlt className="mr-1" />
+                                    )}
+                                    {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  ${formatCurrency(transaction.amount)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    transaction.status === 'completed'
+                                      ? 'bg-green-100 text-green-800'
+                                      : transaction.status === 'pending'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {transaction.status === 'completed' && <FaCheckCircle className="mr-1" />}
+                                    {transaction.status === 'pending' && <FaClock className="mr-1" />}
+                                    {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="text-center py-8">
+                          <div className="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
+                            <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400" />
+                            <h3 className="mt-4 text-lg font-medium text-gray-900">No transactions yet</h3>
+                            <p className="mt-2 text-sm text-gray-500">
+                              This charity hasn't received any donations yet. Be the first to contribute!
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'about' && (
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-3">Charity Details</h3>
+                            <div className="space-y-4">
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">Category</span>
+                                <span className="text-gray-900">{charity.category || 'Not specified'}</span>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">Created On</span>
+                                <span className="text-gray-900">{formatDate(charity.created_at)}</span>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">End Date</span>
+                                <span className="text-gray-900">
+                                  {charity.end_date ? formatDate(charity.end_date) : 'Ongoing'}
                                 </span>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">Status</span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  charity.status === 'active'
+                                    ? 'bg-green-100 text-green-800'
+                                    : charity.status === 'completed'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {charity.status === 'active' && <FaCheckCircle className="mr-1" />}
+                                  {charity.status === 'completed' && <FaCheckCircle className="mr-1" />}
+                                  {charity.status?.charAt(0).toUpperCase() + charity.status?.slice(1)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-3">Organization</h3>
+                            <div className="space-y-4">
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">Organization Name</span>
+                                <Link to={`/organizations/${charity.organization_id}`} className="text-indigo-600 hover:text-indigo-800">
+                                  {charity.organization_name || 'Unknown Organization'}
+                                </Link>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">Representative</span>
+                                <span className="text-gray-900">{charity.representative_name || 'Not specified'}</span>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-500 block">Contact Email</span>
+                                <span className="text-gray-900">{charity.contact_email || 'Not provided'}</span>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-
-                      {/* Timeline Point */}
-                      <div className="w-2/12 flex justify-center relative">
-                        <div className="w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-[0_0_0_2px_rgba(59,130,246,0.5)]"></div>
-                        {/* Date Box - Positioned opposite to the task card */}
-                        <div className={`absolute top-0 ${
-                          index % 2 === 0 ? 'left-full' : 'right-full'
-                        } transform ${
-                          index % 2 === 0 ? 'translate-x-4' : '-translate-x-4'
-                        } -translate-y-1/2 bg-blue-50 border-2 border-blue-200 rounded-lg px-4 py-1 whitespace-nowrap`}>
-                          <span className="text-sm text-blue-700 font-medium">
-                            {new Date(task.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Empty Space for alignment */}
-                      <div className="w-5/12"></div>
-                    </div>
-                  ))}
-
-                  {tasks.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="bg-blue-50 rounded-lg p-8 max-w-md mx-auto">
-                        <FaTasks className="mx-auto h-12 w-12 text-blue-400" />
-                        <h3 className="mt-4 text-lg font-medium text-gray-900">No milestones yet</h3>
-                        <p className="mt-2 text-sm text-gray-500">
-                          This charity hasn't added any milestones yet. Check back later for updates.
-                        </p>
-                      </div>
                     </div>
                   )}
                 </div>
               </div>
-            )}
+            </div>
 
-            {activeTab === 'transactions' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Transaction ID
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {transactions.map(transaction => (
-                      <tr key={transaction.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                          {transaction.transaction_hash || transaction.id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            transaction.type === 'donation' 
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${formatCurrency(transaction.amount)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(transaction.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            transaction.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            <FaCheckCircle className={`mr-1 ${
-                              transaction.status === 'completed' ? 'text-green-500' : 'text-yellow-500'
-                            }`} />
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Right Column - Donation Progress */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Funding Progress</h3>
                 
-                {transactions.length === 0 && (
-                  <div className="text-center py-12">
-                    <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Transaction history will appear here once donations are made.
-                    </p>
+                {/* Progress Bar */}
+                <div className="mb-6">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-medium text-gray-500">
+                      {calculateProgress()}% Complete
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      ${formatCurrency(charity.fund_received)} / ${formatCurrency(charity.fund_targeted)}
+                    </span>
                   </div>
-                )}
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                      style={{ width: `${calculateProgress()}%` }}
+                    ></div>
+                  </div>
+                </div>
+                
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm font-medium text-gray-500 mb-1">Donors</div>
+                    <div className="text-2xl font-bold text-gray-900">{charity.donor_count || 0}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm font-medium text-gray-500 mb-1">Followers</div>
+                    <div className="text-2xl font-bold text-gray-900">{followerCount}</div>
+                  </div>
+                </div>
+                
+                {/* CTA Button */}
+                <button
+                  onClick={() => navigate(`/charities/${id}/donate`)}
+                  className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 flex items-center justify-center"
+                >
+                  <FaHandHoldingHeart className="mr-2" />
+                  Donate Now
+                </button>
+                
+                {/* Organization Link */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-500 mb-3">Organized by</h4>
+                  <Link to={`/organizations/${charity.organization_id}`} className="flex items-center group">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden mr-3">
+                      <img
+                        src={formatImageUrl(charity.organization_logo) || 'https://via.placeholder.com/40'}
+                        alt={charity.organization_name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+                        {charity.organization_name}
+                      </span>
+                      {charity.organization_verified && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          <FaCheckCircle className="mr-1" />
+                          Verified
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Donation Modal */}
+      {showDonationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Donation</h3>
+            <p className="text-gray-600 mb-4">
+              You are about to donate ${donationAmount} to {charity.name}.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDonationModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitDonation}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Actions */}
+      {canManageCharity() && (
+        <div className="fixed bottom-6 right-6">
+          <div className="flex flex-col space-y-3">
+            <Link
+              to={`/charities/${id}/edit`}
+              className="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 transition-colors"
+              title="Edit Charity"
+            >
+              <FaEdit className="h-6 w-6" />
+            </Link>
+            <Link
+              to={`/charities/${id}/tasks/create`}
+              className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+              title="Add Milestone"
+            >
+              <FaPlus className="h-6 w-6" />
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
-} 
+}

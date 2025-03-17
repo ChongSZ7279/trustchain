@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBuilding, 
   FaFileAlt, 
@@ -15,7 +16,9 @@ import {
   FaArrowLeft,
   FaSave,
   FaTimes,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaInfoCircle,
+  FaAddressCard
 } from 'react-icons/fa';
 
 export default function OrganizationEdit() {
@@ -43,6 +46,14 @@ export default function OrganizationEdit() {
     cover_image_path: null,
     statutory_declaration: null,
     verified_document: null
+  });
+
+  // Add new loading states
+  const [imageLoading, setImageLoading] = useState({
+    logo: true,
+    cover: true,
+    statutory: true,
+    verified: true
   });
 
   useEffect(() => {
@@ -184,105 +195,143 @@ export default function OrganizationEdit() {
 
   if (!organization) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading organization details...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-gray-50 py-6"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
+        {/* Enhanced Breadcrumb */}
         <nav className="flex items-center text-gray-500 mb-6">
-          <Link to="/organization/dashboard" className="hover:text-gray-700 flex items-center">
-            <FaArrowLeft className="mr-2" />
+          <Link 
+            to="/organization/dashboard" 
+            className="group inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors duration-200"
+          >
+            <FaArrowLeft className="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200" />
             Back to Dashboard
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-gray-900">Edit Organization</span>
+          <span className="text-gray-900 font-medium">Edit Organization</span>
         </nav>
 
-        <div className="bg-white shadow-sm rounded-lg">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-white shadow-lg rounded-2xl"
+        >
+          <div className="p-8">
+            <div className="flex items-center justify-between mb-8">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <FaBuilding className="mr-3" />
+                <FaBuilding className="mr-3 text-indigo-600" />
                 Edit Organization
               </h1>
             </div>
 
             {error && (
-              <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-lg"
+              >
                 <div className="flex items-center">
                   <FaExclamationTriangle className="text-red-400 mr-2" />
-                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="text-sm text-red-700 whitespace-pre-line">{error}</p>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Basic Information Section */}
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="bg-gray-50 p-8 rounded-xl shadow-sm"
+              >
+                <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <FaInfoCircle className="mr-2 text-indigo-600" />
+                  Basic Information
+                </h2>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Organization Name</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Category</label>
                     <input
                       type="text"
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-2 space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Description</label>
                     <textarea
                       name="description"
                       value={formData.description}
                       onChange={handleInputChange}
-                      rows="3"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      rows="4"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-2 space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Objectives</label>
                     <textarea
                       name="objectives"
                       value={formData.objectives}
                       onChange={handleInputChange}
-                      rows="3"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      rows="4"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Contact Information Section */}
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h2>
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="bg-gray-50 p-8 rounded-xl shadow-sm"
+              >
+                <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <FaAddressCard className="mr-2 text-indigo-600" />
+                  Contact Information
+                </h2>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaPhone className="mr-2" />
+                      <FaPhone className="mr-2 text-gray-400" />
                       Phone Number
                     </label>
                     <input
@@ -290,14 +339,14 @@ export default function OrganizationEdit() {
                       name="phone_number"
                       value={formData.phone_number}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaMapMarkerAlt className="mr-2" />
+                      <FaMapMarkerAlt className="mr-2 text-gray-400" />
                       Registration Address
                     </label>
                     <input
@@ -305,14 +354,14 @@ export default function OrganizationEdit() {
                       name="register_address"
                       value={formData.register_address}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaGlobe className="mr-2" />
+                      <FaGlobe className="mr-2 text-gray-400" />
                       Website (Optional)
                     </label>
                     <input
@@ -320,13 +369,14 @@ export default function OrganizationEdit() {
                       name="website"
                       value={formData.website}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
+                      placeholder="https://"
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaFacebook className="mr-2" />
+                      <FaFacebook className="mr-2 text-gray-400" />
                       Facebook (Optional)
                     </label>
                     <input
@@ -334,13 +384,14 @@ export default function OrganizationEdit() {
                       name="facebook"
                       value={formData.facebook}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
+                      placeholder="https://facebook.com/"
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaInstagram className="mr-2" />
+                      <FaInstagram className="mr-2 text-gray-400" />
                       Instagram (Optional)
                     </label>
                     <input
@@ -348,129 +399,163 @@ export default function OrganizationEdit() {
                       name="instagram"
                       value={formData.instagram}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
+                      placeholder="https://instagram.com/"
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Documents Section */}
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Documents & Images</h2>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div>
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="bg-gray-50 p-8 rounded-xl shadow-sm"
+              >
+                <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <FaFileAlt className="mr-2 text-indigo-600" />
+                  Documents & Images
+                </h2>
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                  {/* Logo Upload */}
+                  <div className="space-y-4">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaImage className="mr-2" />
+                      <FaImage className="mr-2 text-gray-400" />
                       Organization Logo
                     </label>
-                    <div className="mt-1 flex items-center space-x-4">
+                    <div className="flex items-center space-x-4">
                       {previewUrls.logo && (
-                        <div className="relative w-24 h-24 rounded-lg overflow-hidden">
+                        <div className="relative w-32 h-32 rounded-xl overflow-hidden shadow-lg">
                           <img
                             src={previewUrls.logo}
                             alt="Logo Preview"
                             className="w-full h-full object-cover"
+                            onLoad={() => setImageLoading(prev => ({ ...prev, logo: false }))}
                           />
+                          <div className={`absolute inset-0 bg-gray-200 ${imageLoading.logo ? 'animate-pulse' : 'hidden'}`} />
                         </div>
                       )}
-                      <input
-                        type="file"
-                        name="logo"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                      />
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          name="logo"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
+                        />
+                        <p className="mt-2 text-xs text-gray-500">
+                          Recommended size: 256x256 pixels. This will be your organization's main identifier.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="md:col-span-2">
+                  {/* Cover Image Upload */}
+                  <div className="md:col-span-2 space-y-4">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaImage className="mr-2" />
+                      <FaImage className="mr-2 text-gray-400" />
                       Cover Image
                     </label>
-                    <div className="mt-1 flex flex-col space-y-4">
+                    <div className="space-y-4">
                       {previewUrls.cover_image_path && (
-                        <div className="relative w-full h-32 rounded-lg overflow-hidden">
+                        <div className="relative w-full h-48 rounded-xl overflow-hidden shadow-lg">
                           <img
                             src={previewUrls.cover_image_path}
                             alt="Cover Image Preview"
                             className="w-full h-full object-cover"
+                            onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
                           />
+                          <div className={`absolute inset-0 bg-gray-200 ${imageLoading.cover ? 'animate-pulse' : 'hidden'}`} />
                         </div>
                       )}
-                      <input
-                        type="file"
-                        name="cover_image_path"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Recommended size: 1200 x 300 pixels. This image will appear at the top of your organization profile.
-                      </p>
+                      <div>
+                        <input
+                          type="file"
+                          name="cover_image_path"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
+                        />
+                        <p className="mt-2 text-xs text-gray-500">
+                          Recommended size: 1200x300 pixels. This image will appear at the top of your organization profile.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
+                  {/* Document Uploads */}
+                  <div className="space-y-4">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaFileAlt className="mr-2" />
+                      <FaFileAlt className="mr-2 text-gray-400" />
                       Statutory Declaration
                     </label>
-                    <div className="mt-1 flex items-center space-x-4">
+                    <div className="flex items-center space-x-4">
                       {previewUrls.statutory_declaration && (
                         <a
                           href={previewUrls.statutory_declaration}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
                         >
+                          <FaFileAlt className="mr-2" />
                           View Current
                         </a>
                       )}
-                      <input
-                        type="file"
-                        name="statutory_declaration"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleFileChange}
-                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                      />
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          name="statutory_declaration"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-4">
                     <label className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaFileAlt className="mr-2" />
+                      <FaFileAlt className="mr-2 text-gray-400" />
                       Verified Document
                     </label>
-                    <div className="mt-1 flex items-center space-x-4">
+                    <div className="flex items-center space-x-4">
                       {previewUrls.verified_document && (
                         <a
                           href={previewUrls.verified_document}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
                         >
+                          <FaFileAlt className="mr-2" />
                           View Current
                         </a>
                       )}
-                      <input
-                        type="file"
-                        name="verified_document"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleFileChange}
-                        className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                      />
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          name="verified_document"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Form Actions */}
-              <div className="flex items-center justify-end space-x-4 pt-6">
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="flex items-center justify-end space-x-4 pt-6"
+              >
                 <button
                   type="button"
                   onClick={() => navigate('/organization/dashboard')}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="inline-flex items-center px-6 py-3 border-2 border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 >
                   <FaTimes className="mr-2" />
                   Cancel
@@ -478,11 +563,11 @@ export default function OrganizationEdit() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
                       Updating...
                     </>
                   ) : (
@@ -492,11 +577,11 @@ export default function OrganizationEdit() {
                     </>
                   )}
                 </button>
-              </div>
+              </motion.div>
             </form>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 } 

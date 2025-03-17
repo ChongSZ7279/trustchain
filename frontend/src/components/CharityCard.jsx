@@ -1,34 +1,34 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import { motion } from 'framer-motion';
 import { 
+  FaHeart, 
+  FaTag, 
   FaCheckCircle, 
   FaExclamationTriangle, 
-  FaThumbsUp, 
-  FaChevronDown, 
-  FaChevronUp, 
-  FaPhone, 
-  FaEnvelope, 
-  FaMapMarkerAlt, 
+  FaMoneyBillWave, 
+  FaChartBar, 
+  FaCalendarAlt, 
+  FaUsers, 
   FaExternalLinkAlt, 
   FaEdit,
-  FaTag,
-  FaHeart,
+  FaChevronDown,
+  FaChevronUp,
+  FaThumbsUp,
   FaImage
 } from 'react-icons/fa';
 
-export default function OrganizationCard({ organization }) {
+export default function CharityCard({ charity }) {
   const navigate = useNavigate();
-  const { currentUser, accountType } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(organization.is_following || false);
-  const [followerCount, setFollowerCount] = useState(organization.follower_count || 0);
+  const { organization, currentUser } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(charity.is_following || false);
+  const [followerCount, setFollowerCount] = useState(charity.follower_count || 0);
   const [isLoading, setIsLoading] = useState(false);
-  const [coverImageError, setCoverImageError] = useState(false);
-  const [logoImageError, setLogoImageError] = useState(false);
-
+  const [imageError, setImageError] = useState(false);
+  
   // Helper function to format image URL
   const formatImageUrl = (path) => {
     if (!path) return null;
@@ -49,12 +49,12 @@ export default function OrganizationCard({ organization }) {
     // Otherwise, add a slash to make it a relative path from the root
     return `/${path}`;
   };
-
+  
   // Log image paths for debugging
   useEffect(() => {
-    console.log('Organization cover image path:', organization.cover_image_path);
-    console.log('Organization logo path:', organization.logo);
-  }, [organization]);
+    console.log('Charity image path:', charity.picture_path);
+    console.log('Formatted charity image URL:', formatImageUrl(charity.picture_path));
+  }, [charity]);
 
   const toggleFollow = async () => {
     if (!currentUser) {
@@ -64,7 +64,7 @@ export default function OrganizationCard({ organization }) {
 
     try {
       setIsLoading(true);
-      const response = await axios.post(`/organizations/${organization.id}/follow`);
+      const response = await axios.post(`/charities/${charity.id}/follow`);
       setIsFollowing(response.data.is_following);
       setFollowerCount(response.data.follower_count);
     } catch (error) {
@@ -74,14 +74,8 @@ export default function OrganizationCard({ organization }) {
     }
   };
 
-  const canEditOrganization = () => currentUser && (currentUser.ic_number === organization.representative_id);
-
-  // Default placeholder images
-  const defaultCoverImage = '/images/placeholder.jpg';
-  const defaultLogoImage = '/images/logo-placeholder.jpg';
-
   return (
-    <motion.div 
+    <motion.div
       whileHover={{ y: -5 }}
       transition={{ duration: 0.2 }}
       className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
@@ -89,18 +83,18 @@ export default function OrganizationCard({ organization }) {
       {/* Cover Image */}
       <div className="relative">
         <div className="w-full h-48 bg-gray-200">
-          {coverImageError || !organization.cover_image_path ? (
+          {imageError || !charity.picture_path ? (
             <div className="w-full h-full flex items-center justify-center bg-gray-200">
               <FaImage className="h-12 w-12 text-gray-400" />
             </div>
           ) : (
             <img
+              src={formatImageUrl(charity.picture_path)}
+              alt={charity.name}
               className="w-full h-full object-cover"
-              src={formatImageUrl(organization.cover_image_path)}
-              alt={`${organization.name} cover`}
               onError={(e) => {
-                console.error('Failed to load cover image:', organization.cover_image_path);
-                setCoverImageError(true);
+                console.error('Failed to load charity image:', charity.picture_path);
+                setImageError(true);
               }}
             />
           )}
@@ -126,61 +120,54 @@ export default function OrganizationCard({ organization }) {
         </div>
       </div>
       
-      {/* Organization Info with Logo */}
+      {/* Charity Info */}
       <div className="p-4 flex-grow">
-        <div className="flex items-start space-x-3">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <div className="h-16 w-16 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
-              {logoImageError || !organization.logo ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                  <FaImage className="h-8 w-8 text-gray-400" />
-                </div>
-              ) : (
-                <img
-                  className="h-full w-full object-cover"
-                  src={formatImageUrl(organization.logo)}
-                  alt={organization.name}
-                  onError={(e) => {
-                    console.error('Failed to load logo image:', organization.logo);
-                    setLogoImageError(true);
-                  }}
-                />
-              )}
-            </div>
-          </div>
+        <div className="flex flex-col">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{charity.name}</h3>
           
-          {/* Info */}
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900">{organization.name}</h3>
-            
-            <div className="flex items-center mt-1 space-x-2">
-              <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium flex items-center">
-                <FaTag className="mr-1 text-blue-500" />
-                {organization.category || 'CATEGORY'}
-              </div>
-              
-              {organization.is_verified ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                  <FaCheckCircle className="mr-1 text-green-500" /> Verified
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">
-                  <FaExclamationTriangle className="mr-1 text-yellow-500" /> Pending
-                </span>
-              )}
+          <div className="flex items-center mt-1 space-x-2">
+            <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium flex items-center">
+              <FaTag className="mr-1 text-blue-500" />
+              {charity.category || 'CATEGORY'}
             </div>
             
-            {/* Location */}
-            <div className="mt-2 flex items-center text-gray-600">
-              <FaMapMarkerAlt className="mr-2 text-gray-400" />
-              <span className="text-sm">{organization.register_address || 'Pulau Pinang, Malaysia'}</span>
-            </div>
+            {charity.is_verified ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                <FaCheckCircle className="mr-1 text-green-500" /> Verified
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">
+                <FaExclamationTriangle className="mr-1 text-yellow-500" /> Pending
+              </span>
+            )}
           </div>
         </div>
         
         {/* Description */}
-        <p className="text-sm text-gray-600 mt-4 line-clamp-3">{organization.description}</p>
+        <p className="text-sm text-gray-600 mt-4 line-clamp-3">
+          {charity.description}
+        </p>
+
+        {/* Fund Progress */}
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center">
+              <FaMoneyBillWave className="text-indigo-400 mr-2" />
+              <span className="text-sm text-gray-900 font-medium">
+                ${charity.fund_received || 0} / ${charity.fund_targeted || 0}
+              </span>
+            </div>
+            <span className="text-xs font-medium text-gray-500">
+              {Math.min(100, ((charity.fund_received || 0) / (charity.fund_targeted || 1)) * 100).toFixed(0)}% Complete
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, ((charity.fund_received || 0) / (charity.fund_targeted || 1)) * 100)}%` }}
+            ></div>
+          </div>
+        </div>
       </div>
 
       {/* More Details (expandable) */}
@@ -191,20 +178,21 @@ export default function OrganizationCard({ organization }) {
         className="overflow-hidden"
       >
         <div className="p-4 border-t border-gray-100 bg-gray-50">
-          {organization.phone_number && (
-            <p className="text-sm text-gray-600 flex items-center mb-2">
-              <FaPhone className="mr-2 text-indigo-400" /> {organization.phone_number}
-            </p>
-          )}
-          {organization.gmail && (
-            <p className="text-sm text-gray-600 flex items-center mb-2">
-              <FaEnvelope className="mr-2 text-indigo-400" /> {organization.gmail}
-            </p>
-          )}
-          {organization.register_address && (
-            <p className="text-sm text-gray-600 flex items-center">
-              <FaMapMarkerAlt className="mr-2 text-indigo-400" /> {organization.register_address}
-            </p>
+          <div className="flex items-center text-sm text-gray-500 mb-2">
+            <FaChartBar className="mr-1.5 text-indigo-400" />
+            <span>{charity.tasks?.length || 0} Tasks</span>
+          </div>
+          
+          <div className="flex items-center text-sm text-gray-500 mb-2">
+            <FaCalendarAlt className="mr-1.5 text-indigo-400" />
+            <span>{new Date(charity.created_at).toLocaleDateString()}</span>
+          </div>
+          
+          {charity.follower_count !== undefined && (
+            <div className="flex items-center text-sm text-gray-500">
+              <FaUsers className="mr-1.5 text-indigo-400" />
+              <span>{charity.follower_count} {charity.follower_count === 1 ? 'Follower' : 'Followers'}</span>
+            </div>
           )}
         </div>
       </motion.div>
@@ -212,19 +200,19 @@ export default function OrganizationCard({ organization }) {
       {/* Actions */}
       <div className="p-4 border-t border-gray-100 flex justify-between mt-auto">
         <div className="flex space-x-3">
-          <Link 
-            to={`/organizations/${organization.id}`} 
+          <Link
+            to={`/charities/${charity.id}`}
             className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
           >
             <FaExternalLinkAlt className="mr-1" /> View
           </Link>
-          {canEditOrganization() && (
-            <button
-              onClick={() => navigate(`/organizations/${organization.id}/edit`)}
+          {organization?.id === charity.organization_id && (
+            <Link
+              to={`/charities/${charity.id}/edit`}
               className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
             >
               <FaEdit className="mr-1" /> Edit
-            </button>
+            </Link>
           )}
         </div>
         
@@ -246,4 +234,4 @@ export default function OrganizationCard({ organization }) {
       </div>
     </motion.div>
   );
-}
+} 

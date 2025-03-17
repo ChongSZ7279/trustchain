@@ -52,42 +52,85 @@ export default function CharityDetails() {
   const fetchCharityData = async () => {
     try {
       setLoading(true);
-      const [charityResponse, tasksResponse] = await Promise.all([
-        axios.get(`/charities/${id}`),
-        axios.get(`/charities/${id}/tasks`)
-      ]);
-      setCharity(charityResponse.data);
-      setTasks(tasksResponse.data);
       
-      // Set follower status
-      if (charityResponse.data.is_following !== undefined) {
-        setIsFollowing(charityResponse.data.is_following);
+      // First fetch the charity and tasks data
+      try {
+        const charityResponse = await axios.get(`/charities/${id}`);
+        setCharity(charityResponse.data);
+        
+        // Set follower status
+        if (charityResponse.data.is_following !== undefined) {
+          setIsFollowing(charityResponse.data.is_following);
+        }
+        if (charityResponse.data.follower_count !== undefined) {
+          setFollowerCount(charityResponse.data.follower_count);
+        }
+      } catch (err) {
+        console.error('Error fetching charity:', err);
+        setError('Failed to fetch charity details');
+        setLoading(false);
+        return;
       }
-      if (charityResponse.data.follower_count !== undefined) {
-        setFollowerCount(charityResponse.data.follower_count);
+      
+      try {
+        const tasksResponse = await axios.get(`/charities/${id}/tasks`);
+        setTasks(tasksResponse.data);
+      } catch (err) {
+        console.error('Error fetching tasks:', err);
+        // Don't set error here, just log it and continue
+        setTasks([]);
       }
       
       // Fetch donations if user is authorized
       if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
-        const donationsRes = await axios.get(`/charities/${id}/donations`);
-        setDonations(donationsRes.data);
+        try {
+          const donationsRes = await axios.get(`/charity/${id}/donations`);
+          setDonations(donationsRes.data);
+        } catch (err) {
+          console.error('Error fetching donations:', err);
+          // Don't set error here, just log it and continue
+          setDonations([]);
+        }
       }
 
       // Fetch transactions if user is authorized
       if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
-        const transactionsRes = await axios.get(`/charities/${id}/transactions`);
-        setTransactions(transactionsRes.data);
+        try {
+          console.log(`Fetching transactions from: /charities/${id}/transactions`);
+          const transactionsRes = await axios.get(`/charities/${id}/transactions`);
+          console.log('Transactions response:', transactionsRes.data);
+          setTransactions(transactionsRes.data);
+        } catch (err) {
+          console.error('Error fetching transactions:', err);
+          if (err.response) {
+            console.error('Error response status:', err.response.status);
+            console.error('Error response data:', err.response.data);
+          }
+          // Don't set error here, just log it and continue
+          setTransactions([]);
+        }
       }
       
       // Get follow status
       if (currentUser) {
-        const followStatusRes = await axios.get(`/charities/${id}/follow-status`);
-        setIsFollowing(followStatusRes.data.is_following);
-        setFollowerCount(followStatusRes.data.follower_count);
+        try {
+          console.log(`Fetching follow status from: /charities/${id}/follow-status`);
+          const followStatusRes = await axios.get(`/charities/${id}/follow-status`);
+          console.log('Follow status response:', followStatusRes.data);
+          setIsFollowing(followStatusRes.data.is_following);
+          setFollowerCount(followStatusRes.data.follower_count);
+        } catch (err) {
+          console.error('Error fetching follow status:', err);
+          if (err.response) {
+            console.error('Error response status:', err.response.status);
+            console.error('Error response data:', err.response.data);
+          }
+          // Don't set error here, just log it and continue
+        }
       }
     } catch (err) {
-      setError('Failed to fetch charity details');
       console.error('Error fetching charity details:', err);
+      setError('Failed to fetch charity details');
     } finally {
       setLoading(false);
     }

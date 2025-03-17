@@ -1,19 +1,26 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import OrganizationCard from './OrganizationCard';
-import SidebarFilters from './SidebarFilters';
-import { FaBuilding } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FaBuilding, 
+  FaSearch, 
+  FaFilter, 
+  FaTimes, 
+  FaExclamationTriangle,
+  FaSync
+} from 'react-icons/fa';
 
 export default function OrganizationList() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isSidebarOpen, showSidebar, location } = useOutletContext();
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -88,15 +95,46 @@ export default function OrganizationList() {
     setSelectedStatuses([]);
   };
 
-  const applyFilters = () => {
-    // This function would typically make an API call with filters
-    // For now, we'll just log the filter values
-    console.log('Applied filters:', {
-      search: searchTerm,
-      categories: selectedCategories,
-      fundRange,
-      statuses: selectedStatuses
-    });
+  const applyFilters = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(category => {
+          params.append('categories[]', category);
+        });
+      }
+      
+      if (selectedStatuses.length > 0) {
+        selectedStatuses.forEach(status => {
+          params.append('statuses[]', status);
+        });
+      }
+      
+      params.append('min_fund', fundRange.min);
+      params.append('max_fund', fundRange.max);
+      
+      // Make API call with filters
+      const response = await axios.get(`/organizations?${params.toString()}`);
+      setOrganizations(response.data);
+      setShowFilters(false);
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      setError(
+        err.response?.data?.message || 
+        'Failed to apply filters. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredOrganizations = organizations.filter(org => {
@@ -124,70 +162,251 @@ export default function OrganizationList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading organizations...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-red-800">{error}</h3>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg"
+        >
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-xl font-medium text-red-800 mb-2">{error}</h3>
+          <p className="text-gray-600 mb-6">We couldn't load the organizations. Please try again.</p>
           <button
             onClick={fetchOrganizations}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
           >
+            <FaSync className="mr-2" />
             Try Again
           </button>
-        </div>
+        </motion.div>
       </div>
-    );
-  }
-
-  // Render filters in sidebar
-  if (location === 'sidebar') {
-    return (
-      <SidebarFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        selectedCategories={selectedCategories}
-        toggleCategory={toggleCategory}
-        fundRange={fundRange}
-        handleFundRangeChange={handleFundRangeChange}
-        selectedStatuses={selectedStatuses}
-        toggleStatus={toggleStatus}
-        applyFilters={applyFilters}
-        resetFilters={resetFilters}
-        categoryOptions={categoryOptions}
-        statusOptions={statusOptions}
-      />
     );
   }
 
   // Render main content
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredOrganizations.length === 0 ? (
-          <div className="col-span-full bg-white shadow-sm rounded-lg">
-            <div className="text-center py-12">
-              <FaBuilding className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No organizations found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'Organizations will appear here once they are registered'}
-              </p>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+    >
+      {/* Search and Filter Bar */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white rounded-xl shadow-sm mb-8 p-4"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaSearch className="h-5 w-5 text-gray-400" />
             </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search organizations..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+            />
           </div>
-        ) : (
-          filteredOrganizations.map(org => (
-            <OrganizationCard key={org.id} organization={org} />
-          ))
-        )}
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+            >
+              <FaFilter className="mr-2" />
+              Filters {selectedCategories.length > 0 || selectedStatuses.length > 0 ? `(${selectedCategories.length + selectedStatuses.length})` : ''}
+            </button>
+            
+            {(selectedCategories.length > 0 || selectedStatuses.length > 0 || searchTerm) && (
+              <button
+                onClick={resetFilters}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              >
+                <FaTimes className="mr-2" />
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* Expandable Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-gray-200 mt-4 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Categories */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Categories</h3>
+                    <div className="space-y-2">
+                      {categoryOptions.map(category => (
+                        <div key={category} className="flex items-center">
+                          <input
+                            id={`category-${category}`}
+                            type="checkbox"
+                            checked={selectedCategories.includes(category)}
+                            onChange={() => toggleCategory(category)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
+                            {category}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Status */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
+                    <div className="space-y-2">
+                      {statusOptions.map(status => (
+                        <div key={status.value} className="flex items-center">
+                          <input
+                            id={`status-${status.value}`}
+                            type="checkbox"
+                            checked={selectedStatuses.includes(status.value)}
+                            onChange={() => toggleStatus(status.value)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor={`status-${status.value}`} className="ml-2 text-sm text-gray-700">
+                            {status.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Fund Range */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Fund Range</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="min-fund" className="block text-xs text-gray-500">
+                          Min: ${fundRange.min}
+                        </label>
+                        <input
+                          id="min-fund"
+                          type="range"
+                          min="0"
+                          max="100000"
+                          step="1000"
+                          value={fundRange.min}
+                          onChange={(e) => handleFundRangeChange(e, 'min')}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="max-fund" className="block text-xs text-gray-500">
+                          Max: ${fundRange.max}
+                        </label>
+                        <input
+                          id="max-fund"
+                          type="range"
+                          min="0"
+                          max="100000"
+                          step="1000"
+                          value={fundRange.max}
+                          onChange={(e) => handleFundRangeChange(e, 'max')}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={applyFilters}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+      
+      {/* Results Count */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="mb-6"
+      >
+        <h2 className="text-xl font-bold text-gray-900">
+          {filteredOrganizations.length} {filteredOrganizations.length === 1 ? 'Organization' : 'Organizations'} Found
+        </h2>
+      </motion.div>
+
+      {/* Organizations Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <AnimatePresence>
+        {filteredOrganizations.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="col-span-full bg-white shadow-lg rounded-xl p-8"
+            >
+              <div className="text-center py-8">
+                <FaBuilding className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 mb-2">No organizations found</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
+                    ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                    : 'Organizations will appear here once they are registered.'}
+                </p>
+                
+                {(searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0) && (
+                  <button
+                    onClick={resetFilters}
+                    className="mt-6 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                  >
+                    <FaTimes className="mr-2" />
+                    Clear Filters
+                  </button>
+                )}
+            </div>
+            </motion.div>
+          ) : (
+            filteredOrganizations.map((org, index) => (
+              <motion.div
+                key={org.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <OrganizationCard organization={org} />
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 } 

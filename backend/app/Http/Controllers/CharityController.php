@@ -15,13 +15,20 @@ class CharityController extends Controller
         
         // Add follower count to each charity
         $charities->each(function ($charity) {
-            $charity->follower_count = $charity->followers()->count();
-            
-            // Check if the authenticated user follows this charity
-            $user = Auth::user();
-            if ($user) {
-                $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
-            } else {
+            try {
+                // Try to get follower count, but handle errors gracefully
+                $charity->follower_count = $charity->followers()->count();
+                
+                // Check if the authenticated user follows this charity
+                $user = Auth::user();
+                if ($user) {
+                    $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
+                } else {
+                    $charity->is_following = false;
+                }
+            } catch (\Exception $e) {
+                // If there's an error (like missing table), set default values
+                $charity->follower_count = 0;
                 $charity->is_following = false;
             }
         });
@@ -34,13 +41,20 @@ class CharityController extends Controller
         $charity = Charity::with(['organization', 'tasks'])->findOrFail($id);
         
         // Add follower count
-        $charity->follower_count = $charity->followers()->count();
-        
-        // Check if the authenticated user follows this charity
-        $user = Auth::user();
-        if ($user) {
-            $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
-        } else {
+        try {
+            // Try to get follower count, but handle errors gracefully
+            $charity->follower_count = $charity->followers()->count();
+            
+            // Check if the authenticated user follows this charity
+            $user = Auth::user();
+            if ($user) {
+                $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
+            } else {
+                $charity->is_following = false;
+            }
+        } catch (\Exception $e) {
+            // If there's an error (like missing table), set default values
+            $charity->follower_count = 0;
             $charity->is_following = false;
         }
         
@@ -148,13 +162,20 @@ class CharityController extends Controller
             
         // Add follower count to each charity
         $charities->each(function ($charity) {
-            $charity->follower_count = $charity->followers()->count();
-            
-            // Check if the authenticated user follows this charity
-            $user = Auth::user();
-            if ($user) {
-                $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
-            } else {
+            try {
+                // Try to get follower count, but handle errors gracefully
+                $charity->follower_count = $charity->followers()->count();
+                
+                // Check if the authenticated user follows this charity
+                $user = Auth::user();
+                if ($user) {
+                    $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
+                } else {
+                    $charity->is_following = false;
+                }
+            } catch (\Exception $e) {
+                // If there's an error (like missing table), set default values
+                $charity->follower_count = 0;
                 $charity->is_following = false;
             }
         });

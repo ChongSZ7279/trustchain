@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
-import SidebarFilters from './SidebarFilters';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaHandHoldingHeart,
   FaPlus,
@@ -16,8 +16,13 @@ import {
   FaCheckCircle,
   FaExclamationTriangle,
   FaHeart,
-  FaUsers
+  FaUsers,
+  FaSearch,
+  FaFilter,
+  FaTimes,
+  FaSync
 } from 'react-icons/fa';
+import CharityCard from './CharityCard';
 
 export default function CharityList() {
   const [charities, setCharities] = useState([]);
@@ -25,7 +30,8 @@ export default function CharityList() {
   const [error, setError] = useState('');
   const { organization } = useAuth();
   const navigate = useNavigate();
-  const { isSidebarOpen, showSidebar, location } = useOutletContext();
+  const { user } = useAuth();
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,11 +61,40 @@ export default function CharityList() {
   const fetchCharities = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/charities');
+      console.log('Fetching charities from:', axios.defaults.baseURL + '/charities');
+      
+      // Add a timeout to the request
+      const response = await axios.get('/charities', {
+        timeout: 10000, // 10 seconds timeout
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Charities response:', response.data);
       setCharities(response.data);
     } catch (err) {
-      setError('Failed to fetch charities');
       console.error('Error fetching charities:', err);
+      
+      // More detailed error logging
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response data:', err.response.data);
+        console.error('Error response status:', err.response.status);
+        console.error('Error response headers:', err.response.headers);
+        
+        setError(`Failed to fetch charities: ${err.response.status} ${err.response.statusText}`);
+      } else if (err.request) {
+        // The request was made but no response was received
+        console.error('No response received:', err.request);
+        setError('Failed to fetch charities: No response from server');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error message:', err.message);
+        setError(`Failed to fetch charities: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -96,13 +131,63 @@ export default function CharityList() {
     setSelectedStatuses([]);
   };
 
-  const applyFilters = () => {
-    console.log('Applied filters:', {
-      search: searchTerm,
-      categories: selectedCategories,
-      fundRange,
-      statuses: selectedStatuses
-    });
+  const applyFilters = async () => {
+    try {
+      setLoading(true);
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(category => {
+          params.append('categories[]', category);
+        });
+      }
+      
+      if (selectedStatuses.length > 0) {
+        selectedStatuses.forEach(status => {
+          params.append('statuses[]', status);
+        });
+      }
+      
+      params.append('min_fund', fundRange.min);
+      params.append('max_fund', fundRange.max);
+      
+      console.log('Applying filters with params:', params.toString());
+      
+      // Make API call with filters
+      const response = await axios.get(`/charities?${params.toString()}`, {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Filtered charities response:', response.data);
+      setCharities(response.data);
+      setShowFilters(false);
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      
+      if (err.response) {
+        console.error('Error response data:', err.response.data);
+        console.error('Error response status:', err.response.status);
+        setError(`Failed to apply filters: ${err.response.status} ${err.response.statusText}`);
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError('Failed to apply filters: No response from server');
+      } else {
+        console.error('Error message:', err.message);
+        setError(`Failed to apply filters: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Filter charities based on all criteria
@@ -131,57 +216,58 @@ export default function CharityList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading charities...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-red-800">{error}</h3>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg"
+        >
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-xl font-medium text-red-800 mb-2">{error}</h3>
+          <p className="text-gray-600 mb-6">We couldn't load the charities. Please try again.</p>
           <button
             onClick={fetchCharities}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
           >
+            <FaSync className="mr-2" />
             Try Again
           </button>
-        </div>
+        </motion.div>
       </div>
-    );
-  }
-
-  // Render filters in sidebar
-  if (location === 'sidebar') {
-    return (
-      <SidebarFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        selectedCategories={selectedCategories}
-        toggleCategory={toggleCategory}
-        fundRange={fundRange}
-        handleFundRangeChange={handleFundRangeChange}
-        selectedStatuses={selectedStatuses}
-        toggleStatus={toggleStatus}
-        applyFilters={applyFilters}
-        resetFilters={resetFilters}
-        categoryOptions={categoryOptions}
-        statusOptions={statusOptions}
-      />
     );
   }
 
   // Render main content
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+    >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+      >
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <FaHandHoldingHeart className="mr-3" />
+            <FaHandHoldingHeart className="mr-3 text-indigo-600" />
               Charities
             </h1>
             <p className="mt-2 text-sm text-gray-600">
@@ -191,136 +277,219 @@ export default function CharityList() {
           {organization && (
             <Link
               to="/charities/create"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors duration-200"
             >
               <FaPlus className="mr-2" />
               Create Charity
             </Link>
           )}
-        </div>
+      </motion.div>
 
-        {/* Charities Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCharities.length === 0 ? (
-            <div className="col-span-full bg-white shadow-sm rounded-lg">
-              <div className="text-center py-12">
-                <FaHandHoldingHeart className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No charities found</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
-                    ? 'Try adjusting your search or filter criteria'
-                    : 'Charities will appear here once they are created'}
-                </p>
-              </div>
+      {/* Search and Filter Bar */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white rounded-xl shadow-sm mb-8 p-4"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaSearch className="h-5 w-5 text-gray-400" />
             </div>
-          ) : (
-            filteredCharities.map((charity) => (
-              <div
-                key={charity.id}
-                className="bg-white overflow-hidden shadow-sm rounded-lg hover:shadow-md transition-shadow"
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search charities..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+            >
+              <FaFilter className="mr-2" />
+              Filters {selectedCategories.length > 0 || selectedStatuses.length > 0 ? `(${selectedCategories.length + selectedStatuses.length})` : ''}
+            </button>
+            
+            {(selectedCategories.length > 0 || selectedStatuses.length > 0 || searchTerm) && (
+              <button
+                onClick={resetFilters}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
               >
-                {charity.picture_path && (
-                  <div className="aspect-w-16 aspect-h-9">
-                    <img
-                      src={formatImageUrl(charity.picture_path)}
-                      alt={charity.name}
-                      className="w-full h-48 object-cover"
-                    />
+                <FaTimes className="mr-2" />
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* Expandable Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-gray-200 mt-4 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Categories */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Categories</h3>
+                    <div className="space-y-2">
+                      {categoryOptions.map(category => (
+                        <div key={category} className="flex items-center">
+                          <input
+                            id={`category-${category}`}
+                            type="checkbox"
+                            checked={selectedCategories.includes(category)}
+                            onChange={() => toggleCategory(category)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
+                            {category}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
-                <div className="p-6">
-                  <div className="flex items-start justify-between">
+                  
+                  {/* Status */}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 truncate">
-                        {charity.name}
-                      </h3>
-                      <div className="mt-1 flex items-center">
-                        <FaTag className="text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-500">{charity.category}</span>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
+                    <div className="space-y-2">
+                      {statusOptions.map(status => (
+                        <div key={status.value} className="flex items-center">
+                          <input
+                            id={`status-${status.value}`}
+                            type="checkbox"
+                            checked={selectedStatuses.includes(status.value)}
+                            onChange={() => toggleStatus(status.value)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor={`status-${status.value}`} className="ml-2 text-sm text-gray-700">
+                            {status.label}
+                          </label>
                       </div>
+                      ))}
                     </div>
-                    {charity.is_verified ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <FaCheckCircle className="mr-1" />
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        <FaExclamationTriangle className="mr-1" />
-                        Pending
-                      </span>
-                    )}
                   </div>
 
-                  <p className="mt-3 text-sm text-gray-600 line-clamp-3">
-                    {charity.description}
-                  </p>
-
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center">
-                        <FaMoneyBillWave className="text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900 font-medium">
-                          ${charity.fund_received} / ${charity.fund_targeted}
-                        </span>
+                  {/* Fund Range */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Fund Range</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="min-fund" className="block text-xs text-gray-500">
+                          Min: ${fundRange.min}
+                        </label>
+                        <input
+                          id="min-fund"
+                          type="range"
+                          min="0"
+                          max="100000"
+                          step="1000"
+                          value={fundRange.min}
+                          onChange={(e) => handleFundRangeChange(e, 'min')}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
                       </div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {Math.min(100, (charity.fund_received / charity.fund_targeted) * 100)}% Complete
-                      </span>
+                      <div>
+                        <label htmlFor="max-fund" className="block text-xs text-gray-500">
+                          Max: ${fundRange.max}
+                        </label>
+                        <input
+                          id="max-fund"
+                          type="range"
+                          min="0"
+                          max="100000"
+                          step="1000"
+                          value={fundRange.max}
+                          onChange={(e) => handleFundRangeChange(e, 'max')}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(100, (charity.fund_received / charity.fund_targeted) * 100)}%` }}
-                      ></div>
                     </div>
+                  </div>
                   </div>
 
-                  <div className="mt-4 flex items-center text-sm text-gray-500">
-                    <FaChartBar className="mr-1.5" />
-                    <span>{charity.tasks?.length || 0} Tasks</span>
-                    <span className="mx-2">•</span>
-                    <FaCalendarAlt className="mr-1.5" />
-                    <span>{new Date(charity.created_at).toLocaleDateString()}</span>
-                    {charity.follower_count !== undefined && (
-                      <>
-                        <span className="mx-2">•</span>
-                        <FaUsers className="mr-1.5" />
-                        <span>{charity.follower_count} {charity.follower_count === 1 ? 'Follower' : 'Followers'}</span>
-                      </>
-                    )}
-                    {charity.is_following && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
-                        <FaHeart className="mr-1 text-red-500" />
-                        Following
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-6 flex items-center justify-between">
-                    <Link
-                      to={`/charities/${charity.id}`}
-                      className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-900"
-                    >
-                      <FaExternalLinkAlt className="mr-2" />
-                      View Details
-                    </Link>
-                    {organization?.id === charity.organization_id && (
-                      <Link
-                        to={`/charities/${charity.id}/edit`}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
-                      >
-                        <FaEdit className="mr-2" />
-                        Edit
-                      </Link>
-                    )}
-                  </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={applyFilters}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                  >
+                    Apply Filters
+                  </button>
                 </div>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+      
+      {/* Results Count */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="mb-6"
+      >
+        <h2 className="text-xl font-bold text-gray-900">
+          {filteredCharities.length} {filteredCharities.length === 1 ? 'Charity' : 'Charities'} Found
+        </h2>
+      </motion.div>
+
+      {/* Charities Grid */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <AnimatePresence>
+          {filteredCharities.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="col-span-full bg-white shadow-lg rounded-xl p-8"
+            >
+              <div className="text-center py-8">
+                <FaHandHoldingHeart className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 mb-2">No charities found</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
+                    ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                    : 'Charities will appear here once they are created.'}
+                </p>
+                
+                {(searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0) && (
+                  <button
+                    onClick={resetFilters}
+                    className="mt-6 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                  >
+                    <FaTimes className="mr-2" />
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            filteredCharities.map((charity, index) => (
+              <motion.div
+                key={charity.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -5 }}
+                className="bg-white overflow-hidden shadow-sm hover:shadow-lg rounded-xl transition-all duration-200"
+              >
+                <CharityCard charity={charity} />
+              </motion.div>
             ))
           )}
-        </div>
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }

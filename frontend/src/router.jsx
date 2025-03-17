@@ -24,9 +24,11 @@ import TransactionDetails from './components/TransactionDetails';
 import DonationForm from './components/DonationForm';
 import DonationDetails from './components/DonationDetails';
 import TermsAndConditions from './pages/TermsAndConditions';
+import Guidelines from './pages/Guidelines';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword'; 
+import ApiTest from './components/ApiTest';
 
 const router = createBrowserRouter([
   {
@@ -59,6 +61,22 @@ const router = createBrowserRouter([
       {
         path: '/terms',
         element: <TermsAndConditions />
+      },
+      {
+        path: '/guidelines',
+        element: <Guidelines />,
+        handle: {
+          title: "Website Guidelines",
+          subtitle: "How to use TrustChain effectively"
+        }
+      },
+      {
+        path: '/api-test',
+        element: <ApiTest />,
+        handle: {
+          title: "API Connection Test",
+          subtitle: "Test the connection to the backend API"
+        }
       }
     ]
   },

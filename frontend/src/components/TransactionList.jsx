@@ -21,8 +21,8 @@ import {
 export default function TransactionList() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const { user, organization } = useAuth();
+  const [error, setError] = useState(null);
+  const { currentUser, accountType } = useAuth();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 

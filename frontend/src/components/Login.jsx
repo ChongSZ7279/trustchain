@@ -57,6 +57,13 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('Login already in progress, ignoring additional attempt');
+      return;
+    }
+    
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
@@ -70,16 +77,46 @@ export default function Login() {
       const response = await login(formData);
       console.log('Login successful:', response);
       
-      // The backend should return the user type in the response
-      // Navigate based on the returned user type
-      const userType = response.account_type || 'user';
-      const dashboardPath = userType === 'user' ? '/user/dashboard' : '/organization/dashboard';
+      // Determine user type with fallback logic
+      let userType = response.account_type;
       
+      if (!userType) {
+        // Try to determine from user data
+        if (response.user?.is_organization) {
+          userType = 'organization';
+        } else {
+          userType = 'user';
+        }
+        console.log('Account type not in response, determined as:', userType);
+      }
+      
+      // Navigate based on the determined user type
+      const dashboardPath = userType === 'organization' ? '/organization/dashboard' : '/user/dashboard';
+      
+      console.log('Determined user type:', userType);
       console.log('Navigating to:', dashboardPath);
-      navigate(dashboardPath);
+      
+      // Use replace: true to ensure we replace the current history entry
+      // and increase timeout to ensure state is fully updated
+      setTimeout(() => {
+        console.log('Executing navigation to:', dashboardPath);
+        navigate(dashboardPath, { replace: true });
+        
+        // Force a page reload if navigation doesn't work
+        setTimeout(() => {
+          console.log('Checking if navigation worked...');
+          if (window.location.pathname !== dashboardPath) {
+            console.log('Navigation failed, forcing page reload');
+            window.location.href = dashboardPath;
+          }
+        }, 500);
+      }, 300);
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Login error in component:', err);
       setLoginAttempts(prev => prev + 1);
+      
+      // Display a more user-friendly error message
+      let errorMessage = 'Login failed. Please try again.';
       
       if (err.response?.status === 500) {
         console.error('Server error details:', {
@@ -87,39 +124,15 @@ export default function Login() {
           data: err.response.data,
           headers: err.response.headers
         });
-        
-        // Check for database connection error
-        if (err.response.data?.error_type === 'database_connection') {
-          setFormErrors({ 
-            general: 'Database connection error. Please make sure your database server is running or contact support.',
-            details: err.response.data.error
-          });
-        } else {
-          setFormErrors({ 
-            general: 'A server error occurred. Please try again later or contact support.'
-          });
-        }
-      } else if (err.response?.data?.errors) {
-        setFormErrors(err.response.data.errors);
+        errorMessage = 'Server error. Please try again later.';
       } else if (err.response?.data?.message) {
-        setFormErrors({ 
-          general: err.response.data.message,
-          // Add specific field errors if they exist
-          ...(err.response.data.email ? { email: err.response.data.email } : {}),
-          ...(err.response.data.password ? { password: err.response.data.password } : {})
-        });
-      } else if (err.request) {
-        // The request was made but no response was received
-        setFormErrors({ 
-          general: 'Network error. Please check your connection and try again.'
-        });
-      } else {
-        setFormErrors({ 
-          general: loginAttempts >= 2 
-            ? 'Multiple login attempts failed. Please check your credentials or reset your password.' 
-            : 'Login failed. Please check your email and password.'
-        });
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
+      
+      // Use toast or alert to show error
+      setFormErrors({ general: errorMessage });
     } finally {
       setIsSubmitting(false);
     }

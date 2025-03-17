@@ -30,11 +30,11 @@ import {
 export default function OrganizationDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, organization } = useAuth();
+  const { currentUser, accountType } = useAuth();
   const [orgData, setOrgData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState('about');
   const [charities, setCharities] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -66,7 +66,7 @@ export default function OrganizationDetails() {
   };
 
   const toggleFollow = async () => {
-    if (!user) {
+    if (!currentUser) {
       navigate('/login');
       return;
     }
@@ -84,7 +84,7 @@ export default function OrganizationDetails() {
   };
 
   const canEditOrganization = () => {
-    return organization?.id === orgData?.id || orgData?.representative_id === user?.ic_number;
+    return accountType === 'organization' && orgData?.id === orgData?.id || orgData?.representative_id === currentUser?.ic_number;
   };
 
   if (loading) {

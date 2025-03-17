@@ -4,10 +4,12 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Web3 from 'web3';
 import CharityABI from '../contracts/CharityABI.json';
+import { useBlockchain } from '../contexts/BlockchainContext';
 
 export default function TaskFundingForm({ taskId, taskName, charityId, onSuccess }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
+  const { donateToCharity, contract, account } = useBlockchain();
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [anonymous, setAnonymous] = useState(false);
@@ -71,7 +73,7 @@ export default function TaskFundingForm({ taskId, taskName, charityId, onSuccess
             transaction_hash: transaction.transactionHash,
             contract_address: contractAddress,
             type: 'task',
-            user_id: anonymous ? null : user.id
+            user_id: anonymous ? null : currentUser.id
           });
           
           setStep(3);

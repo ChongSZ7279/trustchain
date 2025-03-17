@@ -13,7 +13,7 @@ export const BlockchainProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [transactionHistory, setTransactionHistory] = useState([]);
-  const { user, organization } = useAuth();
+  const { currentUser, accountType } = useAuth();
 
   // Contract address - should be stored in an environment variable in production
   const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // Example address
@@ -70,7 +70,7 @@ export const BlockchainProvider = ({ children }) => {
   // Fetch transaction history for the current user or organization
   useEffect(() => {
     const fetchTransactionHistory = async () => {
-      if (!contract || (!user && !organization)) return;
+      if (!contract || (!currentUser && !accountType)) return;
 
       try {
         setLoading(true);
@@ -89,7 +89,7 @@ export const BlockchainProvider = ({ children }) => {
     };
 
     fetchTransactionHistory();
-  }, [contract, user, organization]);
+  }, [contract, currentUser, accountType]);
 
   // Donate to a charity
   const donateToCharity = async (charityId, amount) => {

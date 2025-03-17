@@ -30,7 +30,7 @@ import { toast } from 'react-hot-toast';
 export default function CharityDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, organization } = useAuth();
+  const { currentUser, accountType } = useAuth();
   const [charity, setCharity] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [donations, setDonations] = useState([]);
@@ -43,6 +43,7 @@ export default function CharityDetails() {
   const [showDetails, setShowDetails] = useState(false);
   const [taskDeleteLoading, setTaskDeleteLoading] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [donationAmount, setDonationAmount] = useState('');
 
   useEffect(() => {
     fetchCharityData();
@@ -67,19 +68,19 @@ export default function CharityDetails() {
       }
       
       // Fetch donations if user is authorized
-      if (user && (user.role === 'admin' || user.ic_number === charity?.representative_id)) {
+      if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
         const donationsRes = await axios.get(`/charities/${id}/donations`);
         setDonations(donationsRes.data);
       }
 
       // Fetch transactions if user is authorized
-      if (user && (user.role === 'admin' || user.ic_number === charity?.representative_id)) {
+      if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
         const transactionsRes = await axios.get(`/charities/${id}/transactions`);
         setTransactions(transactionsRes.data);
       }
       
       // Get follow status
-      if (user) {
+      if (currentUser) {
         const followStatusRes = await axios.get(`/charities/${id}/follow-status`);
         setIsFollowing(followStatusRes.data.is_following);
         setFollowerCount(followStatusRes.data.follower_count);
@@ -93,7 +94,7 @@ export default function CharityDetails() {
   };
 
   const canManageCharity = () => {
-    return organization?.id === charity?.organization_id;
+    return accountType === charity?.organization_id;
   };
 
   const calculateProgress = () => {
@@ -119,7 +120,7 @@ export default function CharityDetails() {
   };
 
   const toggleFollow = async () => {
-    if (!user) {
+    if (!currentUser) {
       navigate('/login');
       return;
     }

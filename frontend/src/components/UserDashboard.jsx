@@ -32,7 +32,7 @@ import {
 } from 'react-icons/fa';
 
 export default function UserDashboard() {
-  const { user, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { account, getDonorTotalAmount } = useBlockchain();
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
@@ -50,14 +50,14 @@ export default function UserDashboard() {
   
 
   useEffect(() => {
-    if (!user) {
+    if (!currentUser) {
       navigate('/login');
     }
-  }, [user, navigate]);
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!user) return;
+      if (!currentUser) return;
       
       try {
         setLoading(true);
@@ -65,7 +65,7 @@ export default function UserDashboard() {
         
         // Fetch user's transactions
         try {
-          const transactionsRes = await axios.get(`/users/${user.ic_number}/transactions`);
+          const transactionsRes = await axios.get(`/users/${currentUser.ic_number}/transactions`);
           setTransactions(transactionsRes.data);
           
           // Calculate total donation amount
@@ -95,7 +95,7 @@ export default function UserDashboard() {
 
         // Fetch user's charities
         try {
-          const charitiesRes = await axios.get(`/users/${user.ic_number}/charities`);
+          const charitiesRes = await axios.get(`/users/${currentUser.ic_number}/charities`);
           const charities = charitiesRes.data;
           
           // Split charities into completed and in progress
@@ -137,7 +137,7 @@ export default function UserDashboard() {
     };
 
     fetchUserData();
-  }, [user]);
+  }, [currentUser]);
 
   // Fetch blockchain donation amount if wallet is connected
   useEffect(() => {
@@ -178,9 +178,9 @@ export default function UserDashboard() {
           <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                {user.profile_picture ? (
+                {currentUser.profile_picture ? (
                   <img
-                    src={formatImageUrl(user.profile_picture)}
+                    src={formatImageUrl(currentUser.profile_picture)}
                     alt="Profile"
                     className="h-20 w-20 rounded-full object-cover border-4 border-blue-500"
                   />
@@ -201,16 +201,16 @@ export default function UserDashboard() {
                 )}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-                <p className="text-gray-500">{user.gmail}</p>
+                <h1 className="text-2xl font-bold text-gray-900">{currentUser.name}</h1>
+                <p className="text-gray-500">{currentUser.gmail}</p>
                 <div className="mt-2 flex items-center space-x-4">
                   <span className="inline-flex items-center text-sm text-gray-500">
                     <FaPhone className="mr-1" />
-                    {user.phone_number}
+                    {currentUser.phone_number}
                   </span>
                   <span className="inline-flex items-center text-sm text-gray-500">
                     <FaEnvelope className="mr-1" />
-                    {user.gmail}
+                    {currentUser.gmail}
                   </span>
                 </div>
               </div>
@@ -299,20 +299,20 @@ export default function UserDashboard() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-500">IC Number</label>
-                    <p className="mt-1 text-sm text-gray-900">{user.ic_number}</p>
+                    <p className="mt-1 text-sm text-gray-900">{currentUser.ic_number}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Phone Number</label>
-                    <p className="mt-1 text-sm text-gray-900">{user.phone_number}</p>
+                    <p className="mt-1 text-sm text-gray-900">{currentUser.phone_number}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Email</label>
-                    <p className="mt-1 text-sm text-gray-900">{user.gmail}</p>
+                    <p className="mt-1 text-sm text-gray-900">{currentUser.gmail}</p>
                   </div>
-                  {user.wallet_address && (
+                  {currentUser.wallet_address && (
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Wallet Address</label>
-                      <p className="mt-1 text-sm font-mono text-gray-900">{user.wallet_address}</p>
+                      <p className="mt-1 text-sm font-mono text-gray-900">{currentUser.wallet_address}</p>
                     </div>
                   )}
                 </div>
@@ -325,7 +325,7 @@ export default function UserDashboard() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2">Front IC</h3>
                     <img
-                      src={formatImageUrl(user.front_ic_picture)}
+                      src={formatImageUrl(currentUser.front_ic_picture)}
                       alt="Front IC"
                       className="w-full h-auto rounded-lg shadow-sm"
                     />
@@ -333,7 +333,7 @@ export default function UserDashboard() {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2">Back IC</h3>
                     <img
-                      src={formatImageUrl(user.back_ic_picture)}
+                      src={formatImageUrl(currentUser.back_ic_picture)}
                       alt="Back IC"
                       className="w-full h-auto rounded-lg shadow-sm"
                     />

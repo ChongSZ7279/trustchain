@@ -86,6 +86,7 @@ export default function OrganizationEdit() {
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (files[0]) {
+      console.log(`File selected for ${name}:`, files[0].name);
       setFormData(prev => ({
         ...prev,
         [name]: files[0]
@@ -109,23 +110,50 @@ export default function OrganizationEdit() {
     setError('');
 
     try {
-      setSubmitting(true);
-      
       // Create FormData object for file uploads
       const formDataToSend = new FormData();
       
-      // Append all form fields to FormData
-      Object.keys(formData).forEach(key => {
-        if (key === 'logo' || key === 'cover_image_path') {
-          if (formData[key] && formData[key] instanceof File) {
-            formDataToSend.append(key, formData[key]);
-          }
-        } else {
-          formDataToSend.append(key, formData[key]);
-        }
-      });
+      // Add basic text fields
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('objectives', formData.objectives);
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('phone_number', formData.phone_number);
+      formDataToSend.append('register_address', formData.register_address);
       
-      // Use PUT method for update
+      // Add optional text fields
+      if (formData.website) formDataToSend.append('website', formData.website);
+      if (formData.facebook) formDataToSend.append('facebook', formData.facebook);
+      if (formData.instagram) formDataToSend.append('instagram', formData.instagram);
+      
+      // Add file fields only if they are Files
+      if (formData.logo instanceof File) {
+        console.log('Adding logo file:', formData.logo.name);
+        formDataToSend.append('logo', formData.logo);
+      }
+      
+      if (formData.cover_image_path instanceof File) {
+        console.log('Adding cover image file:', formData.cover_image_path.name);
+        formDataToSend.append('cover_image_path', formData.cover_image_path);
+      }
+      
+      if (formData.statutory_declaration instanceof File) {
+        formDataToSend.append('statutory_declaration', formData.statutory_declaration);
+      }
+      
+      if (formData.verified_document instanceof File) {
+        formDataToSend.append('verified_document', formData.verified_document);
+      }
+      
+      // Add method spoofing for Laravel
+      formDataToSend.append('_method', 'PUT');
+      
+      // Log the FormData contents for debugging
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
+      
+      // Use POST method with _method=PUT for Laravel
       const response = await axios.post(`/organizations/${organization.id}`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -139,7 +167,16 @@ export default function OrganizationEdit() {
       navigate('/organization/dashboard');
     } catch (err) {
       console.error('Update error:', err);
-      setError(err.response?.data?.message || 'Failed to update organization. Please try again.');
+      if (err.response?.data?.errors) {
+        console.log('Validation errors:', err.response.data.errors);
+        // Format validation errors for display
+        const errorMessages = Object.entries(err.response.data.errors)
+          .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+          .join('\n');
+        setError(`Validation failed:\n${errorMessages}`);
+      } else {
+        setError(err.response?.data?.message || 'Failed to update organization. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

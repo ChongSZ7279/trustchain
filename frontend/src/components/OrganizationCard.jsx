@@ -11,14 +11,14 @@ import {
 
 export default function OrganizationCard({ organization }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { currentUser, accountType } = useAuth();
   const [isFollowing, setIsFollowing] = useState(organization.is_following || false);
   const [followerCount, setFollowerCount] = useState(organization.follower_count || 0);
   const [showDetails, setShowDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const toggleFollow = async () => {
-    if (!user) {
+    if (!currentUser) {
       navigate('/login');
       return;
     }
@@ -35,7 +35,7 @@ export default function OrganizationCard({ organization }) {
     }
   };
 
-  const canEditOrganization = () => user && (user.ic_number === organization.representative_id);
+  const canEditOrganization = () => currentUser && (currentUser.ic_number === organization.representative_id);
 
   return (
     <div className="bg-white overflow-hidden shadow-md rounded-lg border border-gray-200 flex flex-col mt-4">

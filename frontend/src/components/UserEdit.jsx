@@ -27,15 +27,15 @@ const FRAME_COLORS = [
 ];
 
 export default function UserEdit() {
-  const { user, setUser } = useAuth();
   const navigate = useNavigate();
+  const { currentUser, updateUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     phone_number: '',
     profile_picture: null,
     front_ic_picture: null,
     back_ic_picture: null,
-    frame_color: ''
+    frame_color: FRAME_COLORS[0].color
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,7 +48,7 @@ export default function UserEdit() {
   // Get user's unlocked colors based on achievements
   const getUnlockedColors = () => {
     // This should be replaced with actual achievement logic
-    const achievements = user?.achievements || [];
+    const achievements = currentUser?.achievements || [];
     return FRAME_COLORS.filter(frame => {
       if (!frame.requirement) return true; // Default color is always available
       // Mock achievement check - replace with actual logic
@@ -58,28 +58,28 @@ export default function UserEdit() {
 
   useEffect(() => {
     // Redirect if no user is logged in
-    if (!user) {
+    if (!currentUser) {
       navigate('/login');
       return;
     }
 
     // Set initial form data from user object
     setFormData({
-      name: user.name || '',
-      phone_number: user.phone_number || '',
+      name: currentUser.name || '',
+      phone_number: currentUser.phone_number || '',
       profile_picture: null,
       front_ic_picture: null,
       back_ic_picture: null,
-      frame_color: user.frame_color || FRAME_COLORS[0].color
+      frame_color: currentUser.frame_color || FRAME_COLORS[0].color
     });
 
     // Set preview URLs for existing images
     setPreviewUrls({
-      profile_picture: user.profile_picture ? formatImageUrl(user.profile_picture) : null,
-      front_ic_picture: user.front_ic_picture ? formatImageUrl(user.front_ic_picture) : null,
-      back_ic_picture: user.back_ic_picture ? formatImageUrl(user.back_ic_picture) : null
+      profile_picture: currentUser.profile_picture ? formatImageUrl(currentUser.profile_picture) : null,
+      front_ic_picture: currentUser.front_ic_picture ? formatImageUrl(currentUser.front_ic_picture) : null,
+      back_ic_picture: currentUser.back_ic_picture ? formatImageUrl(currentUser.back_ic_picture) : null
     });
-  }, [user, navigate]);
+  }, [currentUser, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -107,7 +107,7 @@ export default function UserEdit() {
     e.preventDefault();
     
     // Check if user exists and has ic_number
-    if (!user?.ic_number) {
+    if (!currentUser?.ic_number) {
       setError('User not found or invalid IC number. Please try logging in again.');
       return;
     }
@@ -132,15 +132,15 @@ export default function UserEdit() {
         formDataToSend.append('back_ic_picture', formData.back_ic_picture);
       }
 
-      const response = await axios.post(`/users/${user.ic_number}`, formDataToSend, {
+      const response = await axios.post(`/users/${currentUser.ic_number}`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       // Update the user state with the new data
-      if (response.data && typeof setUser === 'function') {
-        setUser(response.data);
+      if (response.data && typeof updateUser === 'function') {
+        updateUser(response.data);
       }
       
       navigate('/user/dashboard');
@@ -153,7 +153,7 @@ export default function UserEdit() {
   };
 
   // Show loading state while checking user authentication
-  if (!user) {
+  if (!currentUser) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>

@@ -8,8 +8,10 @@ export default function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const location = useLocation();
 
-  // Only show sidebar on organization and charities pages
-  const showSidebar = location.pathname.includes('/organizations') || location.pathname.includes('/charities');
+  // Only show sidebar on organization and charities list pages, not on detail pages
+  const showSidebar = (location.pathname === '/organizations' || location.pathname === '/charities') && 
+                     !location.pathname.match(/\/organizations\/\d+$/) && 
+                     !location.pathname.match(/\/charities\/\d+$/);
 
   return (
     <div className="min-h-screen bg-indigo-50 flex flex-col">

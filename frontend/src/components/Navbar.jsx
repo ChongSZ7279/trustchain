@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
-  const { user, organization, logout } = useAuth();
+  const { currentUser, accountType, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   
@@ -13,6 +13,9 @@ export default function Navbar() {
     }
     return location.pathname.startsWith(path);
   };
+
+  // For debugging
+  console.log('Navbar - Auth state:', { currentUser: currentUser ? 'exists' : 'null', accountType });
 
   return (
     <nav className="bg-white shadow-sm fixed top-0 left-0 right-0 z-50">
@@ -43,7 +46,7 @@ export default function Navbar() {
               >
                 Charities
               </Link>
-              {(user || organization) && (
+              {currentUser && (
                 <Link
                   to="/transactions"
                   className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
@@ -54,7 +57,7 @@ export default function Navbar() {
             </div>
           </div>
           <div className="hidden sm:flex sm:items-center">
-            {!user && !organization ? (
+            {!currentUser && !accountType ? (
               <>
                 <Link
                   to="/login"
@@ -72,7 +75,7 @@ export default function Navbar() {
             ) : (
               <>
                 <Link
-                  to={organization ? "/organization/dashboard" : "/user/dashboard"}
+                  to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
                   className="text-gray-500 hover:text-gray-700 px-3 py-2"
                 >
                   Dashboard
@@ -128,7 +131,7 @@ export default function Navbar() {
           >
             Charities
           </Link>
-          {!user && !organization ? (
+          {!currentUser && !accountType ? (
             <>
               <Link
                 to="/login"
@@ -147,7 +150,7 @@ export default function Navbar() {
             </>
           ) : (
             <Link
-              to={organization ? "/organization/dashboard" : "/user/dashboard"}
+              to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
               className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               onClick={() => setIsMenuOpen(false)}
             >

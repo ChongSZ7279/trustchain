@@ -18,17 +18,9 @@ import {
 } from 'react-icons/fa';
 
 export default function TaskForm({ mode = 'create' }) {
-  // Extract parameters from URL
-  const params = useParams();
-  // For edit mode: /tasks/:taskId/edit
-  // For create mode: /charities/:id/tasks/create
-  const taskId = params.taskId; // From /tasks/:taskId/edit
-  const charityId = params.id; // From /charities/:id/tasks/create
-  
-  console.log('Route params:', params); // Debug log
-  
+  const { id: charityId, taskId } = useParams();
   const navigate = useNavigate();
-  const { organization } = useAuth();
+  const { currentUser, accountType } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -43,7 +35,7 @@ export default function TaskForm({ mode = 'create' }) {
   const [charity, setCharity] = useState(null);
 
   useEffect(() => {
-    if (!organization) {
+    if (!currentUser) {
       navigate('/login');
       return;
     }
@@ -60,7 +52,7 @@ export default function TaskForm({ mode = 'create' }) {
           console.log('Fetched task:', taskData); // Debug log
           
           // Check if user owns the charity
-          if (taskData.charity.organization_id !== organization.id) {
+          if (taskData.charity.organization_id !== accountType) {
             console.error('User does not own this charity');
             navigate('/charities');
             return;
@@ -90,7 +82,7 @@ export default function TaskForm({ mode = 'create' }) {
           console.log('Fetched charity:', charityData); // Debug log
           
           // Check if user owns the charity
-          if (charityData.organization_id !== organization.id) {
+          if (charityData.organization_id !== accountType) {
             console.error('User does not own this charity');
             navigate('/charities');
             return;
@@ -107,7 +99,7 @@ export default function TaskForm({ mode = 'create' }) {
     };
 
     fetchData();
-  }, [mode, taskId, charityId, organization, navigate]);
+  }, [mode, taskId, charityId, currentUser, navigate, accountType]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

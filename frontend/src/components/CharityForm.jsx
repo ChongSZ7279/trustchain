@@ -19,9 +19,10 @@ import {
 export default function CharityForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, organization } = useAuth();
+  const { currentUser, accountType } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -70,7 +71,7 @@ export default function CharityForm() {
         fund_targeted: charityData.fund_targeted || '',
         picture_path: charityData.picture_path || null,
         status: charityData.status || 'pending',
-        organization_id: charityData.organization_id || organization?.id
+        organization_id: charityData.organization_id || accountType?.id
       });
 
       // If there's an existing picture, set it in the preview
@@ -95,8 +96,8 @@ export default function CharityForm() {
   };
 
   const canManageCharity = (charity) => {
-    return organization?.id === charity?.organization_id || 
-           charity?.organization?.representative_id === user?.ic_number;
+    return accountType?.id === charity?.organization_id || 
+           charity?.organization?.representative_id === currentUser?.ic_number;
   };
 
   const handleChange = (e) => {

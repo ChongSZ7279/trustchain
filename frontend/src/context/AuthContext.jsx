@@ -15,7 +15,10 @@ export function AuthProvider({ children }) {
   const [authChecked, setAuthChecked] = useState(false);
 
   // Set up axios defaults
-  axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+  console.log('Using API URL:', apiUrl);
+  
+  axios.defaults.baseURL = apiUrl;
   axios.defaults.withCredentials = true;
   axios.defaults.headers.common['Accept'] = 'application/json';
   axios.defaults.headers.common['Content-Type'] = 'application/json';
@@ -26,21 +29,45 @@ export function AuthProvider({ children }) {
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        // Debug token usage
+        if (config.url.includes('login') || config.url.includes('register')) {
+          console.log('Auth request to:', config.url);
+        }
       }
       return config;
     },
-    error => Promise.reject(error)
+    error => {
+      console.error('Request interceptor error:', error);
+      return Promise.reject(error);
+    }
   );
 
-  // Add response interceptor to handle common errors
+  // Add response interceptor for debugging
   axios.interceptors.response.use(
-    response => response,
+    response => {
+      // Debug successful responses for auth endpoints
+      if (response.config.url.includes('login') || response.config.url.includes('register')) {
+        console.log('Auth response from:', response.config.url, 'Status:', response.status);
+      }
+      return response;
+    },
     error => {
-      // Handle 401 Unauthorized errors globally
-      if (error.response && error.response.status === 401 && currentUser) {
-        // Only logout if we were previously logged in and got a 401
-        logout();
-        setError('Your session has expired. Please log in again.');
+      // Debug error responses
+      if (error.response) {
+        console.error('Response error:', {
+          url: error.config.url,
+          status: error.response.status,
+          data: error.response.data
+        });
+        
+        // Handle 401 Unauthorized errors (token expired or invalid)
+        if (error.response.status === 401 && !error.config.url.includes('login')) {
+          console.log('Unauthorized request detected, logging out');
+          // Clear token and user data
+          localStorage.removeItem('token');
+          setCurrentUser(null);
+          setAccountType(null);
+        }
       }
       return Promise.reject(error);
     }
@@ -52,6 +79,8 @@ export function AuthProvider({ children }) {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
+        console.log('Checking authentication with token:', token ? 'Token exists' : 'No token');
+        
         if (!token) {
           setCurrentUser(null);
           setAccountType(null);
@@ -60,11 +89,43 @@ export function AuthProvider({ children }) {
           return;
         }
 
+        console.log('Fetching user data from /user endpoint');
         const response = await axios.get('/user');
+        console.log('User data response:', response.data);
+        
+        // Set the current user
         setCurrentUser(response.data.user);
-        setAccountType(response.data.account_type || 'user');
+        
+        // Determine account type with fallback logic
+        let determinedAccountType = response.data.account_type;
+        
+        // If account_type is not provided, try to determine from user data
+        if (!determinedAccountType) {
+          if (response.data.user?.is_organization) {
+            determinedAccountType = 'organization';
+          } else if (response.data.user?.ic_number) {
+            determinedAccountType = 'user';
+          } else {
+            determinedAccountType = 'user'; // Default fallback
+          }
+          console.log('Account type not provided, determined as:', determinedAccountType);
+        } else {
+          console.log('Using provided account type:', determinedAccountType);
+        }
+        
+        setAccountType(determinedAccountType);
       } catch (err) {
         console.error('Auth check error:', err);
+        
+        // Log more details about the error
+        if (err.response) {
+          console.error('Auth check error response:', {
+            status: err.response.status,
+            data: err.response.data
+          });
+        }
+        
+        // Clear auth data on error
         localStorage.removeItem('token');
         setCurrentUser(null);
         setAccountType(null);
@@ -195,46 +256,32 @@ export function AuthProvider({ children }) {
       };
       
       // Log the exact data being sent
-      console.log('Sending login data:', JSON.stringify(loginData));
+      console.log('Sending login data to /login endpoint:', JSON.stringify(loginData));
       
-      // First try the test login to diagnose any issues
-      try {
-        const testResponse = await axios.post('/test-login', loginData);
-        console.log('Test login response:', testResponse.data);
-        
-        // If test shows no user found, return early with error
-        if (!testResponse.data.user_found && !testResponse.data.organization_found) {
-          setError('No account found with this email. Please check your email or register.');
-          setLoading(false);
-          return { error: 'No account found' };
-        }
-        
-        // If test shows database error, return early
-        if (testResponse.data.user_query_error || testResponse.data.org_query_error) {
-          console.error('Database error detected in test:', 
-            testResponse.data.user_query_error || testResponse.data.org_query_error);
-          setError('A database error occurred. Please try again later.');
-          setLoading(false);
-          return { error: 'Database error' };
-        }
-      } catch (testErr) {
-        // Just log test errors, don't abort the actual login
-        console.warn('Test login failed but continuing with real login:', testErr);
-      }
-      
-      // Now try the actual login
+      // Skip the test-login endpoint that's causing 500 errors
+      // and go directly to the actual login endpoint
       const response = await axios.post('/login', loginData);
       
       console.log('Login response:', response.data);
+      console.log('Account type from response:', response.data.account_type);
       
       // Store token in localStorage
       localStorage.setItem('token', response.data.token);
       
+      // Ensure we have a valid account type, defaulting to 'user' if not provided
+      const accountType = response.data.account_type || 
+                         (response.data.user?.is_organization ? 'organization' : 'user');
+      
+      console.log('Determined account type:', accountType);
+      
       // Set current user and account type
       setCurrentUser(response.data.user);
-      setAccountType(response.data.account_type || 'user');
+      setAccountType(accountType);
       
-      return response.data;
+      return {
+        ...response.data,
+        account_type: accountType // Ensure consistent account_type in the return value
+      };
     } catch (err) {
       console.error('Login error:', err);
       
@@ -402,6 +449,9 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     accountType,
+    // Add backward compatibility properties
+    user: currentUser,
+    organization: accountType === 'organization' ? currentUser : null,
     loading,
     error,
     authChecked,

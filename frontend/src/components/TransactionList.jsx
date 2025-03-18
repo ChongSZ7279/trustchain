@@ -1,39 +1,40 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   FaSearch, 
   FaFilter, 
-  FaTimes, 
   FaCalendarAlt,
   FaMoneyBillWave,
   FaUser,
   FaBuilding,
-  FaHeart,
   FaCheckCircle,
   FaExclamationCircle,
   FaExclamationTriangle,
   FaSync,
-  FaHistory
+  FaHistory,
+  FaHandHoldingHeart,
+  FaGlobe
 } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
 import Pagination from './Pagination';
 
 export default function TransactionList() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { charityId } = useParams();
+  const { currentUser, accountType } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [viewType, setViewType] = useState(charityId ? 'charity' : 'system');
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
-    itemsPerPage: 12
+    itemsPerPage: 10
   });
   const [filters, setFilters] = useState({
     status: '',
@@ -47,19 +48,50 @@ export default function TransactionList() {
     }
   });
 
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
       setError(null);
       
+      // Create query parameters object with only non-empty values
       const queryParams = new URLSearchParams({
         page: pagination.currentPage,
-        per_page: pagination.itemsPerPage,
-        search: searchTerm,
-        ...filters
+        per_page: pagination.itemsPerPage
       });
 
-      const response = await axios.get(`/transactions?${queryParams}`);
+      // Only add search term if it's not empty
+      if (searchTerm.trim()) {
+        queryParams.append('search', searchTerm.trim());
+      }
+
+      // Only add status if it's not empty
+      if (filters.status) {
+        queryParams.append('status', filters.status);
+      }
+
+      // Only add date range if either start or end is not empty
+      if (filters.dateRange.start || filters.dateRange.end) {
+        queryParams.append('dateRange[start]', filters.dateRange.start);
+        queryParams.append('dateRange[end]', filters.dateRange.end);
+      }
+
+      // Only add amount range if either min or max is not empty
+      if (filters.amountRange.min || filters.amountRange.max) {
+        queryParams.append('amountRange[min]', filters.amountRange.min);
+        queryParams.append('amountRange[max]', filters.amountRange.max);
+      }
+
+      let endpoint = '/transactions';
+      if (viewType === 'charity' && charityId) {
+        endpoint = `/charities/${charityId}/transactions`;
+      }
+
+      console.log('Fetching transactions from endpoint:', endpoint);
+      console.log('Query params:', queryParams.toString());
+      
+      const response = await axios.get(`${endpoint}?${queryParams}`);
+      
+      console.log('Transaction response:', response.data);
       
       if (response.data && response.data.data) {
         setTransactions(response.data.data);
@@ -69,6 +101,7 @@ export default function TransactionList() {
           totalItems: response.data.total
         }));
       } else {
+        console.log('No transaction data found in response');
         setTransactions([]);
         setPagination(prev => ({
           ...prev,
@@ -78,16 +111,23 @@ export default function TransactionList() {
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      }
       setError(error.response?.data?.message || 'Failed to fetch transactions');
       setTransactions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchTransactions();
-  }, [pagination.currentPage, searchTerm, filters]);
+  }, [pagination.currentPage, searchTerm, filters, viewType, charityId]);
 
   const handlePageChange = (page) => {
     setPagination(prev => ({ ...prev, currentPage: page }));
@@ -104,45 +144,6 @@ export default function TransactionList() {
       ...prev,
       [name]: value
     }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
-
-  const handleDateRangeChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      dateRange: {
-        ...prev.dateRange,
-        [name]: value
-      }
-    }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
-
-  const handleAmountRangeChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      amountRange: {
-        ...prev.amountRange,
-        [name]: value
-      }
-    }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      status: '',
-      dateRange: {
-        start: '',
-        end: ''
-      },
-      amountRange: {
-        min: '',
-        max: ''
-      }
-    });
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
@@ -181,7 +182,7 @@ export default function TransactionList() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading transactions...</p>
+          <p className="text-gray-600">Loading...</p>
         </motion.div>
       </div>
     );
@@ -228,9 +229,35 @@ export default function TransactionList() {
             Transactions
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            View and manage all transactions
+            {viewType === 'charity' ? 'View charity-specific transactions' : 'View all system transactions'}
           </p>
         </div>
+        {!charityId && (
+          <div className="mt-4 md:mt-0 flex space-x-4">
+            <button
+              onClick={() => setViewType('system')}
+              className={`inline-flex items-center px-4 py-2 border rounded-lg text-sm font-medium transition-colors duration-200 ${
+                viewType === 'system'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <FaGlobe className="mr-2" />
+              System View
+            </button>
+            <button
+              onClick={() => setViewType('charity')}
+              className={`inline-flex items-center px-4 py-2 border rounded-lg text-sm font-medium transition-colors duration-200 ${
+                viewType === 'charity'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <FaHandHoldingHeart className="mr-2" />
+              Charity View
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* Search and Filter Bar */}
@@ -267,158 +294,98 @@ export default function TransactionList() {
         </div>
 
         {/* Filter Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mt-4 pt-4 border-t border-gray-200"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Status Filters */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    name="status"
-                    value={filters.status}
-                    onChange={handleFilterChange}
-                    className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  >
-                    <option value="">All Status</option>
-                    <option value="completed">Completed</option>
-                    <option value="pending">Pending</option>
-                    <option value="failed">Failed</option>
-                  </select>
-                </div>
-
-                {/* Date Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date Range
-                  </label>
-                  <div className="space-y-2">
-                    <input
-                      type="date"
-                      name="start"
-                      value={filters.dateRange.start}
-                      onChange={handleDateRangeChange}
-                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                    <input
-                      type="date"
-                      name="end"
-                      value={filters.dateRange.end}
-                      onChange={handleDateRangeChange}
-                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* Amount Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amount Range
-                  </label>
-                  <div className="space-y-2">
-                    <input
-                      type="number"
-                      name="min"
-                      value={filters.amountRange.min}
-                      onChange={handleAmountRangeChange}
-                      placeholder="Min amount"
-                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                    <input
-                      type="number"
-                      name="max"
-                      value={filters.amountRange.max}
-                      onChange={handleAmountRangeChange}
-                      placeholder="Max amount"
-                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Reset Filters Button */}
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={resetFilters}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-4 pt-4 border-t border-gray-200"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleFilterChange}
+                  className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 >
-                  <FaTimes className="mr-2" />
-                  Reset Filters
-                </button>
+                  <option value="">All Status</option>
+                  <option value="completed">Completed</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Results Count */}
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="mb-6"
-      >
-        <h2 className="text-xl font-bold text-gray-900">
-          {pagination.totalItems} {pagination.totalItems === 1 ? 'Transaction' : 'Transactions'} Found
-        </h2>
+            </div>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Transactions Grid */}
       {transactions && transactions.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {transactions.map((transaction, index) => (
-              <motion.div
-                key={transaction.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -5 }}
-                className="bg-white overflow-hidden shadow-sm hover:shadow-lg rounded-xl transition-all duration-200"
-              >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      {getStatusIcon(transaction.status)}
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
-                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                      </span>
-                    </div>
-                    <FaMoneyBillWave className="h-6 w-6 text-indigo-600" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <FaCalendarAlt className="mr-2" />
-                      {new Date(transaction.created_at).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <FaUser className="mr-2" />
-                      {transaction.is_anonymous ? 'Anonymous' : transaction.donor_name}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <FaBuilding className="mr-2" />
-                      {transaction.charity_name}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">Amount</span>
-                      <span className="text-lg font-semibold text-gray-900">
+          <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Transaction ID
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Details
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(transaction.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                        {transaction.transaction_hash?.slice(0, 8) || transaction.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${parseFloat(transaction.amount).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
+                          {getStatusIcon(transaction.status)}
+                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <button
+                          onClick={() => navigate(`/transactions/${transaction.id}`)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div className="mt-8">
             <Pagination

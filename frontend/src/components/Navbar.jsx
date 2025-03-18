@@ -180,6 +180,19 @@ export default function Navbar() {
           >
             Guidelines
           </Link>
+          {currentUser && (
+            <Link
+              to="/transactions"
+              className={`block px-3 py-2 text-base font-medium transition-colors duration-200 ${
+                isActive('/transactions')
+                  ? 'bg-indigo-50 text-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Transactions
+            </Link>
+          )}
           {!currentUser && !accountType ? (
             <>
               <Link

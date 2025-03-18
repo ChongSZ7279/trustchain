@@ -35,6 +35,8 @@ export default function TaskForm() {
   const [newPictures, setNewPictures] = useState([]);
   const [picturesToDelete, setPicturesToDelete] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [proofFile, setProofFile] = useState(null);
+  const [existingProof, setExistingProof] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [charity, setCharity] = useState(null);
@@ -149,7 +151,6 @@ export default function TaskForm() {
               const taskData = taskResponse.data;
               console.log('Fetched task:', taskData);
               
-              // Only proceed if component is still mounted
               if (!isMounted) return;
 
               if (!taskData) {
@@ -166,9 +167,19 @@ export default function TaskForm() {
                 due_date: taskData.due_date || ''
               });
 
-              // Set existing pictures
-              if (taskData.pictures) {
-                setExistingPictures(taskData.pictures);
+              // Set existing proof file if exists
+              if (taskData.proof) {
+                setExistingProof(taskData.proof);
+              }
+
+              // Fetch task pictures
+              try {
+                const picturesResponse = await axios.get(`/tasks/${taskId}/pictures`);
+                if (picturesResponse.data) {
+                  setExistingPictures(picturesResponse.data);
+                }
+              } catch (err) {
+                console.error('Error fetching task pictures:', err);
               }
             } catch (err) {
               console.error('Error fetching task:', err);
@@ -225,9 +236,24 @@ export default function TaskForm() {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handlePictureChange = (e) => {
     const files = Array.from(e.target.files);
     setNewPictures(prev => [...prev, ...files]);
+  };
+
+  const handleProofFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProofFile(file);
+    }
+  };
+
+  const handleRemoveProof = () => {
+    setProofFile(null);
+    setExistingProof(null);
+    // Reset the file input
+    const fileInput = document.getElementById('proof-file');
+    if (fileInput) fileInput.value = '';
   };
 
   const handleSubmit = async (e) => {
@@ -286,6 +312,16 @@ export default function TaskForm() {
       // Append pictures to delete
       if (picturesToDelete.length > 0) {
         formDataToSend.append('pictures_to_delete', JSON.stringify(picturesToDelete));
+      }
+
+      // Add proof file to form data if exists
+      if (proofFile) {
+        formDataToSend.append('proof', proofFile);
+      }
+
+      // Add proof deletion flag if removing existing proof
+      if (existingProof && !proofFile) {
+        formDataToSend.append('delete_proof', '1');
       }
 
       const endpoint = taskId 
@@ -491,27 +527,137 @@ export default function TaskForm() {
                 </div>
               </div>
 
-              {/* Pictures Section */}
+              {/* Proof Document Section */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                   <FaFileAlt className="mr-2" />
                   Proof Document
                 </h2>
+                
+                {/* Existing Proof File */}
+                {existingProof && !proofFile && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Current Proof Document</h3>
+                    <div className="flex items-center space-x-2">
+                      <a 
+                        href={formatImageUrl(existingProof)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800"
+                      >
+                        View Current Proof
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleRemoveProof}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FaTimes className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* New Proof File Upload */}
                 <div>
-                  <label htmlFor="proof" className="block text-sm font-medium text-gray-700 flex items-center">
-                    <FaImage className="mr-2" />
-                    Upload Proof Document
+                  <label htmlFor="proof-file" className="block text-sm font-medium text-gray-700">
+                    {existingProof ? 'Replace Proof Document' : 'Upload Proof Document'}
                   </label>
-                  <input
-                    type="file"
-                    name="proof"
-                    id="proof"
-                    accept=".pdf,.doc,.docx,image/*"
-                    onChange={handleFileChange}
-                    className="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">
-                    Accepted file types: Images, PDF, DOC, DOCX
+                  <div className="mt-2">
+                    <input
+                      type="file"
+                      id="proof-file"
+                      accept=".pdf,.doc,.docx,image/*"
+                      onChange={handleProofFileChange}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    />
+                  </div>
+                  {proofFile && (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <span className="text-sm text-gray-500">{proofFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveProof}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FaTimes className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  <p className="mt-2 text-sm text-gray-500">
+                    Accepted file types: PDF, DOC, DOCX, Images
+                  </p>
+                </div>
+              </div>
+
+              {/* Pictures Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <FaImage className="mr-2" />
+                  Task Pictures
+                </h2>
+                
+                {/* Existing Pictures */}
+                {existingPictures.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Current Pictures</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {existingPictures.map((picture, index) => (
+                        <div key={picture.id} className="relative border rounded-lg overflow-hidden">
+                          <img
+                            src={formatImageUrl(picture.path)}
+                            alt={`Task picture ${index + 1}`}
+                            className="w-full h-48 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handlePictureDelete(index, true)}
+                            className="absolute top-2 right-2 p-1 bg-red-100 rounded-full text-red-600 hover:bg-red-200"
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Pictures */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Add New Pictures
+                  </label>
+                  <div className="mt-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePictureChange}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    />
+                  </div>
+                  {newPictures.length > 0 && (
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {newPictures.map((file, index) => (
+                        <div key={index} className="relative border rounded-lg overflow-hidden">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`New picture ${index + 1}`}
+                            className="w-full h-48 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handlePictureDelete(index)}
+                            className="absolute top-2 right-2 p-1 bg-red-100 rounded-full text-red-600 hover:bg-red-200"
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-sm text-gray-500">
+                    Upload one or multiple pictures. Supported formats: JPG, PNG, GIF
                   </p>
                 </div>
               </div>

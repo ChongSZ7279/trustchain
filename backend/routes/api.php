@@ -31,6 +31,10 @@ Route::get('/charities', [CharityController::class, 'index']);
 Route::get('/charities/{id}', [CharityController::class, 'show']);
 Route::get('/organizations/{id}/charities', [CharityController::class, 'organizationCharities']);
 
+// Public task routes
+Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
+Route::get('/tasks/{id}', [TaskController::class, 'show']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -58,9 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::match(['put', 'patch'], '/charities/{id}', [CharityController::class, 'update']);
     Route::delete('/charities/{id}', [CharityController::class, 'destroy']);
 
-    // Task routes
-    Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
-    Route::get('/tasks/{id}', [TaskController::class, 'show']);
+    // Protected task routes
     Route::post('/charities/{charityId}/tasks', [TaskController::class, 'store']);
     Route::match(['put', 'patch'], '/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);

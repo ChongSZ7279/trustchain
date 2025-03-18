@@ -81,12 +81,14 @@ export default function CharityDetails() {
         const charityResponse = await axios.get(`/charities/${id}`);
         setCharity(charityResponse.data);
         
-        // Set follower status
-        if (charityResponse.data.is_following !== undefined) {
-          setIsFollowing(charityResponse.data.is_following);
-        }
-        if (charityResponse.data.follower_count !== undefined) {
-          setFollowerCount(charityResponse.data.follower_count);
+        // Set follower status only if user is logged in
+        if (currentUser) {
+          if (charityResponse.data.is_following !== undefined) {
+            setIsFollowing(charityResponse.data.is_following);
+          }
+          if (charityResponse.data.follower_count !== undefined) {
+            setFollowerCount(charityResponse.data.follower_count);
+          }
         }
       } catch (err) {
         console.error('Error fetching charity:', err);
@@ -97,58 +99,46 @@ export default function CharityDetails() {
       
       try {
         const tasksResponse = await axios.get(`/charities/${id}/tasks`);
-        setTasks(tasksResponse.data);
+        // Transform tasks to include task pictures
+        const tasksWithPictures = tasksResponse.data.map(task => ({
+          ...task,
+          pictures: task.task_pictures || [] // Include task pictures from the response
+        }));
+        setTasks(tasksWithPictures);
       } catch (err) {
         console.error('Error fetching tasks:', err);
-        // Don't set error here, just log it and continue
         setTasks([]);
       }
       
-      // Fetch donations if user is authorized
+      // Fetch donations and transactions only if user is authorized
       if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
         try {
           const donationsRes = await axios.get(`/charity/${id}/donations`);
           setDonations(donationsRes.data);
         } catch (err) {
           console.error('Error fetching donations:', err);
-          // Don't set error here, just log it and continue
           setDonations([]);
         }
       }
 
-      // Fetch transactions if user is authorized
       if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
         try {
-          console.log(`Fetching transactions from: /charities/${id}/transactions`);
           const transactionsRes = await axios.get(`/charities/${id}/transactions`);
-          console.log('Transactions response:', transactionsRes.data);
           setTransactions(transactionsRes.data);
         } catch (err) {
           console.error('Error fetching transactions:', err);
-          if (err.response) {
-            console.error('Error response status:', err.response.status);
-            console.error('Error response data:', err.response.data);
-          }
-          // Don't set error here, just log it and continue
           setTransactions([]);
         }
       }
       
-      // Get follow status
+      // Get follow status only if user is logged in
       if (currentUser) {
         try {
-          console.log(`Fetching follow status from: /charities/${id}/follow-status`);
           const followStatusRes = await axios.get(`/charities/${id}/follow-status`);
-          console.log('Follow status response:', followStatusRes.data);
           setIsFollowing(followStatusRes.data.is_following);
           setFollowerCount(followStatusRes.data.follower_count);
         } catch (err) {
           console.error('Error fetching follow status:', err);
-          if (err.response) {
-            console.error('Error response status:', err.response.status);
-            console.error('Error response data:', err.response.data);
-          }
-          // Don't set error here, just log it and continue
         }
       }
     } catch (err) {
@@ -407,6 +397,15 @@ export default function CharityDetails() {
                       {isFollowing ? 'Following' : 'Follow'}
                     </button>
 
+                    {/* Donate button - only visible to logged-in users */}
+                    <button
+                      onClick={() => setShowDonationModal(true)}
+                      className="px-4 py-2 rounded-md font-medium text-sm bg-green-600 text-white hover:bg-green-700 transition-all duration-200"
+                    >
+                      <FaHandHoldingHeart className="inline-block mr-2" />
+                      Donate
+                    </button>
+
                     <div className="relative">
                       <button
                         onClick={handleShare}
@@ -563,73 +562,101 @@ export default function CharityDetails() {
               className="mt-4"
             >
               {tasks.length > 0 ? (
-                <div className="space-y-6">
-                  {tasks.map((task, index) => (
-                    <motion.div
-                      key={task.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white rounded-xl shadow-sm overflow-hidden"
-                    >
-                      <div className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
-                            <p className="text-sm text-gray-500 mt-1 flex items-center">
-                              <FaCalendarAlt className="mr-1" />
-                              {formatDate(task.created_at)}
-                            </p>
-                          </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            task.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : task.status === 'in_progress'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
-                            {task.status === 'in_progress' && <FaClock className="mr-1" />}
-                            {task.status?.charAt(0).toUpperCase() + task.status?.slice(1).replace('_', ' ')}
-                          </span>
-                        </div>
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-indigo-200"></div>
+                  
+                  <div className="space-y-12">
+                    {[...tasks].reverse().map((task, index) => (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.5, delay: index * 0.2 }}
+                        className={`relative flex items-center ${
+                          index % 2 === 0 ? 'justify-start' : 'justify-end'
+                        }`}
+                      >
+                        {/* Timeline dot */}
+                        <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-indigo-600 rounded-full border-4 border-white shadow-lg"></div>
                         
-                        <p className="mt-4 text-gray-600">{task.description}</p>
-                        
-                        {task.image && (
-                          <div className="mt-4 relative h-48 rounded-lg overflow-hidden">
-                            <img
-                              src={formatImageUrl(task.image)}
-                              alt={task.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        
-                        {task.fund_targeted > 0 && (
-                          <div className="mt-4">
-                            <div className="flex justify-between text-sm mb-2">
-                              <span className="text-gray-500">Funding Progress</span>
-                              <span className="font-medium text-blue-600">
-                                ${formatCurrency(task.current_amount)} / ${formatCurrency(task.fund_targeted)}
+                        {/* Content box */}
+                        <div className={`w-5/12 bg-white rounded-xl shadow-sm overflow-hidden ${
+                          index % 2 === 0 ? 'mr-auto' : 'ml-auto'
+                        }`}>
+                          <div className="p-6">
+                            {/* Status Badge */}
+                            <div className="flex justify-end mb-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                task.status === 'completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : task.status === 'in_progress'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
+                                {task.status === 'in_progress' && <FaClock className="mr-1" />}
+                                {task.status?.charAt(0).toUpperCase() + task.status?.slice(1).replace('_', ' ')}
                               </span>
                             </div>
-                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
-                                style={{
-                                  width: `${Math.min(
-                                    (task.current_amount / task.fund_targeted) * 100,
-                                    100
-                                  )}%`,
-                                }}
-                              ></div>
+
+                            {/* Task Title and Date */}
+                            <div className="mb-4">
+                              <h3 className="text-xl font-semibold text-gray-900">{task.name}</h3>
+                              <p className="text-sm text-gray-500 mt-1 flex items-center">
+                                <FaCalendarAlt className="mr-1" />
+                                {formatDate(task.created_at)}
+                              </p>
                             </div>
+                            
+                            {/* Task Description */}
+                            <p className="text-gray-600 mb-6">{task.description}</p>
+                            
+                            {/* Task Pictures */}
+                            {task.pictures && task.pictures.length > 0 && (
+                              <div className="mb-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {task.pictures.map((picture, picIndex) => (
+                                    <div key={picIndex} className="relative h-64 rounded-lg overflow-hidden shadow-md">
+                                      <img
+                                        src={formatImageUrl(picture.image_path)}
+                                        alt={`${task.name} - Image ${picIndex + 1}`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Funding Progress */}
+                            {task.fund_targeted > 0 && (
+                              <div className="mt-4">
+                                <div className="flex justify-between text-sm mb-2">
+                                  <span className="text-gray-500">Funding Progress</span>
+                                  <span className="font-medium text-blue-600">
+                                    ${formatCurrency(task.current_amount)} / ${formatCurrency(task.fund_targeted)}
+                                  </span>
+                                </div>
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                                    style={{
+                                      width: `${Math.min(
+                                        (task.current_amount / task.fund_targeted) * 100,
+                                        100
+                                      )}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm p-8 text-center">

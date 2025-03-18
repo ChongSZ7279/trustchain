@@ -46,12 +46,6 @@ export default function Navbar() {
               >
                 Charities
               </Link>
-              <Link
-                to="/guidelines"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
-              >
-                Guidelines
-              </Link>
               {currentUser && (
                 <Link
                   to="/transactions"
@@ -60,6 +54,12 @@ export default function Navbar() {
                   Transactions
                 </Link>
               )}
+              <Link
+                to="/guidelines"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
+              >
+                Guidelines
+              </Link>
             </div>
           </div>
           <div className="hidden sm:flex sm:items-center">

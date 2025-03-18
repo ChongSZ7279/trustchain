@@ -12,13 +12,13 @@ class TaskController extends Controller
 {
     public function index($charityId)
     {
-        $tasks = Task::where('charity_id', $charityId)->get();
+        $tasks = Task::with('task_pictures')->where('charity_id', $charityId)->get();
         return response()->json($tasks);
     }
 
     public function show($id)
     {
-        $task = Task::with('charity.organization')->findOrFail($id);
+        $task = Task::with(['charity.organization', 'task_pictures'])->findOrFail($id);
         return response()->json($task);
     }
 

@@ -9,17 +9,56 @@ use Illuminate\Support\Facades\Storage;
 
 class CharityController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $charities = Charity::with('organization')->get();
+        $query = Charity::with('organization');
+
+        // Apply search filter if provided
+        if ($request->has('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply category filter if provided
+        if ($request->has('categories')) {
+            $categories = $request->categories;
+            $query->whereIn('category', $categories);
+        }
+
+        // Apply status filter if provided
+        if ($request->has('statuses')) {
+            $statuses = $request->statuses;
+            $query->where(function($q) use ($statuses) {
+                foreach ($statuses as $status) {
+                    if ($status === 'verified') {
+                        $q->orWhere('is_verified', true);
+                    } else if ($status === 'pending') {
+                        $q->orWhere('is_verified', false);
+                    }
+                }
+            });
+        }
+
+        // Apply fund range filter if provided
+        if ($request->has('min_fund')) {
+            $query->where('fund_targeted', '>=', $request->min_fund);
+        }
+        if ($request->has('max_fund')) {
+            $query->where('fund_targeted', '<=', $request->max_fund);
+        }
+
+        // Get paginated results
+        $perPage = $request->input('per_page', 12); // Default to 12 items per page
+        $charities = $query->paginate($perPage);
         
         // Add follower count to each charity
         $charities->each(function ($charity) {
             try {
-                // Try to get follower count, but handle errors gracefully
                 $charity->follower_count = $charity->followers()->count();
                 
-                // Check if the authenticated user follows this charity
                 $user = Auth::user();
                 if ($user) {
                     $charity->is_following = $charity->followers()->where('user_ic', $user->ic_number)->exists();
@@ -27,7 +66,6 @@ class CharityController extends Controller
                     $charity->is_following = false;
                 }
             } catch (\Exception $e) {
-                // If there's an error (like missing table), set default values
                 $charity->follower_count = 0;
                 $charity->is_following = false;
             }

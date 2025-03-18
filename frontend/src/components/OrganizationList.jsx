@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import OrganizationCard from './OrganizationCard';
+import Pagination from './Pagination';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBuilding, 
@@ -21,6 +22,11 @@ export default function OrganizationList() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -44,64 +50,18 @@ export default function OrganizationList() {
 
   useEffect(() => {
     fetchOrganizations();
-  }, []);
+  }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
 
   const fetchOrganizations = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/organizations');
-      setOrganizations(response.data);
-    } catch (err) {
-      console.error('Error fetching organizations:', err);
-      setError(
-        err.response?.data?.message || 
-        'Failed to fetch organizations. Please try again later.'
-      );
-      setOrganizations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleCategory = (category) => {
-    setSelectedCategories(prev => 
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const toggleStatus = (status) => {
-    setSelectedStatuses(prev => 
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    );
-  };
-
-  const handleFundRangeChange = (e, type) => {
-    const value = parseInt(e.target.value, 10) || 0;
-    setFundRange(prev => ({
-      ...prev,
-      [type]: value
-    }));
-  };
-
-  const resetFilters = () => {
-    setSearchTerm('');
-    setSelectedCategories([]);
-    setFundRange({ min: 0, max: 100000 });
-    setSelectedStatuses([]);
-  };
-
-  const applyFilters = async () => {
-    try {
-      setLoading(true);
-      setError(null);
       
       // Build query parameters
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({
+        page: currentPage,
+        per_page: 12
+      });
       
       if (searchTerm) {
         params.append('search', searchTerm);
@@ -122,43 +82,60 @@ export default function OrganizationList() {
       params.append('min_fund', fundRange.min);
       params.append('max_fund', fundRange.max);
       
-      // Make API call with filters
       const response = await axios.get(`/organizations?${params.toString()}`);
-      setOrganizations(response.data);
-      setShowFilters(false);
+      setOrganizations(response.data.data);
+      setTotalPages(response.data.last_page);
+      setTotalItems(response.data.total);
     } catch (err) {
-      console.error('Error applying filters:', err);
+      console.error('Error fetching organizations:', err);
       setError(
         err.response?.data?.message || 
-        'Failed to apply filters. Please try again.'
+        'Failed to fetch organizations. Please try again later.'
       );
+      setOrganizations([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredOrganizations = organizations.filter(org => {
-    // Search term filter
-    const matchesSearch = searchTerm === '' || 
-      org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         org.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Category filter
-    const matchesCategory = selectedCategories.length === 0 || 
-      selectedCategories.includes(org.category);
-    
-    // Fund range filter (assuming org.target_fund exists)
-    const targetFund = org.target_fund || 0;
-    const matchesFundRange = targetFund >= fundRange.min && targetFund <= fundRange.max;
-    
-    // Status filter
-    const isVerified = org.is_verified;
-    const matchesStatus = selectedStatuses.length === 0 || 
-      (selectedStatuses.includes('verified') && isVerified) ||
-      (selectedStatuses.includes('pending') && !isVerified);
-    
-    return matchesSearch && matchesCategory && matchesFundRange && matchesStatus;
-  });
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const toggleCategory = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const toggleStatus = (status) => {
+    setSelectedStatuses(prev => 
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleFundRangeChange = (e, type) => {
+    const value = parseInt(e.target.value, 10) || 0;
+    setFundRange(prev => ({
+      ...prev,
+      [type]: value
+    }));
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedCategories([]);
+    setFundRange({ min: 0, max: 100000 });
+    setSelectedStatuses([]);
+    setCurrentPage(1); // Reset to first page when filters are reset
+  };
 
   if (loading) {
     return (
@@ -198,7 +175,6 @@ export default function OrganizationList() {
     );
   }
 
-  // Render main content
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -211,15 +187,15 @@ export default function OrganizationList() {
         animate={{ y: 0, opacity: 1 }}
         className="flex flex-col md:flex-row md:items-center justify-between mb-8"
       >
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <FaBuilding className="mr-3 text-indigo-600" />
-              Organizations
-            </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Support organizations and make a difference in the community
-            </p>
-          </div>
+            Organizations
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Support organizations and make a difference in the community
+          </p>
+        </div>
       </motion.div>
 
       {/* Search and Filter Bar */}
@@ -236,7 +212,10 @@ export default function OrganizationList() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when search changes
+              }}
               placeholder="Search organizations..."
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
             />
@@ -347,12 +326,6 @@ export default function OrganizationList() {
                     <FaTimes className="mr-2" />
                     Reset
                   </button>
-                  <button
-                    onClick={applyFilters}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Apply Filters
-                  </button>
                 </div>
               </div>
             </motion.div>
@@ -360,29 +333,57 @@ export default function OrganizationList() {
         </AnimatePresence>
       </motion.div>
 
+      {/* Results Count */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="mb-6"
+      >
+        <h2 className="text-xl font-bold text-gray-900">
+          {totalItems} {totalItems === 1 ? 'Organization' : 'Organizations'} Found
+        </h2>
+      </motion.div>
+
       {/* Organizations Grid */}
-      {filteredOrganizations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredOrganizations.map(organization => (
-            <OrganizationCard key={organization.id} organization={organization} />
-          ))}
-        </div>
+      {organizations.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {organizations.map(organization => (
+              <OrganizationCard key={organization.id} organization={organization} />
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </>
       ) : (
-        <motion.div
+        <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl shadow-sm p-8 text-center"
+          className="col-span-full bg-white shadow-lg rounded-xl p-8"
         >
-          <FaExclamationTriangle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Organizations Found</h3>
-          <p className="text-gray-600 mb-6">We couldn't find any organizations matching your criteria.</p>
-          <button
-            onClick={resetFilters}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-          >
-            <FaTimes className="mr-2" />
-            Clear Filters
-          </button>
+          <div className="text-center py-8">
+            <FaBuilding className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No organizations found</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
+                ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                : 'Organizations will appear here once they are created.'}
+            </p>
+            
+            {(searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0) && (
+              <button
+                onClick={resetFilters}
+                className="mt-6 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              >
+                <FaTimes className="mr-2" />
+                Clear Filters
+              </button>
+            )}
+          </div>
         </motion.div>
       )}
     </motion.div>

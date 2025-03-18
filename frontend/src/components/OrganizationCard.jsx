@@ -74,8 +74,20 @@ export default function OrganizationCard({ organization }) {
     }
   };
 
-  const canEditOrganization = () => currentUser && (currentUser.ic_number === organization.representative_id);
-
+  const canEditOrganization = () => {
+    // Allow if user is the representative (IC number matches)
+    if (currentUser && currentUser.ic_number === organization.representative_id) {
+      return true;
+    }
+    
+    // Allow if user is an organization user and belongs to this organization
+    if (currentUser && accountType === 'organization' && currentUser.organization_id === organization.id) {
+      return true;
+    }
+    
+    return false;
+  };
+  
   // Default placeholder images
   const defaultCoverImage = '/images/placeholder.jpg';
   const defaultLogoImage = '/images/logo-placeholder.jpg';
@@ -188,18 +200,44 @@ export default function OrganizationCard({ organization }) {
       {/* Actions */}
       <div className="p-4 border-t border-gray-100 flex justify-end mt-auto">
         <div className="flex space-x-4">
+          {/* View button - visible to all */}
           <Link 
             to={`/organizations/${organization.id}`} 
             className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
           >
             <FaExternalLinkAlt className="mr-1" /> View
           </Link>
+
+          {/* Edit button - only visible to organization owner */}
           {canEditOrganization() && (
-            <button
-              onClick={() => navigate(`/organizations/${organization.id}/edit`)}
+            <Link
+              to={`/organizations/${organization.id}/edit`}
               className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
             >
               <FaEdit className="mr-1" /> Edit
+            </Link>
+          )}
+
+          {/* Follow button - only visible to logged-in users */}
+          {currentUser && (
+            <button
+              onClick={toggleFollow}
+              disabled={isLoading}
+              className={`text-sm flex items-center transition-colors duration-200 ${
+                isFollowing
+                  ? 'text-indigo-600 hover:text-indigo-900'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {isFollowing ? (
+                <>
+                  <FaHeart className="mr-1" /> Following
+                </>
+              ) : (
+                <>
+                  <FaThumbsUp className="mr-1" /> Follow
+                </>
+              )}
             </button>
           )}
         </div>

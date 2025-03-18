@@ -170,12 +170,15 @@ export default function CharityCard({ charity }) {
       {/* Actions */}
       <div className="p-4 border-t border-gray-100 flex justify-end mt-auto">
         <div className="flex space-x-4">
+          {/* View button - visible to all */}
           <Link
             to={`/charities/${charity.id}`}
             className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
           >
             <FaExternalLinkAlt className="mr-1" /> View
           </Link>
+
+          {/* Edit button - only visible to organization owner */}
           {organization?.id === charity.organization_id && (
             <Link
               to={`/charities/${charity.id}/edit`}
@@ -184,8 +187,30 @@ export default function CharityCard({ charity }) {
               <FaEdit className="mr-1" /> Edit
             </Link>
           )}
+
+          {/* Follow button - only visible to logged-in users */}
+          {currentUser && (
+            <button
+              onClick={toggleFollow}
+              disabled={isLoading}
+              className={`text-sm flex items-center transition-colors duration-200 ${
+                isFollowing
+                  ? 'text-indigo-600 hover:text-indigo-900'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {isFollowing ? (
+                <>
+                  <FaHeart className="mr-1" /> Following
+                </>
+              ) : (
+                <>
+                  <FaThumbsUp className="mr-1" /> Follow
+                </>
+              )}
+            </button>
+          )}
         </div>
-        
       </div>
     </motion.div>
   );

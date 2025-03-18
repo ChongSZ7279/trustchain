@@ -23,6 +23,7 @@ import {
   FaSync
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
+import Pagination from './Pagination';
 
 export default function CharityList() {
   const [charities, setCharities] = useState([]);
@@ -32,6 +33,11 @@ export default function CharityList() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showFilters, setShowFilters] = useState(false);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,87 +62,17 @@ export default function CharityList() {
 
   useEffect(() => {
     fetchCharities();
-  }, []);
+  }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
 
   const fetchCharities = async () => {
     try {
       setLoading(true);
-      console.log('Fetching charities from:', axios.defaults.baseURL + '/charities');
-      
-      // Add a timeout to the request
-      const response = await axios.get('/charities', {
-        timeout: 10000, // 10 seconds timeout
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Charities response:', response.data);
-      setCharities(response.data);
-    } catch (err) {
-      console.error('Error fetching charities:', err);
-      
-      // More detailed error logging
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error('Error response data:', err.response.data);
-        console.error('Error response status:', err.response.status);
-        console.error('Error response headers:', err.response.headers);
-        
-        setError(`Failed to fetch charities: ${err.response.status} ${err.response.statusText}`);
-      } else if (err.request) {
-        // The request was made but no response was received
-        console.error('No response received:', err.request);
-        setError('Failed to fetch charities: No response from server');
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error('Error message:', err.message);
-        setError(`Failed to fetch charities: ${err.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleCategory = (category) => {
-    setSelectedCategories(prev => 
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const toggleStatus = (status) => {
-    setSelectedStatuses(prev => 
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    );
-  };
-
-  const handleFundRangeChange = (e, type) => {
-    const value = parseInt(e.target.value, 10) || 0;
-    setFundRange(prev => ({
-      ...prev,
-      [type]: value
-    }));
-  };
-
-  const resetFilters = () => {
-    setSearchTerm('');
-    setSelectedCategories([]);
-    setFundRange({ min: 0, max: 100000 });
-    setSelectedStatuses([]);
-  };
-
-  const applyFilters = async () => {
-    try {
-      setLoading(true);
       
       // Build query parameters
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({
+        page: currentPage,
+        per_page: 12
+      });
       
       if (searchTerm) {
         params.append('search', searchTerm);
@@ -157,7 +93,7 @@ export default function CharityList() {
       params.append('min_fund', fundRange.min);
       params.append('max_fund', fundRange.max);
       
-      console.log('Applying filters with params:', params.toString());
+      console.log('Fetching charities with params:', params.toString());
       
       // Make API call with filters
       const response = await axios.get(`/charities?${params.toString()}`, {
@@ -168,51 +104,70 @@ export default function CharityList() {
         }
       });
       
-      console.log('Filtered charities response:', response.data);
-      setCharities(response.data);
-      setShowFilters(false);
+      console.log('Charities response:', response.data);
+      setCharities(response.data.data);
+      setTotalPages(response.data.last_page);
+      setTotalItems(response.data.total);
     } catch (err) {
-      console.error('Error applying filters:', err);
+      console.error('Error fetching charities:', err);
       
+      // More detailed error logging
       if (err.response) {
         console.error('Error response data:', err.response.data);
         console.error('Error response status:', err.response.status);
-        setError(`Failed to apply filters: ${err.response.status} ${err.response.statusText}`);
+        console.error('Error response headers:', err.response.headers);
+        
+        setError(`Failed to fetch charities: ${err.response.status} ${err.response.statusText}`);
       } else if (err.request) {
         console.error('No response received:', err.request);
-        setError('Failed to apply filters: No response from server');
+        setError('Failed to fetch charities: No response from server');
       } else {
         console.error('Error message:', err.message);
-        setError(`Failed to apply filters: ${err.message}`);
+        setError(`Failed to fetch charities: ${err.message}`);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter charities based on all criteria
-  const filteredCharities = charities.filter(charity => {
-    // Search term filter
-    const matchesSearch = searchTerm === '' || 
-      charity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      charity.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Category filter
-    const matchesCategory = selectedCategories.length === 0 || 
-      selectedCategories.includes(charity.category);
-    
-    // Fund range filter
-    const targetFund = charity.fund_targeted || 0;
-    const matchesFundRange = targetFund >= fundRange.min && targetFund <= fundRange.max;
-    
-    // Status filter
-    const isVerified = charity.is_verified;
-    const matchesStatus = selectedStatuses.length === 0 || 
-      (selectedStatuses.includes('verified') && isVerified) ||
-      (selectedStatuses.includes('pending') && !isVerified);
-    
-    return matchesSearch && matchesCategory && matchesFundRange && matchesStatus;
-  });
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const toggleCategory = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const toggleStatus = (status) => {
+    setSelectedStatuses(prev => 
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleFundRangeChange = (e, type) => {
+    const value = parseInt(e.target.value, 10) || 0;
+    setFundRange(prev => ({
+      ...prev,
+      [type]: value
+    }));
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedCategories([]);
+    setFundRange({ min: 0, max: 100000 });
+    setSelectedStatuses([]);
+    setCurrentPage(1); // Reset to first page when filters are reset
+  };
 
   if (loading) {
     return (
@@ -252,7 +207,6 @@ export default function CharityList() {
     );
   }
 
-  // Render main content
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -265,24 +219,24 @@ export default function CharityList() {
         animate={{ y: 0, opacity: 1 }}
         className="flex flex-col md:flex-row md:items-center justify-between mb-8"
       >
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <FaHandHoldingHeart className="mr-3 text-indigo-600" />
-              Charities
-            </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Support charitable causes and make a difference in the community
-            </p>
-          </div>
-          {organization && (
-            <Link
-              to="/charities/create"
+            Charities
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Support charitable causes and make a difference in the community
+          </p>
+        </div>
+        {organization && (
+          <Link
+            to="/charities/create"
             className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors duration-200"
-            >
-              <FaPlus className="mr-2" />
-              Create Charity
-            </Link>
-          )}
+          >
+            <FaPlus className="mr-2" />
+            Create Charity
+          </Link>
+        )}
       </motion.div>
 
       {/* Search and Filter Bar */}
@@ -300,7 +254,10 @@ export default function CharityList() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when search changes
+              }}
               placeholder="Search charities..."
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
             />
@@ -361,7 +318,7 @@ export default function CharityList() {
                   </div>
                   
                   {/* Status */}
-                    <div>
+                  <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
                     <div className="space-y-2">
                       {statusOptions.map(status => (
@@ -376,7 +333,7 @@ export default function CharityList() {
                           <label htmlFor={`status-${status.value}`} className="ml-2 text-sm text-gray-700">
                             {status.label}
                           </label>
-                      </div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -414,18 +371,9 @@ export default function CharityList() {
                           onChange={(e) => handleFundRangeChange(e, 'max')}
                           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                         />
-                    </div>
+                      </div>
                     </div>
                   </div>
-                  </div>
-
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={applyFilters}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                  >
-                    Apply Filters
-                  </button>
                 </div>
               </div>
             </motion.div>
@@ -441,41 +389,15 @@ export default function CharityList() {
         className="mb-6"
       >
         <h2 className="text-xl font-bold text-gray-900">
-          {filteredCharities.length} {filteredCharities.length === 1 ? 'Charity' : 'Charities'} Found
+          {totalItems} {totalItems === 1 ? 'Charity' : 'Charities'} Found
         </h2>
       </motion.div>
 
       {/* Charities Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <AnimatePresence>
-          {filteredCharities.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="col-span-full bg-white shadow-lg rounded-xl p-8"
-            >
-              <div className="text-center py-8">
-                <FaHandHoldingHeart className="mx-auto h-16 w-16 text-gray-300 mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 mb-2">No charities found</h3>
-                <p className="text-gray-500 max-w-md mx-auto">
-                  {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
-                    ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
-                    : 'Charities will appear here once they are created.'}
-                </p>
-                
-                {(searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0) && (
-                  <button
-                    onClick={resetFilters}
-                    className="mt-6 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                  >
-                    <FaTimes className="mr-2" />
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ) : (
-            filteredCharities.map((charity, index) => (
+      {charities.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {charities.map((charity, index) => (
               <motion.div
                 key={charity.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -486,10 +408,41 @@ export default function CharityList() {
               >
                 <CharityCard charity={charity} />
               </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="col-span-full bg-white shadow-lg rounded-xl p-8"
+        >
+          <div className="text-center py-8">
+            <FaHandHoldingHeart className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No charities found</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
+                ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                : 'Charities will appear here once they are created.'}
+            </p>
+            
+            {(searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0) && (
+              <button
+                onClick={resetFilters}
+                className="mt-6 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              >
+                <FaTimes className="mr-2" />
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

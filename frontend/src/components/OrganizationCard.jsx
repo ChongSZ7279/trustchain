@@ -80,8 +80,8 @@ export default function OrganizationCard({ organization }) {
       return true;
     }
     
-    // Allow if user is an organization user and belongs to this organization
-    if (currentUser && accountType === 'organization' && currentUser.organization_id === organization.id) {
+    // Allow if user is an organization and is the same organization
+    if (currentUser && accountType === 'organization' && currentUser.id === organization.id) {
       return true;
     }
     

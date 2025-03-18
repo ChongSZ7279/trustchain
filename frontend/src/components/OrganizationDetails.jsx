@@ -108,7 +108,7 @@ export default function OrganizationDetails() {
   };
 
   const canEditOrganization = () => {
-    return (accountType === 'organization' && orgData?.id === currentUser?.organization_id) || 
+    return (accountType === 'organization' && orgData?.id === currentUser?.id) || 
            (orgData?.representative_id === currentUser?.ic_number);
   };
 

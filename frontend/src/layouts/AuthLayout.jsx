@@ -44,63 +44,71 @@ export default function AuthLayout() {
       )}
 
       {/* Right Side - Auth Form */}
-      <div className={`flex flex-col justify-center px-8 sm:px-16 py-12 w-full ${isDetailedRegistration ? 'max-w-5xl mx-auto' : 'lg:w-3/5'}`}>
-        <div className={`${isDetailedRegistration ? 'w-full' : 'max-w-md mx-auto w-full'}`}>
-          <Link to={isDetailedRegistration ? "/register" : "/"} className="text-gray-600 flex items-center mb-8 hover:text-indigo-600 transition group">
-            <FaArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" /> 
-            Back to {isDetailedRegistration ? "Registration" : "Home"}
+      <div className={`flex-1 flex flex-col ${isDetailedRegistration ? 'max-w-5xl mx-auto' : ''}`}>
+        {/* Back to Home Link */}
+        <div className="px-8 sm:px-16 pt-8">
+          <Link 
+            to={isDetailedRegistration ? "/register" : "/"} 
+            className="inline-flex items-center text-gray-600 hover:text-indigo-600 transition-colors duration-200"
+          >
+            <FaArrowLeft className="mr-2" />
+            <span>Back to {isDetailedRegistration ? "Registration" : "Home"}</span>
           </Link>
+        </div>
 
-          {/* Branding */}
-          {!isDetailedRegistration && (
-            <div className="text-center">
-              <h1 className="text-3xl font-extrabold text-indigo-600">TrustChain</h1>
-              <p className="mt-2 text-gray-500">
-                {isRegisterPage
-                  ? "Create your account to get started"
-                  : "Welcome back! Please sign in to continue"}
-              </p>
+        <div className={`flex-1 flex flex-col justify-center px-8 sm:px-16 py-12 ${isDetailedRegistration ? 'w-full' : ''}`}>
+          <div className={`${isDetailedRegistration ? 'w-full' : 'max-w-md mx-auto w-full'}`}>
+            {/* Branding */}
+            {!isDetailedRegistration && (
+              <div className="text-center">
+                <h1 className="text-3xl font-extrabold text-indigo-600">TrustChain</h1>
+                <p className="mt-2 text-gray-500">
+                  {isRegisterPage
+                    ? "Create your account to get started"
+                    : "Welcome back! Please sign in to continue"}
+                </p>
+              </div>
+            )}
+
+            {/* Auth Form Card */}
+            <div className={`mt-8 bg-white shadow-lg rounded-xl ${isDetailedRegistration ? 'p-0' : 'p-6 sm:p-8'} border border-gray-100`}>
+              <Outlet />
             </div>
-          )}
 
-          {/* Auth Form Card */}
-          <div className={`mt-8 bg-white shadow-lg rounded-xl ${isDetailedRegistration ? 'p-0' : 'p-6 sm:p-8'} border border-gray-100`}>
-            <Outlet />
+            {/* Footer Links */}
+            {!isDetailedRegistration && (
+              <>
+                <div className="mt-8 text-center text-gray-600 text-sm">
+                  {isRegisterPage ? (
+                    <>
+                      Already have an account?{" "}
+                      <Link to="/login" className="text-indigo-600 font-semibold hover:text-indigo-800 transition">
+                        Sign in
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      Don't have an account?{" "}
+                      <Link to="/register" className="text-indigo-600 font-semibold hover:text-indigo-800 transition">
+                        Register here
+                      </Link>
+                    </>
+                  )}
+                </div>
+                
+                <div className="mt-4 text-center text-xs text-gray-500">
+                  By continuing, you agree to our{" "}
+                  <Link to="/terms" className="text-indigo-600 hover:text-indigo-800 transition">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link to="/terms#privacy" className="text-indigo-600 hover:text-indigo-800 transition">
+                    Privacy Policy
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
-
-          {/* Footer Links */}
-          {!isDetailedRegistration && (
-            <>
-              <div className="mt-8 text-center text-gray-600 text-sm">
-                {isRegisterPage ? (
-                  <>
-                    Already have an account?{" "}
-                    <Link to="/login" className="text-indigo-600 font-semibold hover:text-indigo-800 transition">
-                      Sign in
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    Don't have an account?{" "}
-                    <Link to="/register" className="text-indigo-600 font-semibold hover:text-indigo-800 transition">
-                      Register here
-                    </Link>
-                  </>
-                )}
-              </div>
-              
-              <div className="mt-4 text-center text-xs text-gray-500">
-                By continuing, you agree to our{" "}
-                <Link to="/terms" className="text-indigo-600 hover:text-indigo-800 transition">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link to="/terms#privacy" className="text-indigo-600 hover:text-indigo-800 transition">
-                  Privacy Policy
-                </Link>
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>

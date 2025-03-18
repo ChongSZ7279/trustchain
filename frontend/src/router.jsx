@@ -3,7 +3,6 @@ import MainLayout from './layouts/MainLayout';
 import GuestLayout from './layouts/GuestLayout';
 import ProtectedLayout from './layouts/ProtectedLayout';
 import AuthLayout from './layouts/AuthLayout';
-import Auth2Layout from './layouts/Auth2Layout';
 import Home from './components/Home';
 import Login from './components/Login';
 import UserRegistration from './components/UserRegistration';

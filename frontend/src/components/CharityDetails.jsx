@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl, getFileType } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
+import DonationForm from './DonationForm';
 import { 
   FaChartBar, 
   FaTasks, 
@@ -310,7 +311,7 @@ export default function CharityDetails() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading charity details...</p>
+          <p className="text-gray-600">Loading...</p>
         </motion.div>
       </div>
     );
@@ -864,24 +865,7 @@ export default function CharityDetails() {
             exit={{ scale: 0.95, opacity: 0 }}
             className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl"
           >
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Donation</h3>
-            <p className="text-gray-600 mb-4">
-              You are about to donate ${donationAmount} to {charity.name}.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDonationModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitDonation}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                Confirm
-              </button>
-            </div>
+            <DonationForm charity={charity} />
           </motion.div>
         </motion.div>
       )}

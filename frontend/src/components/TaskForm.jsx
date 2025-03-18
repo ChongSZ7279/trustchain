@@ -464,7 +464,7 @@ export default function TaskForm() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <FaTasks className="mr-3" />
+                <FaTasks className="mr-3 text-indigo-600" />
                 {taskId ? 'Edit Task' : 'Create Task'}
               </h1>
             </div>
@@ -482,7 +482,7 @@ export default function TaskForm() {
               {/* Basic Information Section */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <FaInfoCircle className="mr-2" />
+                  <FaInfoCircle className="mr-2 text-indigo-600" />
                   Basic Information
                 </h2>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -576,7 +576,7 @@ export default function TaskForm() {
               {/* Proof Document Section */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <FaFileAlt className="mr-2" />
+                  <FaFileAlt className="mr-2 text-indigo-600" />
                   Proof Document
                 </h2>
                 
@@ -676,7 +676,7 @@ export default function TaskForm() {
               {/* Pictures Section */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <FaImage className="mr-2" />
+                  <FaImage className="mr-2 text-indigo-600" />
                   Task Pictures
                 </h2>
                 

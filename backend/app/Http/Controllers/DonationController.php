@@ -35,29 +35,42 @@ class DonationController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:0',
-            'currency_type' => 'required|string',
-            'cause_id' => 'required|string',
-            'donor_message' => 'nullable|string|max:500',
-            'is_anonymous' => 'boolean',
-        ]);
-
         try {
-            DB::beginTransaction();
-
-            // Create donation record
-            $donation = Donation::create([
-                'user_id' => Auth::id(),
-                'amount' => $validated['amount'],
-                'currency_type' => $validated['currency_type'],
-                'cause_id' => $validated['cause_id'],
-                'status' => 'pending',
-                'donor_message' => $validated['donor_message'] ?? null,
-                'is_anonymous' => $validated['is_anonymous'] ?? false,
+            // Log the incoming request data
+            \Log::info('Donation request received:', [
+                'data' => $request->all(),
+                'headers' => $request->headers->all(),
+                'user' => Auth::user() ? [
+                    'id' => Auth::id(),
+                    'ic_number' => Auth::user()->ic_number
+                ] : null
             ]);
 
-            // Create corresponding transaction
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:0',
+                'currency_type' => 'required|string',
+                'cause_id' => 'required|exists:charities,id',
+                'donor_message' => 'nullable|string|max:500',
+                'is_anonymous' => 'boolean',
+                'transaction_hash' => 'nullable|string',
+                'smart_contract_data' => 'nullable|array'
+            ]);
+
+            // Log validated data
+            \Log::info('Validated donation data:', $validated);
+
+            // Check if charity exists
+            $charity = Charity::find($validated['cause_id']);
+            if (!$charity) {
+                \Log::error('Charity not found:', ['cause_id' => $validated['cause_id']]);
+                return response()->json(['message' => 'Charity not found'], 404);
+            }
+
+            \Log::info('Charity found:', ['charity' => $charity->toArray()]);
+
+            DB::beginTransaction();
+
+            // Create transaction first
             $transaction = Transaction::create([
                 'user_ic' => Auth::user()->ic_number,
                 'charity_id' => $validated['cause_id'],
@@ -66,16 +79,70 @@ class DonationController extends Controller
                 'status' => 'pending',
                 'message' => $validated['donor_message'] ?? null,
                 'anonymous' => $validated['is_anonymous'] ?? false,
+                'transaction_hash' => $validated['transaction_hash'] ?? null
             ]);
+
+            // Log transaction creation
+            \Log::info('Transaction created:', $transaction->toArray());
+
+            // Create donation record with transaction_id
+            $donation = Donation::create([
+                'user_id' => Auth::user()->ic_number,
+                'transaction_hash' => $validated['transaction_hash'] ?? null,
+                'amount' => $validated['amount'],
+                'currency_type' => $validated['currency_type'],
+                'cause_id' => $validated['cause_id'],
+                'status' => 'pending',
+                'donor_message' => $validated['donor_message'] ?? null,
+                'is_anonymous' => $validated['is_anonymous'] ?? false,
+                'smart_contract_data' => $validated['smart_contract_data'] ?? null
+            ]);
+
+            // Log donation creation
+            \Log::info('Donation created:', $donation->toArray());
+
+            // Link the transaction to the donation
+            $transaction->donation()->save($donation);
 
             DB::commit();
 
+            \Log::info('Donation process completed successfully', [
+                'donation_id' => $donation->id,
+                'transaction_id' => $transaction->id
+            ]);
+
             return response()->json([
                 'message' => 'Donation created successfully',
-                'donation' => $donation->load('transaction'),
+                'id' => $donation->id,
+                'donation' => $donation->load(['transaction', 'charity'])
             ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            \Log::error('Validation error:', [
+                'errors' => $e->errors(),
+                'data' => $request->all(),
+                'user' => Auth::user() ? [
+                    'id' => Auth::id(),
+                    'ic_number' => Auth::user()->ic_number
+                ] : null
+            ]);
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Donation creation failed:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $request->all(),
+                'user' => Auth::user() ? [
+                    'id' => Auth::id(),
+                    'ic_number' => Auth::user()->ic_number
+                ] : null
+            ]);
+            
             return response()->json([
                 'message' => 'Failed to create donation',
                 'error' => $e->getMessage()

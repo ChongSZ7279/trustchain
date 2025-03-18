@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
+import BackButton from './BackToHistory';
 import { 
   FaBuilding,
   FaChartBar,
@@ -145,7 +146,7 @@ export default function OrganizationDetails() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading organization details...</p>
+          <p className="text-gray-600">Loading...</p>
         </motion.div>
       </div>
     );
@@ -178,20 +179,10 @@ export default function OrganizationDetails() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-100"
+      className="min-h-screen"
     >
-        {/* Navigation Bar */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <Link 
-              to="/organizations" 
-            className="group inline-flex items-center text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors duration-200"
-            >
-              <FaArrowLeft className="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200" />
-              Back to Organizations
-            </Link>
-        </div>
-      </div>
+      {/* Navigation Bar */}
+      <BackButton />
 
       {/* Organization Profile Card */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -278,7 +269,7 @@ export default function OrganizationDetails() {
                 {canEditOrganization() && (
                   <Link
                     to={`/organizations/${id}/edit`}
-                    className="px-4 py-2 rounded-md font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 text-center"
+                    className="px-4 py-2 rounded-md font-medium text-sm bg-indigo-600 border border-gray-300 text-white hover:bg-indigo-700 transition-all duration-200 text-center"
                   >
                     <FaEdit className="inline-block mr-2" />
                     Edit

@@ -16,8 +16,11 @@ import {
   FaEdit,
   FaTag,
   FaHeart,
-  FaImage
+  FaImage,
+  FaUserCheck,
+  FaUserPlus
 } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 export default function OrganizationCard({ organization }) {
   const navigate = useNavigate();
@@ -58,19 +61,27 @@ export default function OrganizationCard({ organization }) {
 
   const toggleFollow = async () => {
     if (!currentUser) {
-      navigate('/login');
+      toast.error('Please login to follow organizations');
+      return;
+    }
+
+    // Hide follow button for organization users
+    if (currentUser.account_type === 'organization') {
+      return;
+    }
+
+    // Prevent users from following their own organization
+    if (currentUser.ic_number === organization.representative_id) {
+      toast.error('You cannot follow your own organization');
       return;
     }
 
     try {
-      setIsLoading(true);
-      const response = await axios.post(`/organizations/${organization.id}/follow`);
+      const response = await axios.post(`/api/organizations/${organization.id}/follow`);
       setIsFollowing(response.data.is_following);
-      setFollowerCount(response.data.follower_count);
+      toast.success(response.data.is_following ? 'Successfully followed organization' : 'Successfully unfollowed organization');
     } catch (error) {
-      console.error('Error toggling follow status:', error);
-    } finally {
-      setIsLoading(false);
+      toast.error(error.response?.data?.message || 'Failed to follow organization');
     }
   };
 
@@ -218,11 +229,10 @@ export default function OrganizationCard({ organization }) {
             </Link>
           )}
 
-          {/* Follow button - only visible to logged-in users */}
-          {currentUser && (
+          {/* Only show follow button for non-organization users */}
+          {currentUser && currentUser.account_type !== 'organization' && (
             <button
               onClick={toggleFollow}
-              disabled={isLoading}
               className={`text-sm flex items-center transition-colors duration-200 ${
                 isFollowing
                   ? 'text-indigo-600 hover:text-indigo-900'

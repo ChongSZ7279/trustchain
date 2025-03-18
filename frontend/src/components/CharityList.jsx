@@ -178,7 +178,7 @@ export default function CharityList() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading charities...</p>
+          <p className="text-gray-600">Loading...</p>
         </motion.div>
       </div>
     );
@@ -211,7 +211,7 @@ export default function CharityList() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
     >
       {/* Header */}
       <motion.div 

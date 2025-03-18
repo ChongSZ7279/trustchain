@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { formatImageUrl } from '../utils/helpers';
+import BackButton from './BackToHistory';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBuilding, 
@@ -18,7 +19,11 @@ import {
   FaTimes,
   FaExclamationTriangle,
   FaInfoCircle,
-  FaAddressCard
+  FaAddressCard,
+  FaFilePdf,
+  FaFileWord,
+  FaEye,
+  FaDownload
 } from 'react-icons/fa';
 
 export default function OrganizationEdit() {
@@ -55,6 +60,27 @@ export default function OrganizationEdit() {
     statutory: true,
     verified: true
   });
+
+  const [documentPreview, setDocumentPreview] = useState({
+    statutory: { type: null, url: null, name: null },
+    verified: { type: null, url: null, name: null }
+  });
+
+  // Add getFileType helper function
+  const getFileType = (filename) => {
+    if (!filename) return '';
+    if (filename.endsWith('.pdf')) return 'PDF Document';
+    if (filename.endsWith('.doc') || filename.endsWith('.docx')) return 'Word Document';
+    return 'Document';
+  };
+
+  // Add getFileIcon helper function
+  const getFileIcon = (type) => {
+    if (type.includes('PDF')) {
+      return <FaFilePdf className="text-red-500 text-xl" />;
+    }
+    return <FaFileWord className="text-blue-500 text-xl" />;
+  };
 
   // Add getImageUrl helper function
   const getImageUrl = (path) => {
@@ -117,12 +143,26 @@ export default function OrganizationEdit() {
         [name]: files[0]
       }));
       
-      // Create a URL for the new file preview
+      // Create preview URL for the new file
       const previewUrl = URL.createObjectURL(files[0]);
-      setPreviewUrls(prev => ({
-        ...prev,
-        [name]: previewUrl
-      }));
+      
+      if (name === 'logo' || name === 'cover_image_path') {
+        setPreviewUrls(prev => ({
+          ...prev,
+          [name]: previewUrl
+        }));
+      } else if (name === 'statutory_declaration' || name === 'verified_document') {
+        const fileType = files[0].type;
+        const docType = name === 'statutory_declaration' ? 'statutory' : 'verified';
+        setDocumentPreview(prev => ({
+          ...prev,
+          [docType]: {
+            type: fileType,
+            url: previewUrl,
+            name: files[0].name
+          }
+        }));
+      }
 
       // Reset loading state for the changed image
       if (name === 'logo' || name === 'cover_image_path') {
@@ -200,7 +240,7 @@ export default function OrganizationEdit() {
         setOrganization(response.data);
       }
 
-      navigate('/organization/dashboard');
+      navigate('/organizations');
     } catch (err) {
       console.error('Update error:', err);
       if (err.response?.data?.errors) {
@@ -237,21 +277,11 @@ export default function OrganizationEdit() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-50 py-6"
+      className="min-h-screen bg-gray-100"
     >
+      <BackButton />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Enhanced Breadcrumb */}
-        <nav className="flex items-center text-gray-500 mb-6">
-          <Link 
-            to="/organization/dashboard" 
-            className="group inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors duration-200"
-          >
-            <FaArrowLeft className="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200" />
-            Back to Dashboard
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Edit Organization</span>
-        </nav>
 
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
@@ -523,18 +553,7 @@ export default function OrganizationEdit() {
                       <FaFileAlt className="mr-2 text-gray-400" />
                       Statutory Declaration
                     </label>
-                    <div className="flex items-center space-x-4">
-                      {previewUrls.statutory_declaration && (
-                        <a
-                          href={previewUrls.statutory_declaration}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
-                        >
-                          <FaFileAlt className="mr-2" />
-                          View Current Document
-                        </a>
-                      )}
+                    <div className="space-y-4">
                       <div className="flex-1">
                         <input
                           type="file"
@@ -544,6 +563,50 @@ export default function OrganizationEdit() {
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
                         />
                       </div>
+
+                      {/* Document Preview */}
+                      {(documentPreview.statutory.url || previewUrls.statutory_declaration) && (
+                        <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                          <h3 className="text-sm font-medium text-gray-700 mb-2">Document Preview</h3>
+                          <div className="flex items-center space-x-3">
+                            {documentPreview.statutory.type?.includes('pdf') || previewUrls.statutory_declaration?.includes('.pdf') ? (
+                              <FaFilePdf className="text-red-500 text-xl" />
+                            ) : (
+                              <FaFileWord className="text-blue-500 text-xl" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 truncate">
+                                {documentPreview.statutory.name || previewUrls.statutory_declaration?.split('/').pop()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {documentPreview.statutory.type || getFileType(previewUrls.statutory_declaration)}
+                              </p>
+                            </div>
+                            {documentPreview.statutory.url && (
+                              <a
+                                href={documentPreview.statutory.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              >
+                                <FaEye className="mr-1" />
+                                View
+                              </a>
+                            )}
+                            {previewUrls.statutory_declaration && !documentPreview.statutory.url && (
+                              <a
+                                href={previewUrls.statutory_declaration}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              >
+                                <FaEye className="mr-1" />
+                                View
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -552,18 +615,7 @@ export default function OrganizationEdit() {
                       <FaFileAlt className="mr-2 text-gray-400" />
                       Verified Document
                     </label>
-                    <div className="flex items-center space-x-4">
-                      {previewUrls.verified_document && (
-                        <a
-                          href={previewUrls.verified_document}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
-                        >
-                          <FaFileAlt className="mr-2" />
-                          View Current Document
-                        </a>
-                      )}
+                    <div className="space-y-4">
                       <div className="flex-1">
                         <input
                           type="file"
@@ -573,6 +625,50 @@ export default function OrganizationEdit() {
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
                         />
                       </div>
+
+                      {/* Document Preview */}
+                      {(documentPreview.verified.url || previewUrls.verified_document) && (
+                        <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                          <h3 className="text-sm font-medium text-gray-700 mb-2">Document Preview</h3>
+                          <div className="flex items-center space-x-3">
+                            {documentPreview.verified.type?.includes('pdf') || previewUrls.verified_document?.includes('.pdf') ? (
+                              <FaFilePdf className="text-red-500 text-xl" />
+                            ) : (
+                              <FaFileWord className="text-blue-500 text-xl" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 truncate">
+                                {documentPreview.verified.name || previewUrls.verified_document?.split('/').pop()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {documentPreview.verified.type || getFileType(previewUrls.verified_document)}
+                              </p>
+                            </div>
+                            {documentPreview.verified.url && (
+                              <a
+                                href={documentPreview.verified.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              >
+                                <FaEye className="mr-1" />
+                                View
+                              </a>
+                            )}
+                            {previewUrls.verified_document && !documentPreview.verified.url && (
+                              <a
+                                href={previewUrls.verified_document}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              >
+                                <FaEye className="mr-1" />
+                                View
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

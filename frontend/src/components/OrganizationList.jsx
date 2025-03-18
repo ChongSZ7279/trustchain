@@ -146,7 +146,7 @@ export default function OrganizationList() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading organizations...</p>
+          <p className="text-gray-600">Loading...</p>
         </motion.div>
       </div>
     );
@@ -286,36 +286,6 @@ export default function OrganizationList() {
                     </div>
                   </div>
                   
-                  {/* Fund Range Filter */}
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Fund Range</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="min-fund" className="block text-xs text-gray-500">
-                          Minimum (RM)
-                        </label>
-                        <input
-                          type="number"
-                          id="min-fund"
-                          value={fundRange.min}
-                          onChange={(e) => handleFundRangeChange(e, 'min')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="max-fund" className="block text-xs text-gray-500">
-                          Maximum (RM)
-                        </label>
-                        <input
-                          type="number"
-                          id="max-fund"
-                          value={fundRange.max}
-                          onChange={(e) => handleFundRangeChange(e, 'max')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 
                 <div className="mt-6 flex justify-end space-x-3">

@@ -22,7 +22,7 @@ export default function TermsAndConditions() {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       {/* Sidebar with Glass Effect*/}
-      <aside className="w-72 bg-white/80 backdrop-blur-md shadow-lg rounded-lg overflow-y-auto p-6 fixed">
+      <aside className="w-72 bg-white/80 backdrop-blur-md shadow-lg rounded-lg overflow-y-auto p-6 fixed h-2/3">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Navigation</h2>
         <ul className="space-y-4">
           <li>

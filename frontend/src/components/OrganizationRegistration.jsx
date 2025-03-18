@@ -1,8 +1,51 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaBuilding, FaGlobe, FaPhone, FaFacebook, FaInstagram, FaWallet, FaIdCard, FaFileAlt, FaArrowRight } from 'react-icons/fa';
+import { FaBuilding, FaGlobe, FaPhone, FaFacebook, FaInstagram, FaWallet, FaIdCard, FaFileAlt, FaArrowRight, FaTimes, FaEye } from 'react-icons/fa';
 import axios from 'axios';
+
+// Add this component for document preview modal
+const PreviewModal = ({ file, onClose }) => {
+  if (!file) return null;
+
+  const isImage = file.type.startsWith('image/');
+  const isPDF = file.type === 'application/pdf';
+  const fileUrl = URL.createObjectURL(file);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-medium text-gray-900">{file.name}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            <FaTimes className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4 flex justify-center items-center max-h-[70vh] overflow-auto">
+          {isImage ? (
+            <img src={fileUrl} alt="Preview" className="max-w-full h-auto" />
+          ) : isPDF ? (
+            <iframe
+              src={fileUrl}
+              title="PDF Preview"
+              className="w-full h-[60vh]"
+            />
+          ) : (
+            <div className="text-center py-8">
+              <FaFileAlt className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-2 text-sm text-gray-500">
+                Preview not available for this file type
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function OrganizationRegistration() {
   const navigate = useNavigate();
@@ -44,6 +87,7 @@ export default function OrganizationRegistration() {
     statutory_declaration: null,
     verified_document: null
   });
+  const [previewFile, setPreviewFile] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -207,6 +251,13 @@ export default function OrganizationRegistration() {
     }
   };
 
+  // Add preview handler
+  const handlePreview = (file) => {
+    if (file) {
+      setPreviewFile(file);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
@@ -282,39 +333,7 @@ export default function OrganizationRegistration() {
                 )}
               </div>
             </div>
-            
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                Country
-              </label>
-              <div className="mt-1">
-                <input
-                  id="country"
-                  name="country"
-                  type="text"
-                  value={formData.country}
-                  onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-                State
-              </label>
-              <div className="mt-1">
-                <input
-                  id="state"
-                  name="state"
-                  type="text"
-                  value={formData.state}
-                  onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-            
+
             <div>
               <label htmlFor="register_address" className="block text-sm font-medium text-gray-700">
                 Registered Address <span className="text-red-600">*</span>
@@ -368,6 +387,39 @@ export default function OrganizationRegistration() {
                 </div>
               </div>
             </div>
+            <div>
+              <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+                State
+              </label>
+              <div className="mt-1">
+                <input
+                  id="state"
+                  name="state"
+                  type="text"
+                  value={formData.state}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                Country
+              </label>
+              <div className="mt-1">
+                <input
+                  id="country"
+                  name="country"
+                  type="text"
+                  value={formData.country}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          
+          
           </div>
           
           {/* Right Column */}
@@ -467,6 +519,21 @@ export default function OrganizationRegistration() {
               <label htmlFor="representative_id" className="block text-sm font-medium text-gray-700 flex items-center">
                 <FaIdCard className="mr-1" /> Representative ID <span className="text-red-600">*</span>
               </label>
+              {formData.representative_id && (
+                <div className="mb-2">
+                  <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded-md flex items-start">
+                    <svg className="h-5 w-5 text-blue-400 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      Please register as a user first and use your IC number as the Representative ID. 
+                      <a href="/register" className="text-blue-600 hover:text-blue-800 font-medium ml-1">
+                        Register as user →
+                      </a>
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className="mt-1">
                 <input
                   id="representative_id"
@@ -547,7 +614,16 @@ export default function OrganizationRegistration() {
                 <label className="w-full cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
                   <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                     {previewUrls.logo ? (
-                      <img src={previewUrls.logo} alt="Logo preview" className="h-32 w-32 object-contain" />
+                      <>
+                        <img src={previewUrls.logo} alt="Logo preview" className="h-32 w-32 object-contain mb-2" />
+                        <button
+                          type="button"
+                          onClick={() => handlePreview(formData.logo)}
+                          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                        >
+                          <FaEye className="mr-1" /> View Full Size
+                        </button>
+                      </>
                     ) : (
                       <>
                         <FaBuilding className="mx-auto h-12 w-12 text-gray-400" />
@@ -584,6 +660,15 @@ export default function OrganizationRegistration() {
                     <p className="mt-1 text-sm text-gray-600">
                       {formData.statutory_declaration ? formData.statutory_declaration.name : 'Click to upload document'}
                     </p>
+                    {formData.statutory_declaration && (
+                      <button
+                        type="button"
+                        onClick={() => handlePreview(formData.statutory_declaration)}
+                        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                      >
+                        <FaEye className="mr-1" /> Preview Document
+                      </button>
+                    )}
                   </div>
                   <input
                     id="statutory_declaration"
@@ -612,6 +697,15 @@ export default function OrganizationRegistration() {
                     <p className="mt-1 text-sm text-gray-600">
                       {formData.verified_document ? formData.verified_document.name : 'Click to upload document'}
                     </p>
+                    {formData.verified_document && (
+                      <button
+                        type="button"
+                        onClick={() => handlePreview(formData.verified_document)}
+                        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                      >
+                        <FaEye className="mr-1" /> Preview Document
+                      </button>
+                    )}
                   </div>
                   <input
                     id="verified_document"
@@ -630,6 +724,14 @@ export default function OrganizationRegistration() {
             </div>
           </div>
         </div>
+        
+        {/* Preview Modal */}
+        {previewFile && (
+          <PreviewModal
+            file={previewFile}
+            onClose={() => setPreviewFile(null)}
+          />
+        )}
         
         <div className="mt-8">
           <button

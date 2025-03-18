@@ -141,6 +141,9 @@ export default function Register() {
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mb-4">
+          <FaLock className="h-8 w-8 text-indigo-600" />
+        </div>
         <h2 className="text-xl font-semibold text-gray-800">Create your account</h2>
         <p className="text-gray-500 text-sm mt-1">Enter your details to get started</p>
       </div>

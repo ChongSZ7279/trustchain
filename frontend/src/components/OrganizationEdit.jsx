@@ -56,6 +56,19 @@ export default function OrganizationEdit() {
     verified: true
   });
 
+  // Add getImageUrl helper function
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    
+    // Check if the path already includes the base URL
+    if (path.startsWith('http')) {
+      return path;
+    }
+    
+    // Otherwise, construct the full URL - using import.meta.env for Vite
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/storage/${path}`;
+  };
+
   useEffect(() => {
     if (!organization) {
       navigate('/login');
@@ -78,11 +91,12 @@ export default function OrganizationEdit() {
       verified_document: null
     });
 
+    // Update preview URLs with proper URL formatting
     setPreviewUrls({
-      logo: organization.logo ? formatImageUrl(organization.logo) : null,
-      cover_image_path: organization.cover_image_path ? formatImageUrl(organization.cover_image_path) : null,
-      statutory_declaration: organization.statutory_declaration ? formatImageUrl(organization.statutory_declaration) : null,
-      verified_document: organization.verified_document ? formatImageUrl(organization.verified_document) : null
+      logo: organization.logo ? getImageUrl(organization.logo) : null,
+      cover_image_path: organization.cover_image_path ? getImageUrl(organization.cover_image_path) : null,
+      statutory_declaration: organization.statutory_declaration ? getImageUrl(organization.statutory_declaration) : null,
+      verified_document: organization.verified_document ? getImageUrl(organization.verified_document) : null
     });
   }, [organization, navigate]);
 
@@ -102,10 +116,21 @@ export default function OrganizationEdit() {
         ...prev,
         [name]: files[0]
       }));
+      
+      // Create a URL for the new file preview
+      const previewUrl = URL.createObjectURL(files[0]);
       setPreviewUrls(prev => ({
         ...prev,
-        [name]: URL.createObjectURL(files[0])
+        [name]: previewUrl
       }));
+
+      // Reset loading state for the changed image
+      if (name === 'logo' || name === 'cover_image_path') {
+        setImageLoading(prev => ({
+          ...prev,
+          [name === 'logo' ? 'logo' : 'cover']: false
+        }));
+      }
     }
   };
 
@@ -432,6 +457,10 @@ export default function OrganizationEdit() {
                             alt="Logo Preview"
                             className="w-full h-full object-cover"
                             onLoad={() => setImageLoading(prev => ({ ...prev, logo: false }))}
+                            onError={(e) => {
+                              console.error('Error loading logo preview:', e);
+                              e.target.src = 'https://via.placeholder.com/128';
+                            }}
                           />
                           <div className={`absolute inset-0 bg-gray-200 ${imageLoading.logo ? 'animate-pulse' : 'hidden'}`} />
                         </div>
@@ -465,6 +494,10 @@ export default function OrganizationEdit() {
                             alt="Cover Image Preview"
                             className="w-full h-full object-cover"
                             onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
+                            onError={(e) => {
+                              console.error('Error loading cover image preview:', e);
+                              e.target.src = 'https://via.placeholder.com/1200x300';
+                            }}
                           />
                           <div className={`absolute inset-0 bg-gray-200 ${imageLoading.cover ? 'animate-pulse' : 'hidden'}`} />
                         </div>
@@ -499,7 +532,7 @@ export default function OrganizationEdit() {
                           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
                         >
                           <FaFileAlt className="mr-2" />
-                          View Current
+                          View Current Document
                         </a>
                       )}
                       <div className="flex-1">
@@ -528,7 +561,7 @@ export default function OrganizationEdit() {
                           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
                         >
                           <FaFileAlt className="mr-2" />
-                          View Current
+                          View Current Document
                         </a>
                       )}
                       <div className="flex-1">

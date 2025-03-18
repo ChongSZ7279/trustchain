@@ -102,7 +102,7 @@ export default function CharityDetails() {
         // Transform tasks to include task pictures
         const tasksWithPictures = tasksResponse.data.map(task => ({
           ...task,
-          pictures: task.task_pictures || [] // Include task pictures from the response
+          pictures: task.pictures || [] // Use pictures instead of task_pictures
         }));
         setTasks(tasksWithPictures);
       } catch (err) {
@@ -620,9 +620,13 @@ export default function CharityDetails() {
                                   {task.pictures.map((picture, picIndex) => (
                                     <div key={picIndex} className="relative h-64 rounded-lg overflow-hidden shadow-md">
                                       <img
-                                        src={formatImageUrl(picture.image_path)}
+                                        src={formatImageUrl(picture.path)}
                                         alt={`${task.name} - Image ${picIndex + 1}`}
                                         className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          console.error('Error loading task picture:', e);
+                                          e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                                        }}
                                       />
                                     </div>
                                   ))}

@@ -104,7 +104,7 @@ export default function CharityForm() {
   };
 
   const canManageCharity = (charity) => {
-    return accountType?.id === charity?.organization_id || 
+    return currentUser?.id === charity?.organization_id || 
            charity?.organization?.representative_id === currentUser?.ic_number;
   };
 
@@ -168,52 +168,52 @@ export default function CharityForm() {
 
     try {
       setLoading(true);
-      const formDataToSend = new FormData();
       
-      // Append all form fields to FormData
-      Object.keys(formData).forEach(key => {
-        if (key === 'logo' || key === 'cover_image') {
-          if (formData[key] && formData[key] instanceof File) {
-            formDataToSend.append(key, formData[key]);
-          }
-        } else {
-          formDataToSend.append(key, formData[key]);
+      // Create the request data
+      const requestData = {
+        name: formData.name,
+        category: formData.category,
+        description: formData.description,
+        objective: formData.objective,
+        fund_targeted: formData.fund_targeted
+      };
+
+      // Add organization_id if available
+      if (formData.organization_id || currentUser?.organization_id) {
+        requestData.organization_id = formData.organization_id || currentUser.organization_id;
+      }
+
+      // Log the data being sent
+      console.log('Sending data:', requestData);
+      
+      const response = await axios.put(`/charities/${id}`, requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       });
-      
-      // Append files
-      if (files.picture_path) {
-        formDataToSend.append('picture', files.picture_path);
-      }
-      
-      if (files.verified_document) {
-        formDataToSend.append('verified_document', files.verified_document);
-      }
-      
-      let response;
-      
-      if (id) {
-        // Update existing charity
-        response = await axios.post(`/charities/${id}`, formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-      } else {
-        // Create new charity
-        response = await axios.post('/charities', formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-      }
 
       console.log('Server response:', response.data);
       navigate('/charities');
     } catch (err) {
       console.error('Error saving charity:', err);
+      
+      // Log the full error response
+      if (err.response) {
+        console.error('Server error response:', {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        });
+      }
+      
+      // Handle validation errors from the server
       if (err.response?.data?.errors) {
-        setFormErrors(err.response.data.errors);
+        const serverErrors = err.response.data.errors;
+        console.log('Server validation errors:', serverErrors);
+        setFormErrors(serverErrors);
+        const firstError = Object.values(serverErrors)[0];
+        setError(Array.isArray(firstError) ? firstError[0] : firstError);
       } else if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {

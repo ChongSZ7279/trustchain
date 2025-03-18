@@ -179,7 +179,7 @@ export default function CharityCard({ charity }) {
           </Link>
 
           {/* Edit button - only visible to organization owner */}
-          {organization?.id === charity.organization_id && (
+          {currentUser && currentUser.id === charity.organization_id && (
             <Link
               to={`/charities/${charity.id}/edit`}
               className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"

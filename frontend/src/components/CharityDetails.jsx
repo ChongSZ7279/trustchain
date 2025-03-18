@@ -150,7 +150,13 @@ export default function CharityDetails() {
   };
 
   const canManageCharity = () => {
-    return accountType === charity?.organization_id;
+    const canEdit = currentUser && currentUser.id === charity?.organization_id;
+    console.log('CharityDetails Debug:', {
+      currentUserId: currentUser?.id,
+      charityOrgId: charity?.organization_id,
+      canEdit
+    });
+    return canEdit;
   };
 
   const calculateProgress = () => {

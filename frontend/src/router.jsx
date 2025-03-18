@@ -17,7 +17,6 @@ import CharityList from './components/CharityList';
 import CharityDetails from './components/CharityDetails';
 import CharityForm from './components/CharityForm';
 import TaskForm from './components/TaskForm';
-import TaskPictureManager from './components/TaskPictureManager';
 import UserEdit from './components/UserEdit';
 import TransactionList from './components/TransactionList';
 import TransactionDetails from './components/TransactionDetails';
@@ -165,16 +164,12 @@ const router = createBrowserRouter([
         element: <CharityForm />
       },
       {
-        path: '/charities/:id/tasks/create',
+        path: '/charities/:charityId/tasks/create',
         element: <TaskForm />
       },
       {
-        path: 'tasks/:taskId/edit',
+        path: '/charities/:charityId/tasks/:taskId/edit',
         element: <TaskForm />
-      },
-      {
-        path: 'tasks/:taskId/pictures',
-        element: <TaskPictureManager />
       },
       {
         path: '/transactions',

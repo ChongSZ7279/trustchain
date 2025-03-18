@@ -151,11 +151,6 @@ export default function CharityDetails() {
 
   const canManageCharity = () => {
     const canEdit = currentUser && currentUser.id === charity?.organization_id;
-    console.log('CharityDetails Debug:', {
-      currentUserId: currentUser?.id,
-      charityOrgId: charity?.organization_id,
-      canEdit
-    });
     return canEdit;
   };
 
@@ -477,15 +472,6 @@ export default function CharityDetails() {
             >
               About
             </button>
-          {canManageCharity() && activeTab === 'milestones' && (
-            <Link
-              to={`/charities/${id}/tasks/create`}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              <FaPlus className="mr-2" />
-              Add Milestone
-            </Link>
-          )}
         </div>
       </div>
 
@@ -608,12 +594,33 @@ export default function CharityDetails() {
                             </div>
 
                             {/* Task Title and Date */}
-                            <div className="mb-4">
-                              <h3 className="text-xl font-semibold text-gray-900">{task.name}</h3>
-                              <p className="text-sm text-gray-500 mt-1 flex items-center">
-                                <FaCalendarAlt className="mr-1" />
-                                {formatDate(task.created_at)}
-                              </p>
+                            <div className="mb-4 flex justify-between items-start">
+                              <div>
+                                <h3 className="text-xl font-semibold text-gray-900">{task.name}</h3>
+                                <p className="text-sm text-gray-500 mt-1 flex items-center">
+                                  <FaCalendarAlt className="mr-1" />
+                                  {formatDate(task.created_at)}
+                                </p>
+                              </div>
+                              {canManageCharity() && (
+                                <div className="flex gap-2">
+                                  <Link
+                                    to={`/charities/${id}/tasks/${task.id}/edit`}
+                                    className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-colors duration-200"
+                                  >
+                                    <FaEdit className="mr-1" />
+                                    Edit
+                                  </Link>
+                                  <button
+                                    onClick={() => deleteTask(task.id)}
+                                    disabled={taskDeleteLoading}
+                                    className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors duration-200"
+                                  >
+                                    <FaTrash className="mr-1" />
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
                             
                             {/* Task Description */}

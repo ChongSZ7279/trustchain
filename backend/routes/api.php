@@ -15,6 +15,7 @@ use App\Http\Controllers\DonationController;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\TestController;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\FixTaskController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -66,6 +67,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/charities/{charityId}/tasks', [TaskController::class, 'store']);
     Route::match(['put', 'patch'], '/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+    
+    // Debug fix task route
+    Route::put('/fix-tasks/{id}', [FixTaskController::class, 'update']);
     
     // Task Pictures routes
     Route::get('/tasks/{taskId}/pictures', [TaskPictureController::class, 'index']);

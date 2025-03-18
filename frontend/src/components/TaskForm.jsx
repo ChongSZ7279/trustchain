@@ -17,148 +17,327 @@ import {
   FaCheckCircle
 } from 'react-icons/fa';
 
-export default function TaskForm({ mode = 'create' }) {
-  const { id: charityId, taskId } = useParams();
+export default function TaskForm() {
+  const { charityId, taskId } = useParams();
   const navigate = useNavigate();
   const { currentUser, accountType } = useAuth();
+  
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    fund_targeted: '',
     status: 'pending',
+    fund_targeted: '',
+    due_date: ''
   });
-  const [files, setFiles] = useState({
-    proof: null
-  });
+  const [existingPictures, setExistingPictures] = useState([]);
+  const [newPictures, setNewPictures] = useState([]);
+  const [picturesToDelete, setPicturesToDelete] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [charity, setCharity] = useState(null);
+
+  // Effect to create preview URLs for new pictures
+  useEffect(() => {
+    const urls = newPictures.map(file => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [newPictures]);
+
+  const canManageCharity = (charityData) => {
+    // Organization users can manage their own charities
+    if (!currentUser || !charityData) return false;
+    
+    // Check if user is organization and matches the charity's organization_id
+    if (accountType === 'organization' && currentUser.id === charityData.organization_id) {
+      return true;
+    }
+    
+    // Add any additional permission checks here if needed
+    return false;
+  };
+  
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prevState => ({
+      ...prevState,
+      [name]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validate name
+    if (!formData.name || !formData.name.trim()) {
+      errors.name = 'Task name is required';
+    }
+
+    // Validate description
+    if (!formData.description || !formData.description.trim()) {
+      errors.description = 'Description is required';
+    }
+
+    // Validate fund_targeted
+    if (!formData.fund_targeted || formData.fund_targeted === '') {
+      errors.fund_targeted = 'Fund target is required';
+    } else {
+      const fundAmount = parseFloat(formData.fund_targeted);
+      if (isNaN(fundAmount) || fundAmount < 0) {
+        errors.fund_targeted = 'Fund target must be a positive number';
+      }
+    }
+
+    // Validate status
+    if (!formData.status || !['pending', 'in_progress', 'completed'].includes(formData.status)) {
+      errors.status = 'Invalid status selected';
+    }
+
+    // Log validation results
+    console.log('Form validation results:', { formData, errors });
+
+    return errors;
+  };
 
   useEffect(() => {
     if (!currentUser) {
+      console.log('No user logged in, redirecting to login');
       navigate('/login');
       return;
     }
 
+    let isMounted = true;
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log('Mode:', mode, 'CharityId:', charityId, 'TaskId:', taskId); // Debug log
+        setError(null);
+        console.log('Fetching data for:', { charityId, taskId, currentUser, accountType });
         
-        if (mode === 'edit' || taskId) {
-          // Fetch task data when editing
-          const response = await axios.get(`/tasks/${taskId}`);
-          const taskData = response.data;
-          console.log('Fetched task:', taskData); // Debug log
+        // First fetch charity data
+        try {
+          const charityResponse = await axios.get(`/charities/${charityId}`);
+          const charityData = charityResponse.data;
+          console.log('Fetched charity:', charityData);
           
-          // Check if user owns the charity
-          if (taskData.charity.organization_id !== accountType) {
-            console.error('User does not own this charity');
-            navigate('/charities');
-            return;
-          }
+          // Only proceed if component is still mounted
+          if (!isMounted) return;
 
-          setFormData({
-            name: taskData.name || '',
-            description: taskData.description || '',
-            fund_targeted: taskData.fund_targeted || '',
-            status: taskData.status || 'pending',
-            required_volunteers: taskData.required_volunteers || 1,
-            charity_id: taskData.charity_id || charityId
-          });
-
-          setCharity(taskData.charity);
-        } else if (mode === 'create' || charityId) {
-          // Verify charityId exists when creating
-          if (!charityId) {
-            console.error('No charity ID found for task creation');
-            navigate('/charities');
-            return;
-          }
-
-          // Fetch charity data when creating new task
-          const response = await axios.get(`/charities/${charityId}`);
-          const charityData = response.data;
-          console.log('Fetched charity:', charityData); // Debug log
-          
-          // Check if user owns the charity
-          if (charityData.organization_id !== accountType) {
-            console.error('User does not own this charity');
+          // Check if user can manage this charity
+          if (!canManageCharity(charityData)) {
+            console.error('User does not have permission to manage this charity');
+            setError('You do not have permission to manage this charity');
             navigate('/charities');
             return;
           }
 
           setCharity(charityData);
+
+          // If editing, fetch task data
+          if (taskId) {
+            try {
+              const taskResponse = await axios.get(`/tasks/${taskId}`);
+              const taskData = taskResponse.data;
+              console.log('Fetched task:', taskData);
+              
+              // Only proceed if component is still mounted
+              if (!isMounted) return;
+
+              if (!taskData) {
+                setError('Task not found');
+                navigate(`/charities/${charityId}`);
+                return;
+              }
+
+              setFormData({
+                name: taskData.name || '',
+                description: taskData.description || '',
+                status: taskData.status || 'pending',
+                fund_targeted: taskData.fund_targeted || '',
+                due_date: taskData.due_date || ''
+              });
+
+              // Set existing pictures
+              if (taskData.pictures) {
+                setExistingPictures(taskData.pictures);
+              }
+            } catch (err) {
+              console.error('Error fetching task:', err);
+              if (isMounted) {
+                if (err.response?.status === 404) {
+                  setError('Task not found');
+                  navigate(`/charities/${charityId}`);
+                } else {
+                  setError('Failed to load task data. Please try again.');
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching charity:', err);
+          if (isMounted) {
+            if (err.response?.status === 404) {
+              setError('Charity not found');
+            } else {
+              setError('Failed to load charity data');
+            }
+            navigate('/charities');
+          }
+          return;
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load required data');
+        console.error('Error in fetchData:', err);
+        if (isMounted) {
+          setError('Failed to load required data');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [mode, taskId, charityId, currentUser, navigate, accountType]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
+  }, [charityId, taskId, currentUser, accountType, navigate]);
+
+  const handlePictureDelete = (index, isPreviouslyUploaded = false) => {
+    if (isPreviouslyUploaded) {
+      const pictureToDelete = existingPictures[index];
+      setPicturesToDelete(prev => [...prev, pictureToDelete.id]);
+      setExistingPictures(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setNewPictures(prev => prev.filter((_, i) => i !== index));
+      setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFiles({ proof: file });
-    }
+    const files = Array.from(e.target.files);
+    setNewPictures(prev => [...prev, ...files]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setIsSubmitted(true);
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
 
     try {
+      setLoading(true);
+      setError(null);
+      
+      // Log form state before submission for debugging
+      console.log('Form data before submission:', { ...formData });
+      
+      // Create a plain object first to ensure we have all data
+      const dataObject = {
+        name: formData.name || '',
+        description: formData.description || '',
+        fund_targeted: formData.fund_targeted || '',
+        status: formData.status || 'pending',
+      };
+      
+      // Now convert to FormData
       const formDataToSend = new FormData();
       
-      // Append form data
-      Object.keys(formData).forEach(key => {
-        formDataToSend.append(key, formData[key]);
+      // Add all fields to FormData
+      Object.keys(dataObject).forEach(key => {
+        formDataToSend.append(key, dataObject[key]);
+        console.log(`Adding field ${key}:`, dataObject[key]); // Debug log
       });
 
-      // Append file if exists
-      if (files.proof) {
-        formDataToSend.append('proof', files.proof);
+      // Add _method field for Laravel to understand PUT requests
+      if (taskId) {
+        formDataToSend.append('_method', 'PUT');
+        console.log('Adding _method: PUT');
       }
 
-      let response;
-      if (taskId) {
-        // Update existing task
-        response = await axios.post(`/tasks/${taskId}`, formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        
-        // Navigate back to charity details
-        navigate(`/charities/${charity.id}`);
-      } else {
-        // Create new task
-        response = await axios.post(`/charities/${charityId}/tasks`, formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        
-        // Navigate back to charity details
-        navigate(`/charities/${charityId}`);
+      // Log the complete form data
+      console.log('Form data to be sent:', {
+        name: formDataToSend.get('name'),
+        description: formDataToSend.get('description'),
+        fund_targeted: formDataToSend.get('fund_targeted'),
+        status: formDataToSend.get('status')
+      });
+
+      // Append new pictures
+      newPictures.forEach(file => {
+        formDataToSend.append('pictures[]', file);
+      });
+
+      // Append pictures to delete
+      if (picturesToDelete.length > 0) {
+        formDataToSend.append('pictures_to_delete', JSON.stringify(picturesToDelete));
       }
+
+      const endpoint = taskId 
+        ? `/fix-tasks/${taskId}` 
+        : `/charities/${charityId}/tasks`;
+
+      // Log the fetch request details
+      console.log('Sending request to:', endpoint, 'with method:', taskId ? 'put' : 'post');
+      
+      // Directly log the form data entries
+      console.log('Debug - Form data entries:');
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+      }
+      
+      const response = await axios({
+        method: taskId ? 'post' : 'post', // Changed to POST for both since we're using _method
+        url: endpoint,
+        data: formDataToSend,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('Task saved successfully:', response.data);
+      navigate(`/charities/${charity ? charity.id : charityId}`);
     } catch (err) {
-      console.error('Error submitting task:', err);
-      setError(err.response?.data?.message || 'Failed to submit task');
+      console.error('Error saving task:', err);
+      
+      // Enhanced error logging
+      if (err.response) {
+        console.error('Response error details:', {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        });
+        
+        if (err.response.data?.errors) {
+          setFormErrors(err.response.data.errors);
+        } else if (err.response.data?.message) {
+          setError(err.response.data.message);
+        } else {
+          setError('Failed to save task. Server returned an error.');
+        }
+      } else if (err.request) {
+        console.error('Request was made but no response received:', err.request);
+        setError('Failed to save task. No response received from server.');
+      } else {
+        console.error('Error setting up request:', err.message);
+        setError('Failed to save task. ' + err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -196,7 +375,7 @@ export default function TaskForm({ mode = 'create' }) {
             Back to Charity
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-gray-900">{mode === 'edit' ? 'Edit Task' : 'Create Task'}</span>
+          <span className="text-gray-900">{taskId ? 'Edit Task' : 'Create Task'}</span>
         </nav>
 
         <div className="bg-white shadow-sm rounded-lg">
@@ -204,7 +383,7 @@ export default function TaskForm({ mode = 'create' }) {
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FaTasks className="mr-3" />
-                {mode === 'edit' ? 'Edit Task' : 'Create Task'}
+                {taskId ? 'Edit Task' : 'Create Task'}
               </h1>
             </div>
 
@@ -236,8 +415,13 @@ export default function TaskForm({ mode = 'create' }) {
                       id="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                        formErrors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                      }`}
                     />
+                    {formErrors.name && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -251,8 +435,13 @@ export default function TaskForm({ mode = 'create' }) {
                       rows={4}
                       value={formData.description}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                        formErrors.description ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                      }`}
                     />
+                    {formErrors.description && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.description}</p>
+                    )}
                   </div>
 
                   <div>
@@ -268,8 +457,13 @@ export default function TaskForm({ mode = 'create' }) {
                       step="0.01"
                       value={formData.fund_targeted}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                        formErrors.fund_targeted ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                      }`}
                     />
+                    {formErrors.fund_targeted && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.fund_targeted}</p>
+                    )}
                   </div>
 
                   <div>
@@ -282,17 +476,22 @@ export default function TaskForm({ mode = 'create' }) {
                       id="status"
                       value={formData.status}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                        formErrors.status ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                      }`}
                     >
                       <option value="pending">Pending</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
                     </select>
+                    {formErrors.status && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.status}</p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Documents Section */}
+              {/* Pictures Section */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                   <FaFileAlt className="mr-2" />
@@ -335,12 +534,12 @@ export default function TaskForm({ mode = 'create' }) {
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      {mode === 'edit' ? 'Updating...' : 'Creating...'}
+                      {taskId ? 'Updating...' : 'Creating...'}
                     </>
                   ) : (
                     <>
                       <FaSave className="mr-2" />
-                      {mode === 'edit' ? 'Update Task' : 'Create Task'}
+                      {taskId ? 'Update Task' : 'Create Task'}
                     </>
                   )}
                 </button>

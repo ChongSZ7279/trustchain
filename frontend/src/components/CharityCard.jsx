@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import { formatImageUrl, getFileType } from '../utils/helpers';
 import { 
   FaHeart, 
   FaTag, 
@@ -17,8 +18,20 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaThumbsUp,
-  FaImage
+  FaImage,
+  FaFileAlt,
+  FaFilePdf,
+  FaFileWord,
+  FaEye
 } from 'react-icons/fa';
+
+// Add this helper function at the top of the file, after imports
+const getFileIcon = (fileType) => {
+  if (fileType?.includes('pdf')) return <FaFilePdf className="text-red-500 text-xl" />;
+  if (fileType?.includes('word') || fileType?.includes('doc')) return <FaFileWord className="text-blue-500 text-xl" />;
+  if (fileType?.includes('image')) return <FaImage className="text-green-500 text-xl" />;
+  return <FaFileAlt className="text-gray-500 text-xl" />;
+};
 
 export default function CharityCard({ charity }) {
   const navigate = useNavigate();
@@ -28,6 +41,7 @@ export default function CharityCard({ charity }) {
   const [followerCount, setFollowerCount] = useState(charity.follower_count || 0);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
   
   // Helper function to format image URL
   const formatImageUrl = (path) => {
@@ -143,6 +157,7 @@ export default function CharityCard({ charity }) {
               </span>
             )}
           </div>
+
         </div>
         
         {/* Fund Progress */}

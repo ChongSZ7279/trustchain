@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { formatImageUrl } from '../utils/helpers';
+import { formatImageUrl, getFileType } from '../utils/helpers';
 import { 
   FaTasks, 
   FaFileAlt, 
@@ -14,8 +14,18 @@ import {
   FaExclamationTriangle,
   FaInfoCircle,
   FaClipboardList,
-  FaCheckCircle
+  FaCheckCircle,
+  FaFilePdf,
+  FaFileWord,
+  FaEye
 } from 'react-icons/fa';
+
+const getFileIcon = (fileType) => {
+  if (fileType?.includes('pdf')) return <FaFilePdf className="text-red-500 text-xl" />;
+  if (fileType?.includes('word') || fileType?.includes('doc')) return <FaFileWord className="text-blue-500 text-xl" />;
+  if (fileType?.includes('image')) return <FaImage className="text-green-500 text-xl" />;
+  return <FaFileAlt className="text-gray-500 text-xl" />;
+};
 
 export default function TaskForm() {
   const { charityId, taskId } = useParams();
@@ -40,6 +50,11 @@ export default function TaskForm() {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [charity, setCharity] = useState(null);
+  const [documentPreview, setDocumentPreview] = useState({
+    type: null,
+    url: null,
+    name: null
+  });
 
   // Effect to create preview URLs for new pictures
   useEffect(() => {
@@ -245,6 +260,13 @@ export default function TaskForm() {
     const file = e.target.files[0];
     if (file) {
       setProofFile(file);
+      // Create preview URL for the document
+      const previewUrl = URL.createObjectURL(file);
+      setDocumentPreview({
+        type: file.type,
+        url: previewUrl,
+        name: file.name
+      });
     }
   };
 
@@ -377,6 +399,30 @@ export default function TaskForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add the local formatImageUrl function
+  const formatImageUrl = (path) => {
+    if (!path) return null;
+    
+    // If it's already a full URL
+    if (path.startsWith('http')) return path;
+    
+    // For storage paths like "organization_covers/filename.jpg"
+    if (path.includes('organization_covers/') || 
+        path.includes('organization_logos/') || 
+        path.includes('charity_pictures/') ||
+        path.includes('task_pictures/') ||
+        path.includes('task_proofs/') ||
+        path.includes('charity_documents/')) {
+      return `/storage/${path}`;
+    }
+    
+    // If path starts with a slash, it's already a relative path
+    if (path.startsWith('/')) return path;
+    
+    // Otherwise, add a slash to make it a relative path from the root
+    return `/${path}`;
   };
 
   if (loading && !charity) {
@@ -538,22 +584,36 @@ export default function TaskForm() {
                 {existingProof && !proofFile && (
                   <div className="mb-4">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Current Proof Document</h3>
-                    <div className="flex items-center space-x-2">
-                      <a 
-                        href={formatImageUrl(existingProof)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-800"
-                      >
-                        View Current Proof
-                      </a>
-                      <button
-                        type="button"
-                        onClick={handleRemoveProof}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <FaTimes className="h-4 w-4" />
-                      </button>
+                    <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                      <div className="flex items-center space-x-3">
+                        {getFileIcon(getFileType(existingProof))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900 truncate">
+                            {existingProof.split('/').pop()}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {getFileType(existingProof)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <a 
+                          href={formatImageUrl(existingProof)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                        >
+                          <FaEye className="mr-1" />
+                          View Proof
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleRemoveProof}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FaTimes className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -573,15 +633,38 @@ export default function TaskForm() {
                     />
                   </div>
                   {proofFile && (
-                    <div className="mt-2 flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">{proofFile.name}</span>
-                      <button
-                        type="button"
-                        onClick={handleRemoveProof}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <FaTimes className="h-4 w-4" />
-                      </button>
+                    <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          {getFileIcon(documentPreview.type)}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900 truncate">
+                              {documentPreview.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {documentPreview.type}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <a
+                            href={documentPreview.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                          >
+                            <FaEye className="mr-1" />
+                            View Proof
+                          </a>
+                          <button
+                            type="button"
+                            onClick={handleRemoveProof}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <FaTimes className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                   <p className="mt-2 text-sm text-gray-500">
@@ -608,6 +691,10 @@ export default function TaskForm() {
                             src={formatImageUrl(picture.path)}
                             alt={`Task picture ${index + 1}`}
                             className="w-full h-48 object-cover"
+                            onError={(e) => {
+                              console.error('Error loading task picture:', e);
+                              e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                            }}
                           />
                           <button
                             type="button"

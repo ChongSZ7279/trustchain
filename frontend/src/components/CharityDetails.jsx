@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { formatImageUrl } from '../utils/helpers';
+import { formatImageUrl, getFileType } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaChartBar, 
@@ -37,9 +37,20 @@ import {
   FaWallet,
   FaThumbsUp,
   FaBookmark,
-  FaFileContract
+  FaFileContract,
+  FaFilePdf,
+  FaFileWord,
+  FaEye
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+
+// Add this helper function at the top of the file, after imports
+const getFileIcon = (fileType) => {
+  if (fileType?.includes('pdf')) return <FaFilePdf className="text-red-500 text-xl" />;
+  if (fileType?.includes('word') || fileType?.includes('doc')) return <FaFileWord className="text-blue-500 text-xl" />;
+  if (fileType?.includes('image')) return <FaImages className="text-green-500 text-xl" />;
+  return <FaFileAlt className="text-gray-500 text-xl" />;
+};
 
 export default function CharityDetails() {
   const { id } = useParams();
@@ -65,6 +76,37 @@ export default function CharityDetails() {
   const [imageLoading, setImageLoading] = useState({
     cover: true
   });
+
+  // Add new state for document preview
+  const [documentPreview, setDocumentPreview] = useState({
+    type: null,
+    url: null,
+    name: null
+  });
+
+  // Add the local formatImageUrl function
+  const formatImageUrl = (path) => {
+    if (!path) return null;
+    
+    // If it's already a full URL
+    if (path.startsWith('http')) return path;
+    
+    // For storage paths like "organization_covers/filename.jpg"
+    if (path.includes('organization_covers/') || 
+        path.includes('organization_logos/') || 
+        path.includes('charity_pictures/') ||
+        path.includes('task_pictures/') ||
+        path.includes('task_proofs/') ||
+        path.includes('charity_documents/')) {
+      return `/storage/${path}`;
+    }
+    
+    // If path starts with a slash, it's already a relative path
+    if (path.startsWith('/')) return path;
+    
+    // Otherwise, add a slash to make it a relative path from the root
+    return `/${path}`;
+  };
 
   useEffect(() => {
     fetchCharityData();
@@ -328,16 +370,22 @@ export default function CharityDetails() {
               {/* Charity Image */}
               <div className="relative flex-shrink-0">
                 <div className={`h-24 w-24 md:h-28 md:w-28 border-2 border-blue-100 rounded-lg overflow-hidden transition-opacity duration-300 ${imageLoading.cover ? 'animate-pulse bg-gray-200' : ''}`}>
-                  <img
-                    src={formatImageUrl(charity?.picture_path) || 'https://via.placeholder.com/128'}
-                    alt={charity?.name}
-                    className="h-full w-full object-cover"
-                    onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
-                    onError={(e) => {
-                      console.error('Error loading charity image:', e);
-                      e.target.src = 'https://via.placeholder.com/128';
-                    }}
-                  />
+                  {charity?.picture_path ? (
+                    <img
+                      src={formatImageUrl(charity.picture_path)}
+                      alt={charity?.name}
+                      className="h-full w-full object-cover"
+                      onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
+                      onError={(e) => {
+                        console.error('Error loading charity image:', e);
+                        e.target.src = 'https://via.placeholder.com/128';
+                      }}
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-gray-200">
+                      <FaImages className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -362,8 +410,36 @@ export default function CharityDetails() {
 
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">{charity?.name.toUpperCase()}</h1>
 
+                {/* Document Preview */}
+                {charity?.verified_document && (
+                  <div className="mt-2 p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {getFileIcon(getFileType(charity.verified_document))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900 truncate">
+                            {charity.verified_document.split('/').pop()}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {getFileType(charity.verified_document)}
+                          </p>
+                        </div>
+                      </div>
+                      <a 
+                        href={formatImageUrl(charity.verified_document)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                      >
+                        <FaEye className="mr-1" />
+                        View
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 {/* Fund Progress */}
-                <div className="mt-2">
+                <div className="mt-4">
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium text-gray-500">
                       {calculateProgress()}% Complete

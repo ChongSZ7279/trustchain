@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { formatImageUrl } from '../utils/helpers';
+import { formatImageUrl, getFileType } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBuilding, 
@@ -15,7 +15,11 @@ import {
   FaTimes,
   FaExclamationTriangle,
   FaBullseye,
-  FaInfoCircle
+  FaInfoCircle,
+  FaFilePdf,
+  FaFileWord,
+  FaEye,
+  FaDownload
 } from 'react-icons/fa';
 
 export default function CharityForm() {
@@ -31,16 +35,16 @@ export default function CharityForm() {
     description: '',
     objective: '',
     fund_targeted: '',
-    picture_path: null,
+    picture: null,
   });
   const [files, setFiles] = useState({
-    picture_path: null,
+    picture: null,
     verified_document: null,
   });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [previewUrls, setPreviewUrls] = useState({
-    picture_path: null,
+    picture: null,
     verified_document: null
   });
   
@@ -48,6 +52,12 @@ export default function CharityForm() {
   const [imageLoading, setImageLoading] = useState({
     picture: true,
     document: true
+  });
+
+  const [documentPreview, setDocumentPreview] = useState({
+    type: null,
+    url: null,
+    name: null
   });
 
   useEffect(() => {
@@ -77,7 +87,7 @@ export default function CharityForm() {
         description: charityData.description || '',
         objective: charityData.objective || '',
         fund_targeted: charityData.fund_targeted || '',
-        picture_path: charityData.picture_path || null,
+        picture: charityData.picture_path || null,
         status: charityData.status || 'pending',
         organization_id: charityData.organization_id || accountType?.id
       });
@@ -86,7 +96,7 @@ export default function CharityForm() {
       if (charityData.picture_path) {
         setPreviewUrls(prev => ({
           ...prev,
-          picture_path: formatImageUrl(charityData.picture_path)
+          picture: formatImageUrl(charityData.picture_path)
         }));
       }
 
@@ -121,12 +131,26 @@ export default function CharityForm() {
     const { name, files: uploadedFiles } = e.target;
     if (uploadedFiles.length > 0) {
       const file = uploadedFiles[0];
-      setFiles(prev => ({ ...prev, [name]: file }));
+      console.log(`File selected for ${name}:`, file);
       
-      // Create preview URL for images
-      if (file.type.startsWith('image/')) {
-        const previewUrl = URL.createObjectURL(file);
+      setFiles(prev => {
+        const newFiles = { ...prev, [name]: file };
+        console.log('Updated files state:', newFiles);
+        return newFiles;
+      });
+      
+      // Create preview URL for images and documents
+      const previewUrl = URL.createObjectURL(file);
+      
+      if (name === 'picture') {
         setPreviewUrls(prev => ({ ...prev, [name]: previewUrl }));
+      } else if (name === 'verified_document') {
+        const fileType = file.type;
+        setDocumentPreview({
+          type: fileType,
+          url: previewUrl,
+          name: file.name
+        });
       }
       
       // Clear error if form was previously submitted
@@ -169,29 +193,63 @@ export default function CharityForm() {
     try {
       setLoading(true);
       
-      // Create the request data
-      const requestData = {
-        name: formData.name,
-        category: formData.category,
-        description: formData.description,
-        objective: formData.objective,
-        fund_targeted: formData.fund_targeted
-      };
+      // Create FormData instance to handle file uploads
+      const formDataToSend = new FormData();
+      
+      // Add basic form fields
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('objective', formData.objective);
+      formDataToSend.append('fund_targeted', formData.fund_targeted);
 
       // Add organization_id if available
       if (formData.organization_id || currentUser?.organization_id) {
-        requestData.organization_id = formData.organization_id || currentUser.organization_id;
+        formDataToSend.append('organization_id', formData.organization_id || currentUser.organization_id);
+      }
+
+      // Add files if they exist
+      if (files.picture) {
+        formDataToSend.append('picture', files.picture);
+        console.log('Picture file being sent:', files.picture);
+      }
+      if (files.verified_document) {
+        formDataToSend.append('verified_document', files.verified_document);
+        console.log('Document file being sent:', files.verified_document);
+      }
+
+      // Log the entire FormData contents
+      console.log('FormData entries:');
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0], pair[1]);
       }
 
       // Log the data being sent
-      console.log('Sending data:', requestData);
+      console.log('Sending data:', Object.fromEntries(formDataToSend));
       
-      const response = await axios.put(`/charities/${id}`, requestData, {
+      let response;
+      const config = {
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data',
           'Accept': 'application/json'
+        },
+        // Add this to ensure proper file upload handling
+        transformRequest: [function (data) {
+          return data; // Don't transform the data
+        }],
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log('Upload progress:', percentCompleted);
         }
-      });
+      };
+
+      if (id) {
+        // If we have an ID, update existing charity
+        response = await axios.post(`/charities/${id}?_method=PUT`, formDataToSend, config);
+      } else {
+        // If no ID, create new charity
+        response = await axios.post('/charities', formDataToSend, config);
+      }
 
       console.log('Server response:', response.data);
       navigate('/charities');
@@ -222,6 +280,30 @@ export default function CharityForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add the local formatImageUrl function
+  const formatImageUrl = (path) => {
+    if (!path) return null;
+    
+    // If it's already a full URL
+    if (path.startsWith('http')) return path;
+    
+    // For storage paths like "organization_covers/filename.jpg"
+    if (path.includes('organization_covers/') || 
+        path.includes('organization_logos/') || 
+        path.includes('charity_pictures/') ||
+        path.includes('task_pictures/') ||
+        path.includes('task_proofs/') ||
+        path.includes('charity_documents/')) {
+      return `/storage/${path}`;
+    }
+    
+    // If path starts with a slash, it's already a relative path
+    if (path.startsWith('/')) return path;
+    
+    // Otherwise, add a slash to make it a relative path from the root
+    return `/${path}`;
   };
 
   if (loading && !id) {
@@ -401,31 +483,34 @@ export default function CharityForm() {
               >
                 <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
                   <FaFileAlt className="mr-2 text-indigo-600" />
-                  Documents
+                  Documents & Images
                 </h2>
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                   <div className="space-y-4">
-                    <label htmlFor="picture_path" className="block text-sm font-medium text-gray-700 flex items-center">
+                    <label htmlFor="picture" className="block text-sm font-medium text-gray-700 flex items-center">
                       <FaImage className="mr-2 text-gray-400" />
                       Charity Picture
                     </label>
                     <div className="flex items-center space-x-4">
-                      {previewUrls.picture_path && (
-                        <div className="relative w-32 h-32 rounded-xl overflow-hidden shadow-lg">
+                      {previewUrls.picture && (
+                        <div className="relative w-32 h-32 rounded-xl overflow-hidden shadow-lg group">
                           <img
-                            src={previewUrls.picture_path}
+                            src={previewUrls.picture}
                             alt="Picture Preview"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                             onLoad={() => setImageLoading(prev => ({ ...prev, picture: false }))}
                           />
                           <div className={`absolute inset-0 bg-gray-200 ${imageLoading.picture ? 'animate-pulse' : 'hidden'}`} />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 flex items-center justify-center">
+                            <FaEye className="text-white opacity-0 group-hover:opacity-100 transform scale-0 group-hover:scale-100 transition-all duration-200" />
+                          </div>
                         </div>
                       )}
                       <div className="flex-1">
                         <input
                           type="file"
-                          name="picture_path"
-                          id="picture_path"
+                          name="picture"
+                          id="picture"
                           accept="image/*"
                           onChange={handleFileChange}
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors duration-200"
@@ -435,8 +520,8 @@ export default function CharityForm() {
                         </p>
                       </div>
                     </div>
-                    {isSubmitted && formErrors.picture_path && (
-                      <p className="mt-2 text-sm text-red-600">{formErrors.picture_path}</p>
+                    {isSubmitted && formErrors.picture && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.picture}</p>
                     )}
                   </div>
 
@@ -445,18 +530,8 @@ export default function CharityForm() {
                       <FaFileAlt className="mr-2 text-gray-400" />
                       Verified Document {!id && <span className="text-red-500 ml-1">*</span>}
                     </label>
-                    <div className="flex items-center space-x-4">
-                      {previewUrls.verified_document && (
-                        <a
-                          href={previewUrls.verified_document}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
-                        >
-                          <FaFileAlt className="mr-2" />
-                          View Current Document
-                        </a>
-                      )}
+                    <div className="space-y-4">
+                      {/* Document Upload */}
                       <div className="flex-1">
                         <input
                           type="file"
@@ -470,6 +545,50 @@ export default function CharityForm() {
                           Upload a document that verifies the legitimacy of this charity.
                         </p>
                       </div>
+
+                      {/* Document Preview */}
+                      {(documentPreview.url || formData.verified_document) && (
+                        <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                          <h3 className="text-sm font-medium text-gray-700 mb-2">Document Preview</h3>
+                          <div className="flex items-center space-x-3">
+                            {documentPreview.type?.includes('pdf') || formData.verified_document?.includes('.pdf') ? (
+                              <FaFilePdf className="text-red-500 text-xl" />
+                            ) : (
+                              <FaFileWord className="text-blue-500 text-xl" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 truncate">
+                                {documentPreview.name || formData.verified_document}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {documentPreview.type || getFileType(formData.verified_document)}
+                              </p>
+                            </div>
+                            {documentPreview.url && (
+                              <a
+                                href={documentPreview.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              >
+                                <FaEye className="mr-1" />
+                                View
+                              </a>
+                            )}
+                            {formData.verified_document && !documentPreview.url && (
+                              <a
+                                href={formatImageUrl(formData.verified_document)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              >
+                                <FaDownload className="mr-1" />
+                                Download
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     {isSubmitted && formErrors.verified_document && (
                       <p className="mt-2 text-sm text-red-600">{formErrors.verified_document}</p>
@@ -477,6 +596,53 @@ export default function CharityForm() {
                   </div>
                 </div>
               </motion.div>
+
+              {/* Charity Picture Preview */}
+              {formData.picture_path && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Current Picture</h3>
+                  <div className="relative h-48 rounded-lg overflow-hidden shadow-md">
+                    <img
+                      src={formatImageUrl(formData.picture_path)}
+                      alt="Charity picture"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('Error loading charity picture:', e);
+                        e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Document Preview */}
+              {formData.verified_document && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Current Document</h3>
+                  <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center space-x-3">
+                      {getFileIcon(getFileType(formData.verified_document))}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 truncate">
+                          {formData.verified_document.split('/').pop()}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {getFileType(formData.verified_document)}
+                        </p>
+                      </div>
+                    </div>
+                    <a 
+                      href={formatImageUrl(formData.verified_document)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                    >
+                      <FaEye className="mr-1" />
+                      View
+                    </a>
+                  </div>
+                </div>
+              )}
 
               {/* Form Actions */}
               <motion.div 

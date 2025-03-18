@@ -232,32 +232,6 @@ export default function TransactionList() {
             {viewType === 'charity' ? 'View charity-specific transactions' : 'View all system transactions'}
           </p>
         </div>
-        {!charityId && (
-          <div className="mt-4 md:mt-0 flex space-x-4">
-            <button
-              onClick={() => setViewType('system')}
-              className={`inline-flex items-center px-4 py-2 border rounded-lg text-sm font-medium transition-colors duration-200 ${
-                viewType === 'system'
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <FaGlobe className="mr-2" />
-              System View
-            </button>
-            <button
-              onClick={() => setViewType('charity')}
-              className={`inline-flex items-center px-4 py-2 border rounded-lg text-sm font-medium transition-colors duration-200 ${
-                viewType === 'charity'
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <FaHandHoldingHeart className="mr-2" />
-              Charity View
-            </button>
-          </div>
-        )}
       </motion.div>
 
       {/* Search and Filter Bar */}

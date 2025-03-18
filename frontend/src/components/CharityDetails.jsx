@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatImageUrl, getFileType } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import DonationForm from './DonationForm';
+import BackButton from './BackToHistory';
 import { 
   FaChartBar, 
   FaTasks, 
@@ -344,20 +345,9 @@ export default function CharityDetails() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-100"
+      className="min-h-screen"
     >
-      {/* Navigation Bar */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <Link 
-            to="/charities" 
-            className="group inline-flex items-center text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors duration-200"
-          >
-            <FaArrowLeft className="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200" />
-            Back to Charities
-          </Link>
-        </div>
-      </div>
+      <BackButton />
 
       {/* Charity Profile Card */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

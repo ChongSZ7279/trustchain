@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl, getFileType } from '../utils/helpers';
+import BackButton from './BackToHistory';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBuilding, 
@@ -325,21 +326,11 @@ export default function CharityForm() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-50 py-6"
+      className="min-h-screen bg-gray-100"
     >
+      <BackButton />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Enhanced Breadcrumb */}
-        <nav className="flex items-center text-gray-500 mb-6">
-          <Link 
-            to="/organization/dashboard" 
-            className="group inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors duration-200"
-          >
-            <FaArrowLeft className="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200" />
-            Back to Dashboard
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">{id ? 'Edit Charity' : 'Create Charity'}</span>
-        </nav>
+        
 
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
@@ -653,7 +644,7 @@ export default function CharityForm() {
               >
                 <button
                   type="button"
-                  onClick={() => navigate('/organization/dashboard')}
+                  onClick={() => navigate('/charities')}
                   className="inline-flex items-center px-6 py-3 border-2 border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 >
                   <FaTimes className="mr-2" />

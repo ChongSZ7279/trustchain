@@ -683,7 +683,7 @@ export default function OrganizationEdit() {
               >
                 <button
                   type="button"
-                  onClick={() => navigate('/organization/dashboard')}
+                  onClick={() => navigate('/organizations')}
                   className="inline-flex items-center px-6 py-3 border-2 border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 >
                   <FaTimes className="mr-2" />

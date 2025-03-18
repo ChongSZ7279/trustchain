@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaSearch, 
   FaFilter, 
@@ -15,7 +15,8 @@ import {
   FaCheckCircle,
   FaExclamationCircle,
   FaExclamationTriangle,
-  FaSync
+  FaSync,
+  FaHistory
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import Pagination from './Pagination';
@@ -46,9 +47,9 @@ export default function TransactionList() {
     }
   });
 
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
       setError(null);
       
       const queryParams = new URLSearchParams({
@@ -79,10 +80,10 @@ export default function TransactionList() {
       console.error('Error fetching transactions:', error);
       setError(error.response?.data?.message || 'Failed to fetch transactions');
       setTransactions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     fetchTransactions();
@@ -223,7 +224,7 @@ export default function TransactionList() {
       >
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <FaMoneyBillWave className="mr-3 text-indigo-600" />
+            <FaHistory className="mr-3 text-indigo-600" />
             Transactions
           </h1>
           <p className="mt-2 text-sm text-gray-600">
@@ -233,196 +234,205 @@ export default function TransactionList() {
       </motion.div>
 
       {/* Search and Filter Bar */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <form onSubmit={handleSearch} className="flex-1">
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white rounded-xl shadow-sm mb-8 p-4"
+      >
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Search Input */}
+          <div className="flex-1">
             <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaSearch className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="text"
-                placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Search transactions..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
             </div>
-          </form>
+          </div>
 
+          {/* Filter Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
           >
-            <FaFilter />
+            <FaFilter className="mr-2" />
             Filters
           </button>
         </div>
 
-        {/* Filter Options */}
-        {showFilters && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                name="status"
-                value={filters.status}
-                onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">All Status</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  name="start"
-                  value={filters.dateRange.start}
-                  onChange={handleDateRangeChange}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <input
-                  type="date"
-                  name="end"
-                  value={filters.dateRange.end}
-                  onChange={handleDateRangeChange}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount Range</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  name="min"
-                  placeholder="Min"
-                  value={filters.amountRange.min}
-                  onChange={handleAmountRangeChange}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <input
-                  type="number"
-                  name="max"
-                  placeholder="Max"
-                  value={filters.amountRange.max}
-                  onChange={handleAmountRangeChange}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Active Filters */}
-        {(filters.status || filters.dateRange.start || filters.dateRange.end || filters.amountRange.min || filters.amountRange.max) && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={resetFilters}
-              className="flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors duration-200"
-            >
-              <FaTimes className="text-xs" />
-              Clear All
-            </button>
-            {filters.status && (
-              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
-                Status: {filters.status}
-              </span>
-            )}
-            {(filters.dateRange.start || filters.dateRange.end) && (
-              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
-                Date: {filters.dateRange.start || 'Start'} - {filters.dateRange.end || 'End'}
-              </span>
-            )}
-            {(filters.amountRange.min || filters.amountRange.max) && (
-              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
-                Amount: {filters.amountRange.min || '0'} - {filters.amountRange.max || '∞'}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Transaction Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {transactions && transactions.length > 0 ? (
-          transactions.map((transaction) => (
+        {/* Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
             <motion.div
-              key={transaction.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 pt-4 border-t border-gray-200"
             >
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Transaction #{transaction.id}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {new Date(transaction.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${getStatusColor(transaction.status)}`}>
-                    {getStatusIcon(transaction.status)}
-                    {transaction.status}
-                  </span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Status Filters */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                    <option value="failed">Failed</option>
+                  </select>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Amount</span>
-                    <span className="font-semibold text-gray-900">
-                      ${transaction.amount.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Donor</span>
-                    <span className="font-semibold text-gray-900">
-                      {transaction.donor_name}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Charity</span>
-                    <span className="font-semibold text-gray-900">
-                      {transaction.charity_name}
-                    </span>
+                {/* Date Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date Range
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      type="date"
+                      name="start"
+                      value={filters.dateRange.start}
+                      onChange={handleDateRangeChange}
+                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                    <input
+                      type="date"
+                      name="end"
+                      value={filters.dateRange.end}
+                      onChange={handleDateRangeChange}
+                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
                   </div>
                 </div>
+
+                {/* Amount Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Amount Range
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      type="number"
+                      name="min"
+                      value={filters.amountRange.min}
+                      onChange={handleAmountRangeChange}
+                      placeholder="Min amount"
+                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                    <input
+                      type="number"
+                      name="max"
+                      value={filters.amountRange.max}
+                      onChange={handleAmountRangeChange}
+                      placeholder="Max amount"
+                      className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Reset Filters Button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={resetFilters}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+                >
+                  <FaTimes className="mr-2" />
+                  Reset Filters
+                </button>
               </div>
             </motion.div>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <div className="text-gray-400 text-4xl mb-4">
-              <FaMoneyBillWave className="mx-auto" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Transactions Found</h3>
-            <p className="text-gray-600">
-              {searchTerm || Object.values(filters).some(value => value !== '')
-                ? 'Try adjusting your search or filters'
-                : 'There are no transactions to display'}
-            </p>
-          </div>
-        )}
-      </div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="mt-8">
-          <Pagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            onPageChange={handlePageChange}
-          />
+      {/* Results Count */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="mb-6"
+      >
+        <h2 className="text-xl font-bold text-gray-900">
+          {pagination.totalItems} {pagination.totalItems === 1 ? 'Transaction' : 'Transactions'} Found
+        </h2>
+      </motion.div>
+
+      {/* Transactions Grid */}
+      {transactions && transactions.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {transactions.map((transaction, index) => (
+              <motion.div
+                key={transaction.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -5 }}
+                className="bg-white overflow-hidden shadow-sm hover:shadow-lg rounded-xl transition-all duration-200"
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      {getStatusIcon(transaction.status)}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
+                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                      </span>
+                    </div>
+                    <FaMoneyBillWave className="h-6 w-6 text-indigo-600" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FaCalendarAlt className="mr-2" />
+                      {new Date(transaction.created_at).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FaUser className="mr-2" />
+                      {transaction.is_anonymous ? 'Anonymous' : transaction.donor_name}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FaBuilding className="mr-2" />
+                      {transaction.charity_name}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500">Amount</span>
+                      <span className="text-lg font-semibold text-gray-900">
+                        ${parseFloat(transaction.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          <div className="mt-8">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+          <FaHistory className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Transactions Found</h3>
+          <p className="text-gray-600">Try adjusting your search or filters to find what you're looking for.</p>
         </div>
       )}
     </motion.div>

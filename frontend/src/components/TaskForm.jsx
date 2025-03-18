@@ -19,6 +19,7 @@ import {
   FaFileWord,
   FaEye
 } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 const getFileIcon = (fileType) => {
   if (fileType?.includes('pdf')) return <FaFilePdf className="text-red-500 text-xl" />;
@@ -259,6 +260,30 @@ export default function TaskForm() {
   const handleProofFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file type
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/png',
+        'image/jpg',
+        'image/gif'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Invalid file type. Please upload PDF, DOC, DOCX, JPEG, PNG, JPG, or GIF files only.');
+        e.target.value = ''; // Reset the file input
+        return;
+      }
+      
+      // Validate file size (2MB = 2 * 1024 * 1024 bytes)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('File size too large. Maximum size is 2MB.');
+        e.target.value = ''; // Reset the file input
+        return;
+      }
+
       setProofFile(file);
       // Create preview URL for the document
       const previewUrl = URL.createObjectURL(file);
@@ -318,14 +343,6 @@ export default function TaskForm() {
         console.log('Adding _method: PUT');
       }
 
-      // Log the complete form data
-      console.log('Form data to be sent:', {
-        name: formDataToSend.get('name'),
-        description: formDataToSend.get('description'),
-        fund_targeted: formDataToSend.get('fund_targeted'),
-        status: formDataToSend.get('status')
-      });
-
       // Append new pictures
       newPictures.forEach(file => {
         formDataToSend.append('pictures[]', file);
@@ -339,6 +356,7 @@ export default function TaskForm() {
       // Add proof file to form data if exists
       if (proofFile) {
         formDataToSend.append('proof', proofFile);
+        console.log('Adding proof file:', proofFile.name, 'Type:', proofFile.type, 'Size:', proofFile.size);
       }
 
       // Add proof deletion flag if removing existing proof
@@ -356,11 +374,11 @@ export default function TaskForm() {
       // Directly log the form data entries
       console.log('Debug - Form data entries:');
       for (let pair of formDataToSend.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name} (${pair[1].type}, ${pair[1].size} bytes)` : pair[1]));
       }
       
       const response = await axios({
-        method: taskId ? 'post' : 'post', // Changed to POST for both since we're using _method
+        method: taskId ? 'post' : 'post',
         url: endpoint,
         data: formDataToSend,
         headers: {
@@ -382,11 +400,22 @@ export default function TaskForm() {
           headers: err.response.headers
         });
         
+        // Log the actual validation errors
         if (err.response.data?.errors) {
-          setFormErrors(err.response.data.errors);
+          console.error('Validation errors:', err.response.data.errors);
+          // Display validation errors to the user
+          Object.entries(err.response.data.errors).forEach(([field, messages]) => {
+            if (field === 'proof') {
+              toast.error(`Proof file error: ${messages[0]}`);
+            } else {
+              setFormErrors(prev => ({ ...prev, [field]: messages[0] }));
+            }
+          });
         } else if (err.response.data?.message) {
+          console.error('Error message:', err.response.data.message);
           setError(err.response.data.message);
         } else {
+          console.error('Unknown error:', err.response.data);
           setError('Failed to save task. Server returned an error.');
         }
       } else if (err.request) {

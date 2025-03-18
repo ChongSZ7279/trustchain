@@ -59,6 +59,7 @@ export default function CharityDetails() {
   const navigate = useNavigate();
   const { currentUser, accountType } = useAuth();
   const [charity, setCharity] = useState(null);
+  const [organization, setOrganization] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [donations, setDonations] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -124,6 +125,17 @@ export default function CharityDetails() {
       try {
         const charityResponse = await axios.get(`/charities/${id}`);
         setCharity(charityResponse.data);
+        
+        // Fetch organization details if charity has an organization_id
+        if (charityResponse.data.organization_id) {
+          try {
+            const orgResponse = await axios.get(`/organizations/${charityResponse.data.organization_id}`);
+            setOrganization(orgResponse.data);
+          } catch (err) {
+            console.error('Error fetching organization:', err);
+            setOrganization(null);
+          }
+        }
         
         // Set follower status only if user is logged in
         if (currentUser) {
@@ -401,34 +413,6 @@ export default function CharityDetails() {
 
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">{charity?.name.toUpperCase()}</h1>
 
-                {/* Document Preview */}
-                {charity?.verified_document && (
-                  <div className="mt-2 p-3 bg-white rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        {getFileIcon(getFileType(charity.verified_document))}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 truncate">
-                            {charity.verified_document.split('/').pop()}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {getFileType(charity.verified_document)}
-                          </p>
-                        </div>
-                      </div>
-                      <a 
-                        href={formatImageUrl(charity.verified_document)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
-                      >
-                        <FaEye className="mr-1" />
-                        View
-                      </a>
-                    </div>
-                  </div>
-                )}
-
                 {/* Fund Progress */}
                 <div className="mt-4">
                   <div className="flex justify-between text-sm mb-1">
@@ -509,43 +493,43 @@ export default function CharityDetails() {
       {/* Tabs Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('milestones')}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === 'milestones'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Milestones
-            </button>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === 'transactions'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Transactions
-            </button>
-            <button
-              onClick={() => setActiveTab('about')}
-              className={`py-4 px-6 font-medium text-sm ${
-                activeTab === 'about'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              About
-            </button>
+          <button
+            onClick={() => setActiveTab('about')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'about'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            About
+          </button>
+          <button
+            onClick={() => setActiveTab('milestones')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'milestones'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Milestones
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'transactions'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Transactions
+          </button>
         </div>
       </div>
 
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <AnimatePresence mode="wait">
-        {activeTab === 'about' && (
+          {activeTab === 'about' && (
             <motion.div
               key="about"
               initial={{ opacity: 0, y: 20 }}
@@ -590,22 +574,61 @@ export default function CharityDetails() {
                   </div>
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 mb-3">Organization</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block">Organization Name</span>
-                        <Link to={`/organizations/${charity.organization_id}`} className="text-indigo-600 hover:text-indigo-800">
-                          {charity.organization_name || 'Unknown Organization'}
-                        </Link>
+                    {organization ? (
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm font-medium text-gray-500 block">Organization Name</span>
+                          <Link to={`/organizations/${organization.id}`} className="text-indigo-600 hover:text-indigo-800">
+                            {organization.name || 'Unknown Organization'}
+                          </Link>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500 block">Contact Email</span>
+                          <span className="text-gray-900">{organization.gmail || 'Not provided'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500 block">Phone Number</span>
+                          <span className="text-gray-900">{organization.phone_number || 'Not provided'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500 block">Address</span>
+                          <span className="text-gray-900">{organization.register_address || 'Not provided'}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block">Representative</span>
-                        <span className="text-gray-900">{charity.representative_name || 'Not specified'}</span>
+                    ) : (
+                      <div className="text-gray-500 italic">Organization details not available</div>
+                    )}
+
+                    {/* Document Preview Section */}
+                    {charity?.verified_document && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-medium text-gray-900 mb-3">Verification Document</h3>
+                        <div className="p-4 bg-white rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              {getFileIcon(getFileType(charity.verified_document))}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900 truncate">
+                                  {charity.verified_document.split('/').pop()}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {getFileType(charity.verified_document)}
+                                </p>
+                              </div>
+                            </div>
+                            <a 
+                              href={formatImageUrl(charity.verified_document)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                            >
+                              <FaEye className="mr-1" />
+                              View
+                            </a>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block">Contact Email</span>
-                        <span className="text-gray-900">{charity.contact_email || 'Not provided'}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -736,6 +759,37 @@ export default function CharityDetails() {
                                 </div>
                               </div>
                             )}
+
+                            {/* Proof Document Preview */}
+                            {task.proof && (
+                              <div className="mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">Proof Document</h4>
+                                <div className="p-3 bg-white rounded-lg border border-gray-200">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                      {getFileIcon(getFileType(task.proof))}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-900 truncate">
+                                          {task.proof.split('/').pop()}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {getFileType(task.proof)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <a 
+                                      href={formatImageUrl(task.proof)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                                    >
+                                      <FaEye className="mr-1" />
+                                      View
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -748,6 +802,24 @@ export default function CharityDetails() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Milestones Found</h3>
                   <p className="text-gray-600">This charity hasn't added any milestones yet.</p>
                 </div>
+              )}
+
+              {/* Add Milestone Button */}
+              {canManageCharity() && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="mt-8 flex justify-center"
+                >
+                  <Link
+                    to={`/charities/${id}/tasks/create`}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+                  >
+                    <FaPlus className="mr-2" />
+                    Add New Milestone
+                  </Link>
+                </motion.div>
               )}
             </motion.div>
           )}
@@ -837,7 +909,6 @@ export default function CharityDetails() {
               </div>
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
 

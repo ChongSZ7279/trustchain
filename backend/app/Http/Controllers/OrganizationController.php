@@ -10,23 +10,60 @@ use Illuminate\Support\Facades\Auth;
 
 class OrganizationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $organizations = Organization::all();
-        
-        // Add follower count to each organization
+        $query = Organization::query();
+
+        // Apply search filter if provided
+        if ($request->has('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply category filter if provided
+        if ($request->has('categories')) {
+            $categories = $request->categories;
+            $query->whereIn('category', $categories);
+        }
+
+        // Apply status filter if provided
+        if ($request->has('statuses')) {
+            $statuses = $request->statuses;
+            $query->where(function($q) use ($statuses) {
+                foreach ($statuses as $status) {
+                    if ($status === 'verified') {
+                        $q->orWhere('is_verified', true);
+                    } else if ($status === 'pending') {
+                        $q->orWhere('is_verified', false);
+                    }
+                }
+            });
+        }
+
+        // Get paginated results
+        $perPage = $request->input('per_page', 12); // Default to 12 items per page
+        $organizations = $query->paginate($perPage);
+
+        // Add follower count and following status to each organization
         $organizations->each(function ($organization) {
-            $organization->follower_count = $organization->followers()->count();
-            
-            // Check if the authenticated user follows this organization
-            $user = Auth::user();
-            if ($user) {
-                $organization->is_following = $organization->followers()->where('user_ic', $user->ic_number)->exists();
-            } else {
+            try {
+                $organization->follower_count = $organization->followers()->count();
+                
+                $user = Auth::user();
+                if ($user) {
+                    $organization->is_following = $organization->followers()->where('user_ic', $user->ic_number)->exists();
+                } else {
+                    $organization->is_following = false;
+                }
+            } catch (\Exception $e) {
+                $organization->follower_count = 0;
                 $organization->is_following = false;
             }
         });
-        
+
         return response()->json($organizations);
     }
 

@@ -1,205 +1,221 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { ethers } from 'ethers';
-import CharityABI from '../contracts/CharityABI.json';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import Web3 from 'web3';
+import CharityContract from '../contracts/CharityContract.json';
 
-const BlockchainContext = createContext(null);
+const BlockchainContext = createContext();
+
+export const useBlockchain = () => useContext(BlockchainContext);
 
 export const BlockchainProvider = ({ children }) => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+  const [web3, setWeb3] = useState(null);
   const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [account, setAccount] = useState('');
+  const [networkId, setNetworkId] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [transactionHistory, setTransactionHistory] = useState([]);
-  const { user, organization } = useAuth();
 
-  // Contract address - should be stored in an environment variable in production
-  const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // Example address
-
+  // Initialize Web3
   useEffect(() => {
-    const initBlockchain = async () => {
+    const initWeb3 = async () => {
       try {
         setLoading(true);
         setError(null);
-
+        
         // Check if MetaMask is installed
         if (window.ethereum) {
-          // Create a new provider
-          const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
-          setProvider(web3Provider);
-
-          // Request account access
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          setAccount(accounts[0]);
-
-          // Create a signer
-          const web3Signer = web3Provider.getSigner();
-          setSigner(web3Signer);
-
-          // Create a contract instance
-          const charityContract = new ethers.Contract(contractAddress, CharityABI, web3Signer);
-          setContract(charityContract);
-
-          // Listen for account changes
-          window.ethereum.on('accountsChanged', (accounts) => {
+          const web3Instance = new Web3(window.ethereum);
+          setWeb3(web3Instance);
+          
+          try {
+            // Request account access
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+            
+            // Get user account
+            const accounts = await web3Instance.eth.getAccounts();
             setAccount(accounts[0]);
-          });
+            
+            // Get network ID
+            const network = await web3Instance.eth.net.getId();
+            setNetworkId(network);
+            
+            // Initialize contract
+            const deployedNetwork = CharityContract.networks[network];
+            if (deployedNetwork) {
+              const contractInstance = new web3Instance.eth.Contract(
+                CharityContract.abi,
+                deployedNetwork.address
+              );
+              setContract(contractInstance);
+            } else {
+              setError(`Contract not deployed on network ${network}`);
+            }
+            
+            // Listen for account changes
+            window.ethereum.on('accountsChanged', (accounts) => {
+              setAccount(accounts[0]);
+            });
+            
+            // Listen for network changes
+            window.ethereum.on('chainChanged', () => {
+              window.location.reload();
+            });
+          } catch (err) {
+            console.error("User denied account access or error occurred:", err);
+            setError("Please connect your wallet to use blockchain features");
+          }
         } else {
-          setError('MetaMask is not installed. Please install it to use this application.');
+          // Fallback to a read-only provider for users without MetaMask
+          const provider = new Web3.providers.HttpProvider(
+            'https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID'
+          );
+          const web3Instance = new Web3(provider);
+          setWeb3(web3Instance);
+          setError("Please install MetaMask to make donations via blockchain");
         }
       } catch (err) {
-        console.error('Error initializing blockchain:', err);
-        setError('Failed to connect to blockchain. Please make sure MetaMask is installed and connected.');
+        console.error("Error initializing blockchain:", err);
+        setError("Failed to initialize blockchain connection");
       } finally {
         setLoading(false);
       }
     };
-
-    initBlockchain();
-
+    
+    initWeb3();
+    
     // Cleanup function
     return () => {
       if (window.ethereum) {
         window.ethereum.removeAllListeners('accountsChanged');
+        window.ethereum.removeAllListeners('chainChanged');
       }
     };
   }, []);
 
-  // Fetch transaction history for the current user or organization
-  useEffect(() => {
-    const fetchTransactionHistory = async () => {
-      if (!contract || (!user && !organization)) return;
-
-      try {
-        setLoading(true);
-        
-        // This is a simplified example - in a real application, you would query events from the blockchain
-        // For example: const events = await contract.queryFilter(contract.filters.DonationReceived());
-        
-        // For now, we'll use a mock implementation
-        const mockTransactions = [];
-        setTransactionHistory(mockTransactions);
-      } catch (err) {
-        console.error('Error fetching transaction history:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTransactionHistory();
-  }, [contract, user, organization]);
-
-  // Donate to a charity
+  // Donate to charity function
   const donateToCharity = async (charityId, amount) => {
-    if (!contract || !signer) {
-      throw new Error('Blockchain not initialized');
+    if (!contract || !web3 || !account) {
+      throw new Error('Blockchain not initialized or wallet not connected');
     }
-
+    
     try {
-      setLoading(true);
-      setError(null);
-
-      // Convert amount to wei (1 ether = 10^18 wei)
-      const amountInWei = ethers.utils.parseEther(amount.toString());
-
-      // Call the donate function on the smart contract
-      const tx = await contract.donate(charityId, { value: amountInWei });
+      const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
+      const tx = await contract.methods.donate(charityId).send({
+        from: account,
+        value: amountInWei
+      });
       
-      // Wait for the transaction to be mined
-      await tx.wait();
-
       return tx;
-    } catch (err) {
-      console.error('Error donating to charity:', err);
-      setError('Transaction failed. Please try again.');
-      throw err;
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error making donation:', error);
+      throw error;
     }
   };
 
-  // Fund a task
-  const fundTask = async (taskId, amount) => {
-    if (!contract || !signer) {
-      throw new Error('Blockchain not initialized');
+  // Verify milestone function
+  const verifyMilestone = async (charityId, milestoneId) => {
+    if (!contract || !web3 || !account) {
+      throw new Error('Blockchain not initialized or wallet not connected');
     }
-
+    
     try {
-      setLoading(true);
-      setError(null);
-
-      // Convert amount to wei
-      const amountInWei = ethers.utils.parseEther(amount.toString());
-
-      // Call the fundTask function on the smart contract
-      const tx = await contract.fundTask(taskId, { value: amountInWei });
+      const tx = await contract.methods.verifyMilestone(charityId, milestoneId).send({
+        from: account
+      });
       
-      // Wait for the transaction to be mined
-      await tx.wait();
-
       return tx;
-    } catch (err) {
-      console.error('Error funding task:', err);
-      setError('Transaction failed. Please try again.');
-      throw err;
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error verifying milestone:', error);
+      throw error;
     }
   };
 
-  // Get charity balance
-  const getCharityBalance = async (charityId) => {
-    if (!contract) {
+  // Get charity donations
+  const getCharityDonations = async (charityId) => {
+    if (!contract || !web3) {
       throw new Error('Blockchain not initialized');
     }
-
+    
     try {
-      const balance = await contract.getCharityBalance(charityId);
-      return ethers.utils.formatEther(balance);
-    } catch (err) {
-      console.error('Error getting charity balance:', err);
-      throw err;
+      const donationEvents = await contract.getPastEvents('DonationMade', {
+        filter: { charityId: charityId },
+        fromBlock: 0,
+        toBlock: 'latest'
+      });
+      
+      return donationEvents.map(event => ({
+        donor: event.returnValues.donor,
+        amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
+        timestamp: new Date(event.returnValues.timestamp * 1000).toLocaleString(),
+        transactionHash: event.transactionHash
+      }));
+    } catch (error) {
+      console.error('Error fetching donations:', error);
+      throw error;
     }
   };
 
-  // Get task balance
-  const getTaskBalance = async (taskId) => {
-    if (!contract) {
+  // Get all transactions
+  const getAllTransactions = async () => {
+    if (!contract || !web3) {
       throw new Error('Blockchain not initialized');
     }
-
+    
     try {
-      const balance = await contract.getTaskBalance(taskId);
-      return ethers.utils.formatEther(balance);
-    } catch (err) {
-      console.error('Error getting task balance:', err);
-      throw err;
+      // Fetch donation events
+      const donationEvents = await contract.getPastEvents('DonationMade', {
+        fromBlock: 0,
+        toBlock: 'latest'
+      });
+      
+      // Fetch milestone events
+      const milestoneEvents = await contract.getPastEvents('MilestoneCompleted', {
+        fromBlock: 0,
+        toBlock: 'latest'
+      });
+      
+      // Format and combine events
+      const donations = donationEvents.map(event => ({
+        type: 'donation',
+        charityId: event.returnValues.charityId,
+        donor: event.returnValues.donor,
+        amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
+        timestamp: new Date(event.returnValues.timestamp * 1000),
+        transactionHash: event.transactionHash
+      }));
+      
+      const milestones = milestoneEvents.map(event => ({
+        type: 'milestone',
+        charityId: event.returnValues.charityId,
+        milestoneId: event.returnValues.milestoneId,
+        amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
+        timestamp: new Date(event.returnValues.timestamp * 1000),
+        transactionHash: event.transactionHash
+      }));
+      
+      // Combine and sort by timestamp (newest first)
+      return [...donations, ...milestones].sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      throw error;
     }
   };
 
   const value = {
-    provider,
-    signer,
+    web3,
     contract,
     account,
+    networkId,
     loading,
     error,
-    transactionHistory,
     donateToCharity,
-    fundTask,
-    getCharityBalance,
-    getTaskBalance
+    verifyMilestone,
+    getCharityDonations,
+    getAllTransactions
   };
 
-  return <BlockchainContext.Provider value={value}>{children}</BlockchainContext.Provider>;
-};
-
-export const useBlockchain = () => {
-  const context = useContext(BlockchainContext);
-  if (!context) {
-    throw new Error('useBlockchain must be used within a BlockchainProvider');
-  }
-  return context;
+  return (
+    <BlockchainContext.Provider value={value}>
+      {children}
+    </BlockchainContext.Provider>
+  );
 }; 

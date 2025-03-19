@@ -880,26 +880,22 @@ export default function UserDashboard() {
               <br />
               <br />
 
-              {followedCharities && followedCharities.length > 0 ? (
-                <>
-                  <AIGenerator 
-                    userHistory={followedCharities.map(charity => `Supports ${charity.category}`)} 
-                    followedCharityNames={followedCharities.map(charity => charity.name.toLowerCase())} 
-                    onRecommendation={setRecommendedCharity} 
-                  />
+              <AIGenerator 
+                userHistory={followedCharities && followedCharities.length > 0 
+                  ? followedCharities.map(charity => `Supports ${charity.category}`) 
+                  : ["Looking for a charity recommendation"]} // ✅ Default prompt if no followed charities
+                followedCharityNames={followedCharities ? followedCharities.map(charity => charity.name.toLowerCase()) : []} 
+                onRecommendation={setRecommendedCharity} 
+              />
 
-                  <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Recommended Charity</h3>
+              <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Recommended Charity</h3>
 
-                  {recommendedCharity ? (
-                    <div className="grid grid-cols-1 gap-6">
-                      <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">No recommendations available.</p>
-                  )}
-                </>
+              {recommendedCharity ? (
+                <div className="grid grid-cols-1 gap-6">
+                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
+                </div>
               ) : (
-                <p className="text-gray-600">No followed charities. Follow some to get recommendations!</p>
+                <p className="text-gray-600">No recommendations available.</p>
               )}
             </div>
             {/* <div>

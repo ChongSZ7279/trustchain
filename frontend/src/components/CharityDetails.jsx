@@ -109,6 +109,9 @@ export default function CharityDetails() {
   const [blockchainDonations, setBlockchainDonations] = useState([]);
   const [donationLoading, setDonationLoading] = useState(false);
 
+  // Add a new state for combined transactions
+  const [combinedTransactions, setCombinedTransactions] = useState([]);
+
   // Initialize Web3 and smart contract
   useEffect(() => {
     const initWeb3 = async () => {
@@ -424,6 +427,29 @@ export default function CharityDetails() {
     
     fetchBlockchainDonations();
   }, [charity, getCharityDonations]);
+
+  // Add a new useEffect to combine regular and blockchain transactions
+  useEffect(() => {
+    if (blockchainDonations.length > 0 || transactions.length > 0) {
+      // Format blockchain donations to match transaction structure
+      const formattedBlockchainDonations = blockchainDonations.map(donation => ({
+        id: donation.transactionHash,
+        transaction_hash: donation.transactionHash,
+        type: 'blockchain_donation',
+        amount: donation.amount,
+        status: 'completed',
+        created_at: new Date(donation.timestamp).toISOString(),
+        donor: donation.donor,
+        is_blockchain: true
+      }));
+      
+      // Combine and sort by date (newest first)
+      const combined = [...transactions, ...formattedBlockchainDonations]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      setCombinedTransactions(combined);
+    }
+  }, [transactions, blockchainDonations]);
 
   if (loading) {
     return (
@@ -1034,7 +1060,15 @@ export default function CharityDetails() {
               className="bg-white rounded-xl shadow-sm overflow-hidden mt-4"
             >
               <div className="p-6">
-                {transactions.length > 0 ? (
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">All Transactions</h3>
+                  <BlockchainVerificationBadge 
+                    verified={charity?.blockchain_id ? true : false} 
+                    blockchainId={charity?.blockchain_id}
+                  />
+                </div>
+                
+                {combinedTransactions.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -1054,33 +1088,51 @@ export default function CharityDetails() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Details
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {transactions.map(transaction => (
+                        {combinedTransactions.map(transaction => (
                           <tr key={transaction.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatDate(transaction.created_at)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                              {transaction.transaction_hash?.slice(0, 8) || transaction.id}
+                              {transaction.transaction_hash?.slice(0, 8) || transaction.id.slice(0, 8)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                transaction.type === 'donation' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-blue-100 text-blue-800'
+                                transaction.is_blockchain 
+                                  ? 'bg-indigo-100 text-indigo-800'
+                                  : transaction.type === 'donation' 
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-blue-100 text-blue-800'
                               }`}>
-                                {transaction.type === 'donation' ? (
-                                  <FaHandHoldingHeart className="mr-1" />
+                                {transaction.is_blockchain ? (
+                                  <>
+                                    <FaWallet className="mr-1" />
+                                    Blockchain Donation
+                                  </>
+                                ) : transaction.type === 'donation' ? (
+                                  <>
+                                    <FaHandHoldingHeart className="mr-1" />
+                                    Donation
+                                  </>
                                 ) : (
-                                  <FaExchangeAlt className="mr-1" />
+                                  <>
+                                    <FaExchangeAlt className="mr-1" />
+                                    {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                                  </>
                                 )}
-                                {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              ${formatCurrency(transaction.amount)}
+                              {transaction.is_blockchain 
+                                ? `${transaction.amount} ETH`
+                                : `$${formatCurrency(transaction.amount)}`
+                              }
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -1094,6 +1146,25 @@ export default function CharityDetails() {
                                 {transaction.status === 'pending' && <FaClock className="mr-1" />}
                                 {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {transaction.is_blockchain ? (
+                                <a 
+                                  href={`https://etherscan.io/tx/${transaction.transaction_hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  View on Etherscan
+                                </a>
+                              ) : (
+                                <button
+                                  onClick={() => navigate(`/transactions/${transaction.id}`)}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  View Details
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}

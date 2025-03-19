@@ -290,8 +290,6 @@ export default function UserDashboard() {
           </p>
         </div>
       </motion.div>
-
-
       
       <div className="bg-gray-50 shadow-sm rounded-lg overflow-hidden">
       <header className="bg-white shadow-sm">

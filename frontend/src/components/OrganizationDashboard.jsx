@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import { 
   FaBuilding, 
@@ -89,11 +90,28 @@ export default function OrganizationDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Organization Header */}
-          <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
+    <div className="min-h-screen">
+      {/* Header */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+      >
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <FaBuilding className="mr-3 text-indigo-600" />
+            Dashboard
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Welcome back!
+          </p>
+        </div>
+      </motion.div>
+
+      <div className="bg-gray-50 shadow-sm rounded-lg overflow-hidden">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               {currentUser.logo && (
                 <img
@@ -119,7 +137,10 @@ export default function OrganizationDashboard() {
               </div>
             </div>
           </div>
+      </div>
+      </header>
           
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Stats Overview */}
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -208,17 +229,6 @@ export default function OrganizationDashboard() {
               >
                 <FaPhone className="mr-2 h-4 w-4" />
                 Contact
-              </button>
-              <button
-                onClick={() => setActiveTab('representative')}
-                className={`${
-                  activeTab === 'representative'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
-              >
-                <FaUsers className="mr-2 h-4 w-4" />
-                Representative
               </button>
               <button
                 onClick={() => setActiveTab('transaction')}
@@ -391,66 +401,6 @@ export default function OrganizationDashboard() {
             </div>
           )}
 
-          {/* Representative Tab */}
-          {activeTab === 'representative' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <FaUsers className="mr-2" />
-                Representative Information
-              </h2>
-
-              <div className="grid grid-cols-1 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Representative Details</h3>
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Name</label>
-                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">IC Number</label>
-                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_ic}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_phone}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_email}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">IC Pictures</h3>
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Front</label>
-                      {currentUser.representative_front_ic && (
-                        <img
-                          src={formatImageUrl(currentUser.representative_front_ic)}
-                          alt="Front IC"
-                          className="mt-2 h-48 w-full object-cover rounded-lg"
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Back</label>
-                      {currentUser.representative_back_ic && (
-                        <img
-                          src={formatImageUrl(currentUser.representative_back_ic)}
-                          alt="Back IC"
-                          className="mt-2 h-48 w-full object-cover rounded-lg"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Transaction Tab */}
           {activeTab === 'transaction' && (
             <div className="bg-white shadow rounded-lg p-6">
@@ -565,8 +515,8 @@ export default function OrganizationDashboard() {
               )}
             </div>
           )}
+          </main>
         </div>
-      </div>
-    </div>
+        </div>
   );
 } 

@@ -10,6 +10,7 @@ import {
   getAchievements, 
   calculateTotalDonationAmount 
 } from '../utils/rewardSystem';
+import { motion } from 'framer-motion';
 import { 
   FaUser, 
   FaTrophy, 
@@ -30,7 +31,8 @@ import {
   FaEnvelope,
   FaThumbsUp,
   FaMoneyBillWave,
-  FaLock
+  FaLock,
+  FaCheck
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
@@ -54,17 +56,22 @@ export default function UserDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(null);
   
-  // Define available frames based on achievements
+  // Define available frames based on REWARD_TIERS from rewardSystem.js
   const availableFrames = [
-    { id: 'bronze', color: '#CD7F32', name: 'Bronze Frame', requirement: 'Donate to 3 charities' },
-    { id: 'silver', color: '#C0C0C0', name: 'Silver Frame', requirement: 'Donate $100 total' },
-    { id: 'gold', color: '#FFD700', name: 'Gold Frame', requirement: 'Donate to 10 charities' },
-    { id: 'platinum', color: '#E5E4E2', name: 'Platinum Frame', requirement: 'Donate $500 total' },
-    { id: 'diamond', color: '#B9F2FF', name: 'Diamond Frame', requirement: 'Complete all achievements' },
+    { id: 'default', color: '#E5E7EB', name: 'Default Frame', requirement: null },
+    { id: 'bronze', color: '#CD7F32', name: 'Bronze Frame', requirement: 'Donate to 3 charities', tierName: 'Bronze' },
+    { id: 'silver', color: '#C0C0C0', name: 'Silver Frame', requirement: 'Donate $100 total', tierName: 'Silver' },
+    { id: 'gold', color: '#FFD700', name: 'Gold Frame', requirement: 'Donate to 10 charities', tierName: 'Gold' },
+    { id: 'platinum', color: '#E5E4E2', name: 'Platinum Frame', requirement: 'Donate $500 total', tierName: 'Platinum' },
+    { id: 'diamond', color: '#B9F2FF', name: 'Diamond Frame', requirement: 'Donate $1000 total', tierName: 'Diamond' },
   ];
 
   // Function to check if a frame is unlocked
   const isFrameUnlocked = (frameId) => {
+    const frame = availableFrames.find(f => f.id === frameId);
+    if (!frame.requirement) return true; // Default is always unlocked
+    
+    // Check achievement-based requirements
     switch (frameId) {
       case 'bronze':
         return achievements.some(a => a.id === 'donate_3_charities');
@@ -75,7 +82,7 @@ export default function UserDashboard() {
       case 'platinum':
         return totalDonationAmount >= 500;
       case 'diamond':
-        return achievements.length >= 10; // Assuming there are 10 total achievements
+        return totalDonationAmount >= 1000;
       default:
         return false;
     }
@@ -264,8 +271,27 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Header */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+      >
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <FaUser className="mr-3 text-indigo-600" />
+            Dashboard
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Welcome back!
+          </p>
+        </div>
+      </motion.div>
+
+
+      
+      <div className="bg-gray-50 shadow-sm rounded-lg overflow-hidden">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -288,7 +314,7 @@ export default function UserDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/profile/edit')}
+                onClick={() => navigate('/user/edit')}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
               >
                 <FaEdit className="mr-2" /> Edit Profile
@@ -310,12 +336,12 @@ export default function UserDashboard() {
                       >
                         Settings
                       </Link>
-                      <button
-                        onClick={handleLogout}
+              <button
+                onClick={handleLogout}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
+              >
                         <FaSignOutAlt className="inline mr-2" /> Sign Out
-                      </button>
+              </button>
                     </div>
                   </div>
                 )}
@@ -401,8 +427,8 @@ export default function UserDashboard() {
               <div>
                 <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-600 bg-indigo-200">
                   {nextTierProgress?.percentage || 0}%
-                </span>
-              </div>
+              </span>
+            </div>
               <div className="text-right">
                 <span className="text-xs font-semibold inline-block text-indigo-600">
                   ${totalDonationAmount || 0} / ${nextTierProgress?.nextTier ? (rewardTier?.threshold + nextTierProgress?.remaining) : rewardTier?.threshold}
@@ -411,23 +437,23 @@ export default function UserDashboard() {
             </div>
             <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-indigo-200">
               <div style={{ width: `${nextTierProgress?.percentage || 0}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"></div>
-            </div>
+          </div>
           </div>
         </div>
 
         {/* Navigation Tabs */}
         <nav className="flex space-x-4 border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('profile')}
+            <button
+              onClick={() => setActiveTab('profile')}
             className={`px-3 py-2 font-medium text-sm rounded-md ${
-              activeTab === 'profile'
+                activeTab === 'profile'
                 ? 'bg-indigo-100 text-indigo-700'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             <FaUser className="inline mr-2" /> Profile
-          </button>
-          <button
+            </button>
+            <button
             onClick={() => setActiveTab('followed')}
             className={`px-3 py-2 font-medium text-sm rounded-md ${
               activeTab === 'followed'
@@ -436,18 +462,18 @@ export default function UserDashboard() {
             }`}
           >
             <FaThumbsUp className="inline mr-2" /> Following
-          </button>
-          <button
-            onClick={() => setActiveTab('transactions')}
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
             className={`px-3 py-2 font-medium text-sm rounded-md ${
-              activeTab === 'transactions'
+                activeTab === 'transactions'
                 ? 'bg-indigo-100 text-indigo-700'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             <FaHistory className="inline mr-2" /> Transactions
-          </button>
-          <button
+            </button>
+            <button
             onClick={() => setActiveTab('achievements')}
             className={`px-3 py-2 font-medium text-sm rounded-md ${
               activeTab === 'achievements'
@@ -456,8 +482,8 @@ export default function UserDashboard() {
             }`}
           >
             <FaTrophy className="inline mr-2" /> Achievements
-          </button>
-        </nav>
+            </button>
+          </nav>
 
         {/* Tab Content */}
         {activeTab === 'profile' && (
@@ -485,15 +511,7 @@ export default function UserDashboard() {
                 </div>
                 
                 <h2 className="text-xl font-bold text-gray-900">{currentUser?.name}</h2>
-                <p className="text-sm text-gray-500 mb-2">{currentUser?.email}</p>
-                
-                <div className="flex items-center space-x-2 mb-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    rewardTier?.color || 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {rewardTier?.name || 'Bronze Donor'}
-                  </span>
-                </div>
+                <p className="text-sm text-gray-500 mb-2">{currentUser?.gmail}</p>
                 
                 <div className="w-full bg-gray-100 rounded-lg p-4">
                   <div className="flex justify-between items-center mb-2">
@@ -512,32 +530,32 @@ export default function UserDashboard() {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
+            <div>
                     <label className="block text-sm font-medium text-gray-500">Full Name</label>
                     <p className="mt-1 text-gray-900">{currentUser?.name}</p>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">IC Number</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">IC Number</label>
                     <p className="mt-1 text-gray-900">{currentUser?.ic_number}</p>
-                  </div>
+                </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Email</label>
-                    <p className="mt-1 text-gray-900">{currentUser?.email}</p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Email</label>
+                    <p className="mt-1 text-gray-900">{currentUser?.gmail}</p>
+                </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Phone</label>
-                    <p className="mt-1 text-gray-900">{currentUser?.phone || 'Not provided'}</p>
-                  </div>
-                  
-                  <div>
+                    <p className="mt-1 text-gray-900">{currentUser?.phone_number || 'Not provided'}</p>
+            </div>
+
+                <div>
                     <label className="block text-sm font-medium text-gray-500">Address</label>
-                    <p className="mt-1 text-gray-900">{currentUser?.address || 'Not provided'}</p>
-                  </div>
+                    <p className="mt-1 text-gray-900">{currentUser?.wallet_address || 'Not provided'}</p>
+                </div>
                   
-                  <div>
+                <div>
                     <label className="block text-sm font-medium text-gray-500">Member Since</label>
                     <p className="mt-1 text-gray-900">{new Date(currentUser?.created_at).toLocaleDateString()}</p>
                   </div>
@@ -545,7 +563,7 @@ export default function UserDashboard() {
                 
                 <div className="mt-6">
                   <button
-                    onClick={() => navigate('/profile/edit')}
+                    onClick={() => navigate('/user/edit')}
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                   >
                     <FaEdit className="mr-2" /> Edit Profile
@@ -553,6 +571,7 @@ export default function UserDashboard() {
                 </div>
               </div>
             </div>
+
           </div>
         )}
 
@@ -588,11 +607,11 @@ export default function UserDashboard() {
                       ) : (
                         <div className="h-full w-full bg-gray-200 flex items-center justify-center">
                           <FaUser className="h-16 w-16 text-gray-400" />
-                        </div>
+                    </div>
                       )}
                     </div>
                   </div>
-                </div>
+                      </div>
                 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Available Frames</h4>
@@ -604,7 +623,7 @@ export default function UserDashboard() {
                         className={`relative h-16 w-16 rounded-full overflow-hidden border-4 ${
                           selectedFrame === frame.id ? 'ring-2 ring-indigo-500' : ''
                         }`}
-                        style={{ 
+                          style={{ 
                           borderColor: frame.color,
                           opacity: isFrameUnlocked(frame.id) ? 1 : 0.5,
                           cursor: isFrameUnlocked(frame.id) ? 'pointer' : 'not-allowed'
@@ -620,19 +639,19 @@ export default function UserDashboard() {
                         ) : (
                           <div className="h-full w-full bg-gray-200 flex items-center justify-center">
                             <FaUser className="h-8 w-8 text-gray-400" />
-                          </div>
-                        )}
+                    </div>
+                  )}
                         {!isFrameUnlocked(frame.id) && (
                           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                             <FaLock className="text-white" />
-                          </div>
-                        )}
+                </div>
+              )}
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
-              
+            </div>
+            
               {/* Achievement List */}
               <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Achievement List</h3>
               
@@ -661,18 +680,18 @@ export default function UserDashboard() {
                         achievement.completed ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'
                       }`}>
                         <achievement.icon className="h-5 w-5" />
-                      </div>
+                        </div>
                       <div className="ml-3">
                         <h4 className="text-sm font-medium text-gray-900">{achievement.name}</h4>
-                        <p className="text-xs text-gray-500">{achievement.description}</p>
-                      </div>
+                          <p className="text-xs text-gray-500">{achievement.description}</p>
+                        </div>
                       {achievement.completed && (
                         <FaCheckCircle className="ml-auto text-green-500" />
                       )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
             </div>
             
             {/* Reward Tier Section */}
@@ -808,8 +827,8 @@ export default function UserDashboard() {
             {/* Organizations Section */}
             <div className="mb-8">
               <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Organizations</h3>
-              
-              {followedOrganizations.length === 0 ? (
+            
+            {followedOrganizations.length === 0 ? (
                 <div className="text-center py-6 bg-gray-50 rounded-lg">
                   <FaUsers className="mx-auto h-10 w-10 text-gray-400 mb-3" />
                   <h3 className="text-md font-medium text-gray-900 mb-2">No followed organizations</h3>
@@ -821,21 +840,21 @@ export default function UserDashboard() {
                     <FaUsers className="mr-2" />
                     Browse Organizations
                   </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {followedOrganizations.map(org => (
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {followedOrganizations.map(org => (
                     <OrganizationCard key={org.id} organization={{...org, is_following: true}} inDashboard={true} />
-                  ))}
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
+          </div>
             
             {/* Charities Section */}
             <div>
               <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Charities</h3>
-              
-              {followedCharities.length === 0 ? (
+            
+            {followedCharities.length === 0 ? (
                 <div className="text-center py-6 bg-gray-50 rounded-lg">
                   <FaHeart className="mx-auto h-10 w-10 text-gray-400 mb-3" />
                   <h3 className="text-md font-medium text-gray-900 mb-2">No followed charities</h3>
@@ -847,14 +866,14 @@ export default function UserDashboard() {
                     <FaHandHoldingUsd className="mr-2" />
                     Browse Charities
                   </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {followedCharities.map(charity => (
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {followedCharities.map(charity => (
                     <CharityCard key={charity.id} charity={{...charity, is_following: true}} inDashboard={true} />
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
+            )}
             </div>
           </div>
         )}
@@ -943,6 +962,7 @@ export default function UserDashboard() {
           </div>
         )}
       </main>
+    </div>
     </div>
   );
 } 

@@ -160,6 +160,25 @@ export default function UserDashboard() {
     fetchBlockchainDonations();
   }, [account, getDonorTotalAmount]);
 
+  // Add this useEffect to debug image paths
+  useEffect(() => {
+    if (currentUser) {
+      console.log('User profile picture path:', currentUser.profile_picture);
+      console.log('Formatted profile picture URL:', formatImageUrl(currentUser.profile_picture));
+    }
+    
+    // Log followed organizations and charities image paths
+    followedOrganizations.forEach(org => {
+      console.log(`Organization ${org.id} logo path:`, org.logo);
+      console.log(`Organization ${org.id} formatted logo URL:`, formatImageUrl(org.logo));
+    });
+    
+    followedCharities.forEach(charity => {
+      console.log(`Charity ${charity.id} picture path:`, charity.picture_path);
+      console.log(`Charity ${charity.id} formatted picture URL:`, formatImageUrl(charity.picture_path));
+    });
+  }, [currentUser, followedOrganizations, followedCharities]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -174,6 +193,29 @@ export default function UserDashboard() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
+  // Update the formatImageUrl function to handle all types of image paths
+  const formatImageUrl = (path) => {
+    if (!path) return null;
+    
+    // If it's already a full URL
+    if (path.startsWith('http')) return path;
+    
+    // For storage paths like "profile_pictures/filename.jpg"
+    if (path.includes('profile_pictures/') || 
+        path.includes('ic_pictures/') || 
+        path.includes('organization_covers/') || 
+        path.includes('organization_logos/') || 
+        path.includes('charity_pictures/')) {
+      return `/storage/${path}`;
+    }
+    
+    // If path starts with a slash, it's already a relative path
+    if (path.startsWith('/')) return path;
+    
+    // Otherwise, add a slash to make it a relative path from the root
+    return `/${path}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -186,6 +228,10 @@ export default function UserDashboard() {
                   src={formatImageUrl(currentUser.profile_picture)}
                   alt={currentUser.name}
                   className="h-12 w-12 rounded-full object-cover"
+                  onError={(e) => {
+                    console.error('Failed to load profile image:', currentUser.profile_picture);
+                    e.target.src = 'https://via.placeholder.com/48?text=Profile';
+                  }}
                 />
               )}
               <div>

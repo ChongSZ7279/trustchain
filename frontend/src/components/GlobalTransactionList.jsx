@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Web3 from 'web3';
 import CharityContract from '../contracts/CharityContract.json';
+import { toast } from 'react-hot-toast';
 
 const GlobalTransactionList = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [web3, setWeb3] = useState(null);
   const [contract, setContract] = useState(null);
+  const [rewards, setRewards] = useState([]);
+  const [rewardPoints, setRewardPoints] = useState(0);
   
   // Initialize Web3
   useEffect(() => {
@@ -108,12 +111,113 @@ const GlobalTransactionList = () => {
     fetchTransactions();
   }, [contract, web3]);
   
+  useEffect(() => {
+    // Fetch user's reward points
+    const fetchRewardPoints = async () => {
+      try {
+        const response = await axios.get('/api/users/rewards', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        setRewardPoints(response.data.points);
+        setRewards(response.data.rewardHistory || []);
+      } catch (error) {
+        console.error('Error fetching reward points:', error);
+      }
+    };
+    
+    fetchRewardPoints();
+  }, []);
+  
+  // Add a function to redeem rewards
+  const redeemReward = async (rewardId, pointsCost) => {
+    if (rewardPoints < pointsCost) {
+      toast.error("You don't have enough points to redeem this reward");
+      return;
+    }
+    
+    try {
+      const response = await axios.post('/api/users/rewards/redeem', 
+        { rewardId },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }}
+      );
+      
+      setRewardPoints(response.data.updatedPoints);
+      toast.success("Reward redeemed successfully!");
+      
+      // Refresh rewards history
+      const historyResponse = await axios.get('/api/users/rewards', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setRewards(historyResponse.data.rewardHistory || []);
+      
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to redeem reward");
+    }
+  };
+  
+  // Add a rewards section to the component
+  const renderRewardsSection = () => {
+    return (
+      <div className="rewards-section mt-6 p-4 bg-white rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-4">Your Rewards</h2>
+        <div className="mb-4 p-3 bg-blue-50 rounded-md">
+          <p className="font-medium">Current Points: <span className="text-blue-600">{rewardPoints}</span></p>
+        </div>
+        
+        <h3 className="text-lg font-medium mb-2">Available Rewards</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {[
+            { id: 1, name: "5% Discount on Next Donation", points: 100 },
+            { id: 2, name: "Exclusive Charity Event Access", points: 250 },
+            { id: 3, name: "Charity Partner Certificate", points: 500 },
+            { id: 4, name: "Featured Donor Status", points: 1000 }
+          ].map(reward => (
+            <div key={reward.id} className="border rounded-md p-3 flex justify-between items-center">
+              <div>
+                <p className="font-medium">{reward.name}</p>
+                <p className="text-sm text-gray-600">{reward.points} points</p>
+              </div>
+              <button
+                onClick={() => redeemReward(reward.id, reward.points)}
+                disabled={rewardPoints < reward.points}
+                className={`px-3 py-1 rounded-md ${
+                  rewardPoints >= reward.points 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Redeem
+              </button>
+            </div>
+          ))}
+        </div>
+        
+        <h3 className="text-lg font-medium mb-2">Reward History</h3>
+        {rewards.length > 0 ? (
+          <div className="border rounded-md divide-y">
+            {rewards.map((reward, index) => (
+              <div key={index} className="p-3">
+                <p className="font-medium">{reward.name}</p>
+                <div className="flex justify-between text-sm">
+                  <p className="text-gray-600">{reward.points} points</p>
+                  <p className="text-gray-600">{new Date(reward.redeemedAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 italic">No rewards redeemed yet</p>
+        )}
+      </div>
+    );
+  };
+  
   if (loading) {
     return <div className="container mt-5"><p>Loading transactions...</p></div>;
   }
   
   return (
-    <div className="container mt-5">
+    <div className="container mx-auto px-4 py-8">
       <h2>Global Transaction List</h2>
       <p className="text-muted">All blockchain transactions across the platform</p>
       
@@ -172,6 +276,9 @@ const GlobalTransactionList = () => {
           </table>
         </div>
       )}
+      
+      {/* Add the rewards section */}
+      {renderRewardsSection()}
     </div>
   );
 };

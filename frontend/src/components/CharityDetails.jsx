@@ -85,6 +85,7 @@ export default function CharityDetails() {
   const [contract, setContract] = useState(null);
   const [account, setAccount] = useState('');
   const [milestones, setMilestones] = useState([]);
+  const [userToken, setUserToken] = useState(localStorage.getItem('token'));
 
   // Add new loading states
   const [imageLoading, setImageLoading] = useState({
@@ -151,19 +152,40 @@ export default function CharityDetails() {
     window.scrollTo(0, 0);
   }, [id]);
 
+  useEffect(() => {
+    // Add code to check if user is following this charity
+    const checkFollowStatus = async () => {
+      if (!userToken) return;
+      
+      try {
+        const response = await axios.get(`/api/charities/${id}/follow-status`, {
+          headers: { Authorization: `Bearer ${userToken}` }
+        });
+        setIsFollowing(response.data.isFollowing);
+        setFollowerCount(response.data.followerCount);
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      }
+    };
+    
+    checkFollowStatus();
+  }, [id, userToken]);
+
   const fetchCharityData = async () => {
     try {
       setLoading(true);
       
-      // First fetch the charity and tasks data
+      // First fetch the charity data
+      let charityData;
       try {
         const charityResponse = await axios.get(`/charities/${id}`);
-        setCharity(charityResponse.data);
+        charityData = charityResponse.data;
+        setCharity(charityData);
         
         // Fetch organization details if charity has an organization_id
-        if (charityResponse.data.organization_id) {
+        if (charityData.organization_id) {
           try {
-            const orgResponse = await axios.get(`/organizations/${charityResponse.data.organization_id}`);
+            const orgResponse = await axios.get(`/organizations/${charityData.organization_id}`);
             setOrganization(orgResponse.data);
           } catch (err) {
             console.error('Error fetching organization:', err);
@@ -173,11 +195,11 @@ export default function CharityDetails() {
         
         // Set follower status only if user is logged in
         if (currentUser) {
-          if (charityResponse.data.is_following !== undefined) {
-            setIsFollowing(charityResponse.data.is_following);
+          if (charityData.is_following !== undefined) {
+            setIsFollowing(charityData.is_following);
           }
-          if (charityResponse.data.follower_count !== undefined) {
-            setFollowerCount(charityResponse.data.follower_count);
+          if (charityData.follower_count !== undefined) {
+            setFollowerCount(charityData.follower_count);
           }
         }
       } catch (err) {
@@ -187,6 +209,7 @@ export default function CharityDetails() {
         return;
       }
       
+      // Then fetch tasks
       try {
         const tasksResponse = await axios.get(`/charities/${id}/tasks`);
         // Transform tasks to include task pictures
@@ -200,10 +223,11 @@ export default function CharityDetails() {
         setTasks([]);
       }
       
-      // Fetch donations and transactions only if user is authorized
-      if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
+      // Fetch donations only if user is authorized
+      if (currentUser && (accountType === 'admin' || currentUser.ic_number === charityData?.representative_id)) {
         try {
           const donationsRes = await axios.get(`/charity/${id}/donations`);
+          console.log("Donations response:", donationsRes.data);
           setDonations(donationsRes.data);
         } catch (err) {
           console.error('Error fetching donations:', err);
@@ -211,9 +235,11 @@ export default function CharityDetails() {
         }
       }
 
-      if (currentUser && (accountType === 'admin' || currentUser.ic_number === charity?.representative_id)) {
+      // Fetch transactions for all logged-in users
+      if (currentUser) {
         try {
           const transactionsRes = await axios.get(`/charities/${id}/transactions`);
+          console.log("Transactions response:", transactionsRes.data);
           setTransactions(transactionsRes.data);
         } catch (err) {
           console.error('Error fetching transactions:', err);
@@ -232,40 +258,36 @@ export default function CharityDetails() {
         }
       }
 
-      // Fetch charity donations and milestones
-      if (contract && charity) {
-        const fetchDonations = async () => {
-          try {
-            const donationEvents = await contract.getPastEvents('DonationMade', {
-              filter: { charityId: charity.blockchain_id },
-              fromBlock: 0,
-              toBlock: 'latest'
-            });
-            
-            const formattedDonations = donationEvents.map(event => ({
-              donor: event.returnValues.donor,
-              amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
-              timestamp: new Date(event.returnValues.timestamp * 1000).toLocaleString(),
-              transactionHash: event.transactionHash
-            }));
-            
-            setDonations(formattedDonations);
-          } catch (error) {
-            console.error('Error fetching donations:', error);
-          }
-        };
-        
-        const fetchMilestones = async () => {
+      // Fetch blockchain data if available
+      if (contract && charityData?.blockchain_id) {
+        try {
+          // Fetch blockchain donations
+          const donationEvents = await contract.getPastEvents('DonationMade', {
+            filter: { charityId: charityData.blockchain_id },
+            fromBlock: 0,
+            toBlock: 'latest'
+          });
+          
+          const formattedDonations = donationEvents.map(event => ({
+            donor: event.returnValues.donor,
+            amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
+            timestamp: new Date(event.returnValues.timestamp * 1000).toLocaleString(),
+            transactionHash: event.transactionHash
+          }));
+          
+          console.log("Blockchain donations:", formattedDonations);
+          setBlockchainDonations(formattedDonations);
+          
+          // Fetch milestones
           try {
             const response = await axios.get(`/api/charities/${id}/milestones`);
             setMilestones(response.data);
           } catch (error) {
             console.error('Error fetching milestones:', error);
           }
-        };
-        
-        fetchDonations();
-        fetchMilestones();
+        } catch (error) {
+          console.error('Error fetching blockchain data:', error);
+        }
       }
     } catch (err) {
       console.error('Error fetching charity details:', err);
@@ -302,23 +324,28 @@ export default function CharityDetails() {
     }
   };
 
-  const toggleFollow = async () => {
-    if (!currentUser) {
-      navigate('/login');
+  const handleFollowToggle = async () => {
+    if (!userToken) {
+      toast.error("Please log in to follow charities");
+      // Redirect to login or show login modal
       return;
     }
-
+    
     try {
-      setFollowLoading(true);
-      const response = await axios.post(`/charities/${id}/follow`);
-      setIsFollowing(response.data.is_following);
-      setFollowerCount(response.data.follower_count);
-      toast.success(isFollowing ? 'Unfollowed successfully' : 'Following this charity');
+      const endpoint = isFollowing ? 'unfollow' : 'follow';
+      const response = await axios.post(`/api/charities/${id}/${endpoint}`, {}, {
+        headers: { Authorization: `Bearer ${userToken}` }
+      });
+      
+      setIsFollowing(!isFollowing);
+      setFollowerCount(response.data.updatedFollowerCount);
+      
+      toast.success(isFollowing ? 
+        "You've unfollowed this charity" : 
+        "You're now following this charity! You'll receive updates about their activities."
+      );
     } catch (error) {
-      console.error('Error toggling follow status:', error);
-      toast.error('Failed to update follow status');
-    } finally {
-      setFollowLoading(false);
+      toast.error(error.response?.data?.message || "Failed to update follow status");
     }
   };
 
@@ -428,17 +455,21 @@ export default function CharityDetails() {
     fetchBlockchainDonations();
   }, [charity, getCharityDonations]);
 
-  // Add a new useEffect to combine regular and blockchain transactions
+  // Update the useEffect for combining transactions
   useEffect(() => {
-    if (blockchainDonations.length > 0 || transactions.length > 0) {
+    // Add console logs to debug
+    console.log("Transactions:", transactions);
+    console.log("Blockchain donations:", blockchainDonations);
+    
+    if (transactions.length > 0 || blockchainDonations.length > 0) {
       // Format blockchain donations to match transaction structure
       const formattedBlockchainDonations = blockchainDonations.map(donation => ({
-        id: donation.transactionHash,
+        id: donation.transactionHash || `blockchain-${Math.random().toString(36).substr(2, 9)}`,
         transaction_hash: donation.transactionHash,
         type: 'blockchain_donation',
         amount: donation.amount,
         status: 'completed',
-        created_at: new Date(donation.timestamp).toISOString(),
+        created_at: donation.timestamp ? new Date(donation.timestamp).toISOString() : new Date().toISOString(),
         donor: donation.donor,
         is_blockchain: true
       }));
@@ -447,7 +478,10 @@ export default function CharityDetails() {
       const combined = [...transactions, ...formattedBlockchainDonations]
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       
+      console.log("Combined transactions:", combined);
       setCombinedTransactions(combined);
+    } else {
+      setCombinedTransactions([]);
     }
   }, [transactions, blockchainDonations]);
 
@@ -573,16 +607,29 @@ export default function CharityDetails() {
                 {currentUser && (
                   <>
                     <button
-                      onClick={toggleFollow}
-                      disabled={followLoading}
-                      className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-200 ${
-                        isFollowing
-                          ? 'bg-gray-100 text-indigo-600 hover:bg-gray-200 border border-indigo-600'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      onClick={handleFollowToggle}
+                      className={`px-4 py-2 rounded-md flex items-center ${
+                        isFollowing 
+                          ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
                       }`}
                     >
-                      <FaThumbsUp className={`inline-block mr-2 ${followLoading ? 'opacity-50' : ''}`} />
-                      {isFollowing ? 'Following' : 'Follow'}
+                      {isFollowing ? (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Following
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6z" />
+                            <path d="M16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                          </svg>
+                          Follow
+                        </>
+                      )}
                     </button>
 
                     {/* Donate button - only visible to logged-in users */}
@@ -1068,114 +1115,128 @@ export default function CharityDetails() {
                   />
                 </div>
                 
-                {combinedTransactions.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Transaction ID
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Type
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Amount
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Details
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {combinedTransactions.map(transaction => (
-                          <tr key={transaction.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(transaction.created_at)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                              {transaction.transaction_hash?.slice(0, 8) || transaction.id.slice(0, 8)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                transaction.is_blockchain 
-                                  ? 'bg-indigo-100 text-indigo-800'
-                                  : transaction.type === 'donation' 
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {transaction.is_blockchain ? (
-                                  <>
-                                    <FaWallet className="mr-1" />
-                                    Blockchain Donation
-                                  </>
-                                ) : transaction.type === 'donation' ? (
-                                  <>
-                                    <FaHandHoldingHeart className="mr-1" />
-                                    Donation
-                                  </>
-                                ) : (
-                                  <>
-                                    <FaExchangeAlt className="mr-1" />
-                                    {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                                  </>
-                                )}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {transaction.is_blockchain 
-                                ? `${transaction.amount} ETH`
-                                : `$${formatCurrency(transaction.amount)}`
-                              }
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                transaction.status === 'completed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : transaction.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {transaction.status === 'completed' && <FaCheckCircle className="mr-1" />}
-                                {transaction.status === 'pending' && <FaClock className="mr-1" />}
-                                {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {transaction.is_blockchain ? (
-                                <a 
-                                  href={`https://etherscan.io/tx/${transaction.transaction_hash}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-indigo-600 hover:text-indigo-900"
-                                >
-                                  View on Etherscan
-                                </a>
-                              ) : (
-                                <button
-                                  onClick={() => navigate(`/transactions/${transaction.id}`)}
-                                  className="text-indigo-600 hover:text-indigo-900"
-                                >
-                                  View Details
-                                </button>
-                              )}
-                            </td>
+                {currentUser ? (
+                  combinedTransactions.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Transaction ID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Type
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Amount
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Details
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {combinedTransactions.map(transaction => (
+                            <tr key={transaction.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatDate(transaction.created_at)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                {transaction.transaction_hash?.slice(0, 8) || transaction.id.slice(0, 8)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  transaction.is_blockchain 
+                                    ? 'bg-indigo-100 text-indigo-800'
+                                    : transaction.type === 'donation' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {transaction.is_blockchain ? (
+                                    <>
+                                      <FaWallet className="mr-1" />
+                                      Blockchain Donation
+                                    </>
+                                  ) : transaction.type === 'donation' ? (
+                                    <>
+                                      <FaHandHoldingHeart className="mr-1" />
+                                      Donation
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FaExchangeAlt className="mr-1" />
+                                      {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                                    </>
+                                  )}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {transaction.is_blockchain 
+                                  ? `${transaction.amount} ETH`
+                                  : `$${formatCurrency(transaction.amount)}`
+                                }
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  transaction.status === 'completed'
+                                    ? 'bg-green-100 text-green-800'
+                                    : transaction.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {transaction.status === 'completed' && <FaCheckCircle className="mr-1" />}
+                                  {transaction.status === 'pending' && <FaClock className="mr-1" />}
+                                  {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {transaction.is_blockchain ? (
+                                  <a 
+                                    href={`https://etherscan.io/tx/${transaction.transaction_hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                  >
+                                    View on Etherscan
+                                  </a>
+                                ) : (
+                                  <button
+                                    onClick={() => navigate(`/transactions/${transaction.id}`)}
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                  >
+                                    View Details
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Transactions Found</h3>
+                      <p className="text-gray-600">This charity hasn't received any donations yet.</p>
+                    </div>
+                  )
                 ) : (
                   <div className="text-center py-8">
                     <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Transactions Found</h3>
-                    <p className="text-gray-600">This charity hasn't received any donations yet.</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Login Required</h3>
+                    <p className="text-gray-600 mb-4">Please log in to view transaction details for this charity.</p>
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Log In
+                    </Link>
                   </div>
                 )}
               </div>
@@ -1232,6 +1293,25 @@ export default function CharityDetails() {
             </Link>
           </div>
         </motion.div>
+      )}
+
+      {/* Add section for charity updates if user is following */}
+      {isFollowing && (
+        <div className="mt-8 bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-2">Latest Updates</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            You're following this charity. You'll receive notifications about their activities and campaigns.
+          </p>
+          <button 
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            onClick={() => {
+              // Navigate to user dashboard with charity updates
+              window.location.href = '/dashboard/following';
+            }}
+          >
+            View all updates in your dashboard →
+          </button>
+        </div>
       )}
     </motion.div>
   );

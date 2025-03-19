@@ -22,10 +22,10 @@ import {
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
-export default function OrganizationCard({ organization }) {
+export default function OrganizationCard({ organization, inDashboard = false }) {
   const navigate = useNavigate();
   const { currentUser, accountType } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(organization.is_following || false);
+  const [isFollowing, setIsFollowing] = useState(inDashboard || organization.is_following || false);
   const [followerCount, setFollowerCount] = useState(organization.follower_count || 0);
   const [showDetails, setShowDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,11 +77,25 @@ export default function OrganizationCard({ organization }) {
     }
 
     try {
-      const response = await axios.post(`/api/organizations/${organization.id}/follow`);
+      setIsLoading(true);
+      console.log(`Making request to: /organizations/${organization.id}/follow`);
+      
+      const response = await axios.post(`/organizations/${organization.id}/follow`);
+      console.log('Follow response:', response.data);
+      
+      // Update the UI based on the response
       setIsFollowing(response.data.is_following);
-      toast.success(response.data.is_following ? 'Successfully followed organization' : 'Successfully unfollowed organization');
+      setFollowerCount(response.data.follower_count || followerCount);
+      
+      toast.success(response.data.is_following ? 
+        'Successfully followed organization' : 
+        'Successfully unfollowed organization'
+      );
     } catch (error) {
+      console.error('Error toggling follow status:', error);
       toast.error(error.response?.data?.message || 'Failed to follow organization');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -229,8 +243,8 @@ export default function OrganizationCard({ organization }) {
             </Link>
           )}
 
-          {/* Only show follow button for non-organization users */}
-          {currentUser && currentUser.account_type !== 'organization' && (
+          {/* Only show follow button for non-organization users and not in dashboard */}
+          {currentUser && currentUser.account_type !== 'organization' && !inDashboard && (
             <button
               onClick={toggleFollow}
               className={`text-sm flex items-center transition-colors duration-200 ${
@@ -249,6 +263,13 @@ export default function OrganizationCard({ organization }) {
                 </>
               )}
             </button>
+          )}
+
+          {/* Show a static "Following" indicator when in dashboard */}
+          {inDashboard && (
+            <div className="text-sm flex items-center text-indigo-600">
+              <FaHeart className="mr-1" /> Following
+            </div>
           )}
         </div>
       </div>

@@ -36,11 +36,11 @@ const getFileIcon = (fileType) => {
   return <FaFileAlt className="text-gray-500 text-xl" />;
 };
 
-export default function CharityCard({ charity }) {
+export default function CharityCard({ charity, inDashboard = false }) {
   const navigate = useNavigate();
   const { organization, currentUser } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(charity.is_following || false);
+  const [isFollowing, setIsFollowing] = useState(inDashboard || charity.is_following || false);
   const [followerCount, setFollowerCount] = useState(charity.follower_count || 0);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -91,11 +91,24 @@ export default function CharityCard({ charity }) {
     }
 
     try {
-      const response = await axios.post(`/api/charities/${charity.id}/follow`);
+      setIsLoading(true);
+      // Fix the API endpoint - remove the /api prefix
+      const response = await axios.post(`/charities/${charity.id}/follow`);
+      console.log('Follow response:', response.data);
+      
+      // Update the UI based on the response
       setIsFollowing(response.data.is_following);
-      toast.success(response.data.is_following ? 'Successfully followed charity' : 'Successfully unfollowed charity');
+      setFollowerCount(response.data.follower_count || followerCount);
+      
+      toast.success(response.data.is_following ? 
+        'Successfully followed charity' : 
+        'Successfully unfollowed charity'
+      );
     } catch (error) {
+      console.error('Error toggling follow status:', error);
       toast.error(error.response?.data?.message || 'Failed to follow charity');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -214,8 +227,8 @@ export default function CharityCard({ charity }) {
             </Link>
           )}
 
-          {/* Only show follow button for non-organization users */}
-          {currentUser && currentUser.account_type !== 'organization' && (
+          {/* Only show follow button for non-organization users and not in dashboard */}
+          {currentUser && currentUser.account_type !== 'organization' && !inDashboard && (
             <button
               onClick={toggleFollow}
               className={`text-sm flex items-center transition-colors duration-200 ${
@@ -234,6 +247,13 @@ export default function CharityCard({ charity }) {
                 </>
               )}
             </button>
+          )}
+          
+          {/* Show a static "Following" indicator when in dashboard */}
+          {inDashboard && (
+            <div className="text-sm flex items-center text-indigo-600">
+              <FaHeart className="mr-1" /> Following
+            </div>
           )}
         </div>
       </div>

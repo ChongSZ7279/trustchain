@@ -30,6 +30,8 @@ import {
   FaEnvelope,
   FaThumbsUp
 } from 'react-icons/fa';
+import CharityCard from './CharityCard';
+import OrganizationCard from './OrganizationCard';
 
 export default function UserDashboard() {
   const { currentUser, logout } = useAuth();
@@ -114,6 +116,7 @@ export default function UserDashboard() {
         // Fetch followed organizations
         try {
           const followedOrgsRes = await axios.get('/user/followed-organizations');
+          console.log('Followed organizations response:', followedOrgsRes.data);
           setFollowedOrganizations(followedOrgsRes.data);
         } catch (err) {
           console.error('Error fetching followed organizations:', err);
@@ -123,6 +126,7 @@ export default function UserDashboard() {
         // Fetch followed charities
         try {
           const followedCharitiesRes = await axios.get('/user/followed-charities');
+          console.log('Followed charities response:', followedCharitiesRes.data);
           setFollowedCharities(followedCharitiesRes.data);
         } catch (err) {
           console.error('Error fetching followed charities:', err);
@@ -546,17 +550,18 @@ export default function UserDashboard() {
           <div className="bg-white shadow-sm rounded-lg p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
               <FaThumbsUp className="mr-2 text-indigo-500" />
-              Organizations You Follow
+              Organizations & Charities You Follow
             </h2>
             
-            {followedOrganizations.length === 0 ? (
-              <div className="text-center py-8">
-                <FaThumbsUp className="mx-auto h-12 w-12 text-gray-300" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No followed organizations</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  You haven't followed any organizations yet.
-                </p>
-                <div className="mt-6">
+            {/* Organizations Section */}
+            <div className="mb-8">
+              <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Organizations</h3>
+              
+              {followedOrganizations.length === 0 ? (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <FaUsers className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                  <h3 className="text-md font-medium text-gray-900 mb-2">No followed organizations</h3>
+                  <p className="text-gray-600 mb-4">You haven't followed any organizations yet.</p>
                   <Link
                     to="/organizations"
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -565,73 +570,24 @@ export default function UserDashboard() {
                     Browse Organizations
                   </Link>
                 </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {followedOrganizations.map(org => (
-                  <div key={org.id} className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <div className="p-4 flex items-center space-x-3">
-                      <img
-                        src={formatImageUrl(org.logo)}
-                        alt={org.name}
-                        className="h-12 w-12 rounded-lg object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/48?text=Logo';
-                        }}
-                      />
-                      <div>
-                        <h3 className="text-md font-medium text-gray-900">{org.name}</h3>
-                        <p className="text-xs text-gray-500">{org.category}</p>
-                      </div>
-                    </div>
-                    
-                    {org.cover_image_path && (
-                      <img
-                        src={formatImageUrl(org.cover_image_path)}
-                        alt={`${org.name} cover`}
-                        className="w-full h-32 object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/400x150?text=Cover';
-                        }}
-                      />
-                    )}
-                    
-                    <div className="p-4">
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-4">
-                        {org.description}
-                      </p>
-                      
-                      <Link
-                        to={`/organizations/${org.id}`}
-                        className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        <FaExternalLinkAlt className="mr-2" />
-                        View Details
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Followed Charities Tab */}
-        {activeTab === 'followed-charities' && (
-          <div className="bg-white shadow-sm rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <FaHeart className="mr-2 text-red-500" />
-              Charities You Follow
-            </h2>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {followedOrganizations.map(org => (
+                    <OrganizationCard key={org.id} organization={{...org, is_following: true}} inDashboard={true} />
+                  ))}
+                </div>
+              )}
+            </div>
             
-            {followedCharities.length === 0 ? (
-              <div className="text-center py-8">
-                <FaHeart className="mx-auto h-12 w-12 text-gray-300" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No followed charities</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  You haven't followed any charities yet.
-                </p>
-                <div className="mt-6">
+            {/* Charities Section */}
+            <div>
+              <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Charities</h3>
+              
+              {followedCharities.length === 0 ? (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <FaHeart className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                  <h3 className="text-md font-medium text-gray-900 mb-2">No followed charities</h3>
+                  <p className="text-gray-600 mb-4">You haven't followed any charities yet.</p>
                   <Link
                     to="/charities"
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -640,52 +596,14 @@ export default function UserDashboard() {
                     Browse Charities
                   </Link>
                 </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {followedCharities.map(charity => (
-                  <div key={charity.id} className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    {charity.picture_path && (
-                      <img
-                        src={formatImageUrl(charity.picture_path)}
-                        alt={charity.name}
-                        className="w-full h-40 object-cover"
-                      />
-                    )}
-                    <div className="p-4">
-                      <h3 className="text-lg font-medium text-gray-900">{charity.name}</h3>
-                      <p className="mt-1 text-sm text-gray-500">{charity.category}</p>
-                      <p className="mt-2 text-sm text-gray-600 line-clamp-3">
-                        {charity.description}
-                      </p>
-                      <div className="mt-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Progress</span>
-                          <span className="font-medium">${charity.fund_received} / ${charity.fund_targeted}</span>
-                        </div>
-                        <div className="mt-1">
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div 
-                              className="bg-indigo-600 h-2.5 rounded-full" 
-                              style={{ width: `${Math.min(100, (charity.fund_received / charity.fund_targeted) * 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <Link
-                          to={`/charities/${charity.id}`}
-                          className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                        >
-                          <FaExternalLinkAlt className="mr-2" />
-                          View Details
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              ) : (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {followedCharities.map(charity => (
+                    <CharityCard key={charity.id} charity={{...charity, is_following: true}} inDashboard={true} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

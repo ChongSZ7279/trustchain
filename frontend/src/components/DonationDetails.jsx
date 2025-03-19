@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function DonationDetails() {
   const { id } = useParams();
@@ -12,20 +14,26 @@ export default function DonationDetails() {
   const [proofFiles, setProofFiles] = useState([]);
   const [verificationNotes, setVerificationNotes] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchDonation = async () => {
+    const fetchDonationDetails = async () => {
       try {
-        const response = await axios.get(`/api/donations/${id}`);
+        setLoading(true);
+        const response = await axios.get(`/donations/${id}`);
         setDonation(response.data);
-      } catch (error) {
-        setError(error.response?.data?.message || 'Failed to fetch donation details');
+      } catch (err) {
+        console.error('Error fetching donation details:', err);
+        setError('Failed to fetch donation details');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDonation();
+    fetchDonationDetails();
   }, [id]);
 
   const handleFileChange = (e) => {
@@ -48,14 +56,19 @@ export default function DonationDetails() {
     });
 
     try {
-      const response = await axios.post(`/api/donations/${donation.id}`, formData, {
+      setSubmitting(true);
+      const response = await axios.post(`/donations/${donation.id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setDonation(response.data.donation);
       setProofFiles([]);
       setVerificationNotes('');
-    } catch (error) {
-      setUploadError(error.response?.data?.message || 'Failed to upload proof');
+      toast.success('Verification submitted successfully');
+    } catch (err) {
+      console.error('Error submitting verification:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit verification');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -63,12 +76,52 @@ export default function DonationDetails() {
     if (!window.confirm('Are you sure you want to release the funds?')) return;
 
     try {
-      const response = await axios.post(`/api/donations/${donation.id}`, {
+      setStatusLoading(true);
+      const response = await axios.post(`/donations/${donation.id}`, {
         action: 'complete'
       });
       setDonation(response.data.donation);
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to complete donation');
+      toast.success('Funds released successfully');
+    } catch (err) {
+      console.error('Error releasing funds:', err);
+      toast.error('Failed to release funds');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    try {
+      setStatusLoading(true);
+      const response = await axios.post(`/donations/${donation.id}`, {
+        status: newStatus
+      });
+      
+      setDonation(response.data);
+      toast.success(`Donation marked as ${newStatus}`);
+    } catch (err) {
+      console.error('Error updating donation status:', err);
+      toast.error('Failed to update donation status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this donation? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setDeleteLoading(true);
+      await axios.delete(`/donations/${donation.id}`);
+      toast.success('Donation deleted successfully');
+      navigate('/donations');
+    } catch (err) {
+      console.error('Error deleting donation:', err);
+      toast.error('Failed to delete donation');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -312,19 +365,10 @@ export default function DonationDetails() {
             </Link>
             {(user?.is_admin || user?.id === donation.user_id) && donation.status === 'pending' && (
               <button
-                onClick={async () => {
-                  if (window.confirm('Are you sure you want to cancel this donation?')) {
-                    try {
-                      await axios.delete(`/api/donations/${donation.id}`);
-                      window.location.href = `/charities/${donation.cause_id}`;
-                    } catch (error) {
-                      alert(error.response?.data?.message || 'Failed to cancel donation');
-                    }
-                  }
-                }}
+                onClick={handleDelete}
                 className="text-red-500 hover:text-red-600"
               >
-                Cancel Donation
+                Delete Donation
               </button>
             )}
           </div>

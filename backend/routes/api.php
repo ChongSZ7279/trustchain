@@ -13,8 +13,12 @@ use App\Http\Controllers\OrganizationFollowerController;
 use App\Http\Controllers\CharityFollowerController;
 use App\Http\Controllers\DonationController;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\TestController;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\FixTaskController;
 
 // Public routes
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/user', [AuthController::class, 'registerUser']);
 Route::post('/register/organization', [AuthController::class, 'registerOrganization']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -27,6 +31,10 @@ Route::get('/organizations/{id}', [OrganizationController::class, 'show']);
 Route::get('/charities', [CharityController::class, 'index']);
 Route::get('/charities/{id}', [CharityController::class, 'show']);
 Route::get('/organizations/{id}/charities', [CharityController::class, 'organizationCharities']);
+
+// Public task routes
+Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
+Route::get('/tasks/{id}', [TaskController::class, 'show']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -55,12 +63,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::match(['put', 'patch'], '/charities/{id}', [CharityController::class, 'update']);
     Route::delete('/charities/{id}', [CharityController::class, 'destroy']);
 
-    // Task routes
-    Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
-    Route::get('/tasks/{id}', [TaskController::class, 'show']);
+    // Protected task routes
     Route::post('/charities/{charityId}/tasks', [TaskController::class, 'store']);
     Route::match(['put', 'patch'], '/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+    
+    // Debug fix task route
+    Route::put('/fix-tasks/{id}', [FixTaskController::class, 'update']);
     
     // Task Pictures routes
     Route::get('/tasks/{taskId}/pictures', [TaskPictureController::class, 'index']);
@@ -92,5 +101,37 @@ Route::get('/storage-test', function () {
         'storage_path' => storage_path('app/public'),
         'public_path' => public_path('storage'),
         'app_url' => config('app.url')
+    ]);
+});
+
+// Add test routes
+Route::post('/test-login', [TestController::class, 'testLogin']);
+Route::get('/test-database', [TestController::class, 'testDatabase']);
+
+// Debug route for file uploads
+Route::post('/test-upload', function (Request $request) {
+    Log::info('Test upload request received', [
+        'all_data' => $request->all(),
+        'has_files' => $request->hasFile('test_file'),
+        'files' => $request->allFiles(),
+        'headers' => $request->header(),
+        'content_type' => $request->header('Content-Type'),
+    ]);
+    
+    if ($request->hasFile('test_file')) {
+        $file = $request->file('test_file');
+        $path = $file->store('test_uploads', 'public');
+        return response()->json([
+            'message' => 'File uploaded successfully',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime' => $file->getMimeType(),
+        ]);
+    }
+    
+    return response()->json([
+        'message' => 'No file uploaded',
+        'data' => $request->all(),
     ]);
 }); 

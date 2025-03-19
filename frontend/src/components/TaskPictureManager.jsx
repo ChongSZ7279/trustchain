@@ -17,6 +17,7 @@ import {
   FaTrash,
   FaUpload
 } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 export default function TaskPictureManager() {
   const { taskId } = useParams();
@@ -28,6 +29,7 @@ export default function TaskPictureManager() {
   const [taskPictures, setTaskPictures] = useState([]);
   const [newPicture, setNewPicture] = useState(null);
   const [picturePreview, setPicturePreview] = useState(null);
+  const [hasPermission, setHasPermission] = useState(true);
   
   // Get token directly from localStorage as a backup
   const localToken = localStorage.getItem('token');
@@ -50,45 +52,36 @@ export default function TaskPictureManager() {
       return;
     }
 
-    const fetchData = async () => {
+    const fetchTaskData = async () => {
       try {
         setLoading(true);
+        const headers = { 'Accept': 'application/json' };
         
-        // Set up headers with token
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        };
+        // Fetch task details
+        const taskResponse = await axios.get(`/tasks/${taskId}`, { headers });
+        setTask(taskResponse.data);
         
-        console.log('Using headers:', headers);
-        
-        // Fetch task data
-        const taskResponse = await axios.get(`/api/tasks/${taskId}`, { headers });
-        const taskData = taskResponse.data;
-        console.log('Fetched task data:', taskData);
-        
-        // Check if user owns the charity
-        if (taskData.charity.organization_id !== organization.id) {
-          console.error('User does not own this charity');
-          navigate('/charities');
-          return;
+        // Check if user has permission to manage this task
+        if (taskResponse.data.charity && 
+            taskResponse.data.charity.organization_id === organization.id) {
+          setHasPermission(true);
+        } else {
+          setHasPermission(false);
+          setError('You do not have permission to manage pictures for this task');
         }
-
-        setTask(taskData);
         
-        // Fetch task pictures
-        const picturesResponse = await axios.get(`/api/tasks/${taskId}/pictures`, { headers });
-        console.log('Fetched pictures:', picturesResponse.data);
+        // Fetch existing pictures
+        const picturesResponse = await axios.get(`/tasks/${taskId}/pictures`, { headers });
         setTaskPictures(picturesResponse.data || []);
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load required data: ' + (err.response?.data?.message || err.message));
+        console.error('Error fetching task data:', err);
+        setError('Failed to load task data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchTaskData();
   }, [taskId, organization, navigate, token]);
 
   const handlePictureChange = (e) => {
@@ -125,7 +118,7 @@ export default function TaskPictureManager() {
       console.log('- Picture size:', newPicture.size, 'bytes');
       
       // Make the request with explicit headers
-      const response = await axios.post(`/api/tasks/${taskId}/pictures`, pictureData, {
+      const response = await axios.post(`/tasks/${taskId}/pictures`, pictureData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Accept': 'application/json',
@@ -146,6 +139,7 @@ export default function TaskPictureManager() {
       const fileInput = document.getElementById('task-picture');
       if (fileInput) fileInput.value = '';
       
+      toast.success('Picture uploaded successfully');
     } catch (err) {
       console.error('Error adding picture:', err);
       console.error('Response data:', err.response?.data);
@@ -173,7 +167,7 @@ export default function TaskPictureManager() {
     
     try {
       setLoading(true);
-      await axios.delete(`/api/tasks/${taskId}/pictures/${pictureId}`, {
+      await axios.delete(`/tasks/${taskId}/pictures/${pictureId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -182,6 +176,8 @@ export default function TaskPictureManager() {
       
       // Remove the deleted picture from the list
       setTaskPictures(prev => prev.filter(pic => pic.id !== pictureId));
+      
+      toast.success('Picture deleted successfully');
     } catch (err) {
       console.error('Error deleting picture:', err);
       setError('Failed to delete picture: ' + (err.response?.data?.message || err.message));

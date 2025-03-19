@@ -1,701 +1,749 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { FaBuilding, FaGlobe, FaPhone, FaFacebook, FaInstagram, FaWallet, FaIdCard, FaFileAlt, FaArrowRight, FaTimes, FaEye } from 'react-icons/fa';
+import axios from 'axios';
+
+// Add this component for document preview modal
+const PreviewModal = ({ file, onClose }) => {
+  if (!file) return null;
+
+  const isImage = file.type.startsWith('image/');
+  const isPDF = file.type === 'application/pdf';
+  const fileUrl = URL.createObjectURL(file);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-medium text-gray-900">{file.name}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            <FaTimes className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4 flex justify-center items-center max-h-[70vh] overflow-auto">
+          {isImage ? (
+            <img src={fileUrl} alt="Preview" className="max-w-full h-auto" />
+          ) : isPDF ? (
+            <iframe
+              src={fileUrl}
+              title="PDF Preview"
+              className="w-full h-[60vh]"
+            />
+          ) : (
+            <div className="text-center py-8">
+              <FaFileAlt className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-2 text-sm text-gray-500">
+                Preview not available for this file type
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function OrganizationRegistration() {
   const navigate = useNavigate();
-  const { registerOrganization, loading, error } = useAuth();
+  const location = useLocation();
+  const { register, loading, error } = useAuth();
+  
+  // Get email and password from location state if available
+  const initialEmail = location.state?.email || '';
+  const initialPassword = location.state?.password || '';
+  
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    description: '',
-    objectives: '',
-    representative_id: '',
-    wallet_address: '',
+    country: 'Malaysia',
+    state: '',
     register_address: '',
-    gmail: '',
+    postcode: '',
+    city: '',
     phone_number: '',
     website: '',
     facebook: '',
     instagram: '',
-    others: '',
-    password: '',
-    password_confirmation: '',
-    acceptedTerms: false
-  });
-  const [files, setFiles] = useState({
+    wallet_address: '',
+    representative_id: '',
+    description: '',
+    objectives: '',
+    email: initialEmail,
+    gmail: initialEmail,
+    password: initialPassword,
+    password_confirmation: initialPassword,
     logo: null,
-    cover_image_path: null,
     statutory_declaration: null,
     verified_document: null
   });
+  
   const [formErrors, setFormErrors] = useState({});
+  const [previewUrls, setPreviewUrls] = useState({
+    logo: null,
+    statutory_declaration: null,
+    verified_document: null
+  });
+  const [previewFile, setPreviewFile] = useState(null);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    
+    if (files) {
+      setFormData(prev => ({ ...prev, [name]: files[0] }));
+      
+      // Create preview URL for the image/file
+      if (files[0]) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewUrls(prev => ({ ...prev, [name]: reader.result }));
+        };
+        reader.readAsDataURL(files[0]);
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  const handleFileChange = (e) => {
-    const { name, files: uploadedFiles } = e.target;
-    if (uploadedFiles.length > 0) {
-      setFiles(prev => ({ ...prev, [name]: uploadedFiles[0] }));
-      if (formErrors[name]) {
-        setFormErrors(prev => ({ ...prev, [name]: '' }));
-      }
-    }
-  };
-
   const validateForm = () => {
     const errors = {};
-    if (!formData.name || formData.name.trim() === '') errors.name = 'Organization name is required';
+    if (!formData.name) errors.name = 'Company name is required';
     if (!formData.category) errors.category = 'Category is required';
-    if (!formData.description || formData.description.trim() === '') errors.description = 'Description is required';
-    if (!formData.objectives || formData.objectives.trim() === '') errors.objectives = 'Objectives are required';
-    if (!formData.representative_id || formData.representative_id.trim() === '') errors.representative_id = 'Representative ID is required';
-    if (!formData.wallet_address || formData.wallet_address.trim() === '') errors.wallet_address = 'Wallet address is required';
-    if (!formData.register_address || formData.register_address.trim() === '') errors.register_address = 'Registration address is required';
-    
-    if (!formData.gmail || formData.gmail.trim() === '') {
-      errors.gmail = 'Gmail is required';
-    } else if (!formData.gmail.endsWith('@gmail.com')) {
-      errors.gmail = 'Please enter a valid Gmail address';
-    }
-    
-    if (!formData.phone_number || formData.phone_number.trim() === '') errors.phone_number = 'Phone number is required';
-    
-    if (!formData.password) {
-      errors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters';
-    }
-    
-    if (!formData.password_confirmation) {
-      errors.password_confirmation = 'Password confirmation is required';
-    } else if (formData.password !== formData.password_confirmation) {
-      errors.password_confirmation = 'Passwords do not match';
-    }
-
-    if (!files.logo) errors.logo = 'Organization logo is required';
-    if (!files.statutory_declaration) errors.statutory_declaration = 'Statutory declaration is required';
-    if (!files.verified_document) errors.verified_document = 'Verified document is required';
-    // Cover image is optional, so no validation needed
-
+    if (!formData.register_address) errors.register_address = 'Address is required';
+    if (!formData.phone_number) errors.phone_number = 'Phone number is required';
+    if (!formData.representative_id) errors.representative_id = 'Representative ID is required';
+    if (!formData.description) errors.description = 'Description is required';
+    if (!formData.objectives) errors.objectives = 'Objectives are required';
+    if (!formData.logo) errors.logo = 'Logo is required';
+    if (!formData.statutory_declaration) errors.statutory_declaration = 'Statutory declaration document is required';
+    if (!formData.verified_document) errors.verified_document = 'Verified document is required';
     return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.acceptedTerms) {
-      setFormErrors({
-        submit: 'You must accept the Terms and Conditions to register'
-      });
-      return;
-    }
-
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
-      window.scrollTo(0, 0);
       return;
     }
 
     try {
-      const formDataToSend = new FormData();
+      console.log('Preparing organization registration with data:', formData);
       
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== undefined && formData[key] !== null) {
-          formDataToSend.append(key, formData[key]);
+      // Create a FormData object for file uploads
+      const formDataObj = new FormData();
+      
+      // Add text fields
+      formDataObj.append('name', formData.name);
+      formDataObj.append('email', formData.gmail);
+      formDataObj.append('password', formData.password);
+      formDataObj.append('password_confirmation', formData.password_confirmation);
+      formDataObj.append('category', formData.category);
+      formDataObj.append('country', formData.country);
+      formDataObj.append('state', formData.state);
+      formDataObj.append('register_address', formData.register_address);
+      formDataObj.append('postcode', formData.postcode);
+      formDataObj.append('city', formData.city);
+      formDataObj.append('phone_number', formData.phone_number);
+      
+      if (formData.website) {
+        formDataObj.append('website', formData.website);
+      }
+      
+      if (formData.facebook) {
+        formDataObj.append('facebook', formData.facebook);
+      }
+      
+      if (formData.instagram) {
+        formDataObj.append('instagram', formData.instagram);
+      }
+      
+      if (formData.wallet_address) {
+        formDataObj.append('wallet_address', formData.wallet_address);
+      }
+      
+      formDataObj.append('representative_id', formData.representative_id);
+      formDataObj.append('description', formData.description);
+      formDataObj.append('objectives', formData.objectives);
+      formDataObj.append('type', 'organization');
+      
+      // Add files - these are already File objects from the file input
+      if (formData.logo) {
+        console.log('Adding logo:', formData.logo);
+        formDataObj.append('logo', formData.logo, formData.logo.name);
+      }
+      
+      if (formData.statutory_declaration) {
+        console.log('Adding statutory declaration:', formData.statutory_declaration);
+        formDataObj.append('statutory_declaration', formData.statutory_declaration, formData.statutory_declaration.name);
+      }
+      
+      if (formData.verified_document) {
+        console.log('Adding verified document:', formData.verified_document);
+        formDataObj.append('verified_document', formData.verified_document, formData.verified_document.name);
+      }
+      
+      console.log('Submitting organization registration with FormData');
+      
+      // Use axios directly instead of the register function
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/register/organization`,
+        formDataObj,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json'
+          }
         }
-      });
-
-      if (formData.password) {
-        formDataToSend.append('password', formData.password);
-      }
+      );
       
-      if (formData.password_confirmation) {
-        formDataToSend.append('password_confirmation', formData.password_confirmation);
-      }
-
-      Object.keys(files).forEach(key => {
-        if (files[key]) {
-          formDataToSend.append(key, files[key], files[key].name);
-        }
-      });
+      console.log('Organization registration successful:', response.data);
       
-      if (!formDataToSend.has('logo') || !formDataToSend.has('statutory_declaration') || !formDataToSend.has('verified_document')) {
-        setFormErrors({
-          submit: 'Missing required files. Please upload all required documents.'
-        });
-        window.scrollTo(0, 0);
-        return;
-      }
+      // Store token in localStorage
+      localStorage.setItem('token', response.data.token);
       
-      const response = await registerOrganization(formDataToSend);
-      console.log('Registration successful:', response);
+      // Navigate to organization dashboard instead of login
       navigate('/organization/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
       
       if (err.response) {
-        if (err.response.status === 500) {
-          setFormErrors({
-            submit: 'Server error occurred. This might be due to one of the following reasons:',
-            submit_details: [
-              'The representative IC number does not match any registered user',
-              'File upload issues - ensure all files are valid and not too large',
-              'Database connection issues - please try again later',
-              `Server error: ${err.response.data?.message || 'Unknown error'}`
-            ]
-          });
-        } else if (err.response.status === 422 && err.response.data?.errors) {
-          const serverErrors = err.response.data.errors;
+        console.log('Error response status:', err.response.status);
+        console.log('Error response data:', err.response.data);
+        
+        if (err.response.status === 422 && err.response.data.errors) {
+          console.log('Validation errors:', err.response.data.errors);
+          
+          // Set specific field errors
+          const backendErrors = err.response.data.errors;
           const formattedErrors = {};
           
-          Object.keys(serverErrors).forEach(key => {
-            if (Array.isArray(serverErrors[key])) {
-              formattedErrors[key] = serverErrors[key][0];
-            } else {
-              formattedErrors[key] = serverErrors[key];
-            }
+          // Format backend errors for the form
+          Object.keys(backendErrors).forEach(field => {
+            formattedErrors[field] = Array.isArray(backendErrors[field]) 
+              ? backendErrors[field][0] 
+              : backendErrors[field];
           });
-          
-          if (formattedErrors.representative_id) {
-            formattedErrors.representative_id = 'This IC number is not registered. Please ensure the representative is registered as a user first.';
-          }
-          
-          if (formattedErrors.gmail) {
-            formattedErrors.gmail = 'This Gmail address is already in use or is invalid. Please use a different Gmail address.';
-          }
-          
-          if (Object.keys(formattedErrors).length > 0) {
-            formattedErrors.submit = 'Please fix the validation errors below.';
-          }
           
           setFormErrors(formattedErrors);
+        } else if (err.response.data.message) {
+          setFormErrors({ general: err.response.data.message });
         } else {
-          setFormErrors({
-            submit: err.response.data?.message || 'Registration failed. Please try again.'
-          });
+          setFormErrors({ general: 'Registration failed. Please try again.' });
         }
       } else if (err.request) {
-        setFormErrors({
-          submit: 'No response from server. Please check your internet connection and try again.'
-        });
+        // The request was made but no response was received
+        console.log('No response received:', err.request);
+        setFormErrors({ general: 'No response received from server. Please check your connection.' });
       } else {
-        setFormErrors({
-          submit: 'An unexpected error occurred. Please try again.'
-        });
+        // Something happened in setting up the request
+        console.log('Error setting up request:', err.message);
+        setFormErrors({ general: 'Error setting up request: ' + err.message });
       }
-      
-      window.scrollTo(0, 0);
+    }
+  };
+
+  // Add preview handler
+  const handlePreview = (file) => {
+    if (file) {
+      setPreviewFile(file);
     }
   };
 
   return (
-    <>
-      <form className="space-y-8 divide-y divide-gray-200" onSubmit={handleSubmit}>
-        {formErrors.submit && (
-          <div className="p-4 bg-red-50">
-            <p className="text-sm font-medium text-red-800">{formErrors.submit}</p>
-            {formErrors.submit_details && (
-              <ul className="mt-2 text-sm text-red-700 list-disc pl-5">
-                {formErrors.submit_details.map((detail, index) => (
-                  <li key={index}>{detail}</li>
-                ))}
-              </ul>
-            )}
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+        <FaBuilding className="mr-2 text-indigo-600" /> Organization Registration
+      </h2>
+      
+      {formErrors.general && (
+        <div className="mb-6 rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                {formErrors.general}
+              </h3>
+            </div>
           </div>
-        )}
-
-        <div className="space-y-8 divide-y divide-gray-200">
-          {/* Basic Information */}
-          <div className="pt-8">
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Basic Information - Row 1 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-700 border-b pb-2">Organization Details</h3>
+            
             <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Basic Information</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Please provide your organization's basic details
-              </p>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-4">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Organization Name
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    name="name"
-                    id="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.name && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.name}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                  Category
-                </label>
-                <div className="mt-1">
-                  <select
-                    name="category"
-                    id="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  >
-                    <option value="">Select Category</option>
-                    <option value="Education">Education</option>
-                    <option value="Healthcare">Healthcare</option>
-                    <option value="Environment">Environment</option>
-                    <option value="Youth Development">Youth Development</option>
-                    <option value="Disaster Relief">Disaster Relief</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  
-                  {formErrors.category && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-6">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <div className="mt-1">
-                  <textarea
-                    name="description"
-                    id="description"
-                    rows={3}
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.description && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.description}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-6">
-                <label htmlFor="objectives" className="block text-sm font-medium text-gray-700">
-                  Objectives
-                </label>
-                <div className="mt-1">
-                  <textarea
-                    name="objectives"
-                    id="objectives"
-                    rows={3}
-                    value={formData.objectives}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.objectives && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.objectives}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="wallet_address" className="block text-sm font-medium text-gray-700">
-                  Wallet Address
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    name="wallet_address"
-                    id="wallet_address"
-                    value={formData.wallet_address}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.wallet_address && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.wallet_address}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="pt-8">
-            <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Contact Information</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                How can donors and supporters reach your organization?
-              </p>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-3">
-                <label htmlFor="gmail" className="block text-sm font-medium text-gray-700">
-                  Gmail
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="email"
-                    name="gmail"
-                    id="gmail"
-                    value={formData.gmail}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.gmail && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.gmail}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">
-                  Phone Number
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="tel"
-                    name="phone_number"
-                    id="phone_number"
-                    value={formData.phone_number}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.phone_number && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.phone_number}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-6">
-                <label htmlFor="register_address" className="block text-sm font-medium text-gray-700">
-                  Registration Address
-                </label>
-                <div className="mt-1">
-                  <textarea
-                    name="register_address"
-                    id="register_address"
-                    rows={3}
-                    value={formData.register_address}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.register_address && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.register_address}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="website" className="block text-sm font-medium text-gray-700">
-                  Website (Optional)
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="url"
-                    name="website"
-                    id="website"
-                    value={formData.website}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="facebook" className="block text-sm font-medium text-gray-700">
-                  Facebook (Optional)
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    name="facebook"
-                    id="facebook"
-                    value={formData.facebook}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="instagram" className="block text-sm font-medium text-gray-700">
-                  Instagram (Optional)
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    name="instagram"
-                    id="instagram"
-                    value={formData.instagram}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Representative & Blockchain */}
-          <div className="pt-8">
-            <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Representative & Blockchain</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Provide representative details and blockchain information
-              </p>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-3">
-                <label htmlFor="representative_id" className="block text-sm font-medium text-gray-700">
-                  Representative IC Number
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    name="representative_id"
-                    id="representative_id"
-                    value={formData.representative_id}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.representative_id && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.representative_id}</p>
-                  )}
-                </div>
-                <p className="mt-2 text-sm text-gray-500">
-                  The representative must be a registered user. 
-                  <Link to="/register/user" className="ml-1 text-indigo-600 hover:text-indigo-500">
-                    Register them first if needed
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Security */}
-          <div className="pt-8">
-            <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Security</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Set up your account security
-              </p>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-3">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="password"
-                    name="password"
-                    id="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.password && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.password}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700">
-                  Confirm Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="password"
-                    name="password_confirmation"
-                    id="password_confirmation"
-                    value={formData.password_confirmation}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  {formErrors.password_confirmation && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.password_confirmation}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Documents */}
-          <div className="pt-8">
-            <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Required Documents</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Upload the necessary documents to verify your organization
-              </p>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-6">
-                <label htmlFor="logo" className="block text-sm font-medium text-gray-700">
-                  Organization Logo
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="file"
-                    name="logo"
-                    id="logo"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  {formErrors.logo && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.logo}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-6">
-                <label htmlFor="cover_image_path" className="block text-sm font-medium text-gray-700">
-                  Cover Image (Optional)
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="file"
-                    name="cover_image_path"
-                    id="cover_image_path"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Recommended size: 1200 x 300 pixels. This image will appear at the top of your organization profile.
-                  </p>
-                </div>
-              </div>
-
-              <div className="sm:col-span-6">
-                <label htmlFor="statutory_declaration" className="block text-sm font-medium text-gray-700">
-                  Statutory Declaration
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="file"
-                    name="statutory_declaration"
-                    id="statutory_declaration"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  {formErrors.statutory_declaration && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.statutory_declaration}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-6">
-                <label htmlFor="verified_document" className="block text-sm font-medium text-gray-700">
-                  Verified Document
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="file"
-                    name="verified_document"
-                    id="verified_document"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
-                  {formErrors.verified_document && (
-                    <p className="mt-2 text-sm text-red-600">{formErrors.verified_document}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Terms and Conditions */}
-          <div className="space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-4 mt-6">
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Company Name <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1">
                 <input
-                  id="terms"
-                  name="terms"
-                  type="checkbox"
-                  checked={formData.acceptedTerms}
-                  onChange={(e) => setFormData({ ...formData, acceptedTerms: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {formErrors.name && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                Category <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1">
+                <select
+                  id="category"
+                  name="category"
+                  required
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Select a category</option>
+                  <option value="Education">Education</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Environment">Environment</option>
+                  <option value="Poverty Relief">Poverty Relief</option>
+                  <option value="Animal Welfare">Animal Welfare</option>
+                  <option value="Disaster Relief">Disaster Relief</option>
+                  <option value="Human Rights">Human Rights</option>
+                  <option value="Arts & Culture">Arts & Culture</option>
+                  <option value="Community Development">Community Development</option>
+                  <option value="Other">Other</option>
+                </select>
+                {formErrors.category && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.category}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="register_address" className="block text-sm font-medium text-gray-700">
+                Registered Address <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1">
+                <input
+                  id="register_address"
+                  name="register_address"
+                  type="text"
+                  required
+                  value={formData.register_address}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {formErrors.register_address && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.register_address}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="postcode" className="block text-sm font-medium text-gray-700">
+                  Postcode
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="postcode"
+                    name="postcode"
+                    type="text"
+                    value={formData.postcode}
+                    onChange={handleChange}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                  City
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="city"
+                    name="city"
+                    type="text"
+                    value={formData.city}
+                    onChange={handleChange}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+                State
+              </label>
+              <div className="mt-1">
+                <input
+                  id="state"
+                  name="state"
+                  type="text"
+                  value={formData.state}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
-              <div className="ml-3">
-                <label htmlFor="terms" className="text-sm text-gray-600">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
-                    Terms and Conditions
-                  </Link>
-                  {' '}and{' '}
-                  <Link to="/terms#privacy" className="text-blue-600 hover:text-blue-800 font-medium">
-                    Privacy Policy
-                  </Link>
-                  . I confirm that my organization is legally registered and all provided information is accurate.
-                </label>
+            </div>
+            
+            <div>
+              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                Country
+              </label>
+              <div className="mt-1">
+                <input
+                  id="country"
+                  name="country"
+                  type="text"
+                  value={formData.country}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          
+          
+          </div>
+          
+          {/* Right Column */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-700 border-b pb-2">Contact Information</h3>
+            
+            <div>
+              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaPhone className="mr-1" /> Phone Number <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1">
+                <input
+                  id="phone_number"
+                  name="phone_number"
+                  type="text"
+                  required
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {formErrors.phone_number && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.phone_number}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="website" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaGlobe className="mr-1" /> Website
+              </label>
+              <div className="mt-1">
+                <input
+                  id="website"
+                  name="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="https://example.com"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaFacebook className="mr-1" /> Facebook
+              </label>
+              <div className="mt-1">
+                <input
+                  id="facebook"
+                  name="facebook"
+                  type="text"
+                  value={formData.facebook}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaInstagram className="mr-1" /> Instagram
+              </label>
+              <div className="mt-1">
+                <input
+                  id="instagram"
+                  name="instagram"
+                  type="text"
+                  value={formData.instagram}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="wallet_address" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaWallet className="mr-1" /> Wallet Address
+              </label>
+              <div className="mt-1">
+                <input
+                  id="wallet_address"
+                  name="wallet_address"
+                  type="text"
+                  required
+                  value={formData.wallet_address}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {formErrors.wallet_address && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.wallet_address}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="representative_id" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaIdCard className="mr-1" /> Representative ID <span className="text-red-600">*</span>
+              </label>
+              {formData.representative_id && (
+                <div className="mb-2">
+                  <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded-md flex items-start">
+                    <svg className="h-5 w-5 text-blue-400 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      Please register as a user first and use your IC number as the Representative ID. 
+                      <a href="/register" className="text-blue-600 hover:text-blue-800 font-medium ml-1">
+                        Register as user →
+                      </a>
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div className="mt-1">
+                <input
+                  id="representative_id"
+                  name="representative_id"
+                  type="text"
+                  required
+                  value={formData.representative_id}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {formErrors.representative_id && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.representative_id}</p>
+                )}
               </div>
             </div>
           </div>
         </div>
-
-        <div className="pt-5">
-          <div className="flex flex-col space-y-4">
-            <div className="flex justify-end">
-              <Link
-                to="/login"
-                className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {loading ? 'Creating Organization...' : 'Create Organization'}
-              </button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Already have an account or want to register as a user?</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Link
-                to="/login"
-                className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register/user"
-                className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-              >
-                Register as User
-              </Link>
+        
+        {/* Description - Row 2 */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-700 border-b pb-2 mb-4">Description</h3>
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              Description <span className="text-red-600">*</span>
+            </label>
+            <div className="mt-1">
+              <textarea
+                id="description"
+                name="description"
+                rows={4}
+                required
+                value={formData.description}
+                onChange={handleChange}
+                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Describe your organization's mission and activities..."
+              />
+              {formErrors.description && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.description}</p>
+              )}
             </div>
           </div>
+        </div>
+        
+        {/* Objectives - Row 3 */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-700 border-b pb-2 mb-4">Objectives</h3>
+          <div>
+            <label htmlFor="objectives" className="block text-sm font-medium text-gray-700">
+              Objectives <span className="text-red-600">*</span>
+            </label>
+            <div className="mt-1">
+              <textarea
+                id="objectives"
+                name="objectives"
+                rows={4}
+                required
+                value={formData.objectives}
+                onChange={handleChange}
+                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="List your organization's key objectives..."
+              />
+              {formErrors.objectives && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.objectives}</p>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Documents - Row 4 */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-700 border-b pb-2 mb-4">Required Documents</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label htmlFor="logo" className="block text-sm font-medium text-gray-700">
+                Organization Logo <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1 flex flex-col items-center">
+                <label className="w-full cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                  <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    {previewUrls.logo ? (
+                      <>
+                        <img src={previewUrls.logo} alt="Logo preview" className="h-32 w-32 object-contain mb-2" />
+                        <button
+                          type="button"
+                          onClick={() => handlePreview(formData.logo)}
+                          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                        >
+                          <FaEye className="mr-1" /> View Full Size
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <FaBuilding className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-1 text-sm text-gray-600">
+                          Click to upload logo
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    id="logo"
+                    name="logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                    required
+                    className="sr-only"
+                  />
+                </label>
+                {formErrors.logo && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.logo}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="statutory_declaration" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaFileAlt className="mr-1" /> Statutory Declaration <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1">
+                <label className="w-full cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                  <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <FaFileAlt className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-1 text-sm text-gray-600">
+                      {formData.statutory_declaration ? formData.statutory_declaration.name : 'Click to upload document'}
+                    </p>
+                    {formData.statutory_declaration && (
+                      <button
+                        type="button"
+                        onClick={() => handlePreview(formData.statutory_declaration)}
+                        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                      >
+                        <FaEye className="mr-1" /> Preview Document
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="statutory_declaration"
+                    name="statutory_declaration"
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleChange}
+                    required
+                    className="sr-only"
+                  />
+                </label>
+                {formErrors.statutory_declaration && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.statutory_declaration}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="verified_document" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaFileAlt className="mr-1" /> Verified Document <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1">
+                <label className="w-full cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                  <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <FaFileAlt className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-1 text-sm text-gray-600">
+                      {formData.verified_document ? formData.verified_document.name : 'Click to upload document'}
+                    </p>
+                    {formData.verified_document && (
+                      <button
+                        type="button"
+                        onClick={() => handlePreview(formData.verified_document)}
+                        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                      >
+                        <FaEye className="mr-1" /> Preview Document
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="verified_document"
+                    name="verified_document"
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleChange}
+                    required
+                    className="sr-only"
+                  />
+                </label>
+                {formErrors.verified_document && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.verified_document}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Preview Modal */}
+        {previewFile && (
+          <PreviewModal
+            file={previewFile}
+            onClose={() => setPreviewFile(null)}
+          />
+        )}
+        
+        <div className="mt-8">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            {loading ? 'Creating Account...' : 'Complete Registration'} 
+            {!loading && <FaArrowRight className="ml-2" />}
+          </button>
         </div>
       </form>
-    </>
+    </div>
   );
 } 

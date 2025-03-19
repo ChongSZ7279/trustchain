@@ -30,44 +30,39 @@ import {
 } from 'react-icons/fa';
 
 export default function OrganizationDashboard() {
-  const { organization, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [charities, setCharities] = useState([]);
   const [activeTab, setActiveTab] = useState('charity');
+  const [totalDonations, setTotalDonations] = useState(0);
 
   useEffect(() => {
-    if (!organization) {
+    if (!currentUser) {
       navigate('/login');
     }
-  }, [organization, navigate]);
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     const fetchOrganizationData = async () => {
-      if (!organization) return;
+      if (!currentUser) return;
       
       try {
         setLoading(true);
         
-        // Fetch organization's charities
-        try {
-          const charitiesResponse = await axios.get(`/api/organizations/${organization.id}/charities`);
-          setCharities(charitiesResponse.data);
-        } catch (err) {
-          console.error('Error fetching charities:', err);
-          setCharities([]); // Set empty array if charities endpoint fails
-        }
+        // Fetch charities associated with this organization
+        const charitiesResponse = await axios.get(`/organizations/${currentUser.id}/charities`);
+        setCharities(charitiesResponse.data);
         
-        // Fetch transactions
-        try {
-          const transactionsResponse = await axios.get(`/api/organizations/${organization.id}/transactions`);
-          setTransactions(transactionsResponse.data);
-        } catch (err) {
-          console.error('Error fetching transactions:', err);
-          setTransactions([]); // Set empty array if transactions endpoint fails
-        }
+        // Fetch transactions using the main transactions endpoint
+        const transactionsResponse = await axios.get('/transactions');
+        setTransactions(transactionsResponse.data.data || []);
+        
+        // Calculate total donations
+        const total = transactionsResponse.data.data.reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
+        setTotalDonations(total);
       } catch (err) {
         console.error('Error in fetchOrganizationData:', err);
         setError('Failed to load some organization data');
@@ -77,7 +72,7 @@ export default function OrganizationDashboard() {
     };
 
     fetchOrganizationData();
-  }, [organization]);
+  }, [currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -100,17 +95,17 @@ export default function OrganizationDashboard() {
           {/* Organization Header */}
           <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
             <div className="flex items-center space-x-4">
-              {organization.logo && (
+              {currentUser.logo && (
                 <img
-                  src={formatImageUrl(organization.logo)}
-                  alt={organization.name}
+                  src={formatImageUrl(currentUser.logo)}
+                  alt={currentUser.name}
                   className="h-20 w-20 rounded-lg object-cover"
                 />
               )}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{organization.name}</h1>
-                <p className="text-gray-500">{organization.category}</p>
-                {organization.is_verified ? (
+                <h1 className="text-2xl font-bold text-gray-900">{currentUser.name}</h1>
+                <p className="text-gray-500">{currentUser.category}</p>
+                {currentUser.is_verified ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     <FaCheckCircle className="mr-1" />
                     Verified Organization
@@ -125,6 +120,70 @@ export default function OrganizationDashboard() {
             </div>
           </div>
           
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaHandHoldingUsd className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Total Donations</dt>
+                      <dd className="text-lg font-semibold text-gray-900">${totalDonations.toFixed(2)}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaChartBar className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Active Charities</dt>
+                      <dd className="text-lg font-semibold text-gray-900">{charities.length}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaUsers className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Total Followers</dt>
+                      <dd className="text-lg font-semibold text-gray-900">0</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaCertificate className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Completed Projects</dt>
+                      <dd className="text-lg font-semibold text-gray-900">0</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Tabs */}
           <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex space-x-8">
@@ -134,9 +193,9 @@ export default function OrganizationDashboard() {
                   activeTab === 'charity'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaChartBar className="mr-2" />
+                <FaChartBar className="mr-2 h-4 w-4" />
                 Charity
               </button>
               <button
@@ -145,9 +204,9 @@ export default function OrganizationDashboard() {
                   activeTab === 'contact'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaPhone className="mr-2" />
+                <FaPhone className="mr-2 h-4 w-4" />
                 Contact
               </button>
               <button
@@ -156,9 +215,9 @@ export default function OrganizationDashboard() {
                   activeTab === 'representative'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaUsers className="mr-2" />
+                <FaUsers className="mr-2 h-4 w-4" />
                 Representative
               </button>
               <button
@@ -167,9 +226,9 @@ export default function OrganizationDashboard() {
                   activeTab === 'transaction'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaHistory className="mr-2" />
+                <FaHistory className="mr-2 h-4 w-4" />
                 Transaction
               </button>
             </nav>
@@ -277,15 +336,15 @@ export default function OrganizationDashboard() {
                   <div className="mt-4 space-y-4">
                     <div className="flex items-center">
                       <FaPhone className="text-gray-400 mr-2" />
-                      <span className="text-gray-900">{organization.phone_number}</span>
+                      <span className="text-gray-900">{currentUser.phone_number}</span>
                     </div>
                     <div className="flex items-center">
                       <FaEnvelope className="text-gray-400 mr-2" />
-                      <span className="text-gray-900">{organization.gmail}</span>
+                      <span className="text-gray-900">{currentUser.gmail}</span>
                     </div>
                     <div className="flex items-center">
                       <FaMapMarkerAlt className="text-gray-400 mr-2" />
-                      <span className="text-gray-900">{organization.register_address}</span>
+                      <span className="text-gray-900">{currentUser.register_address}</span>
                     </div>
                   </div>
                 </div>
@@ -293,9 +352,9 @@ export default function OrganizationDashboard() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Social Media</h3>
                   <div className="mt-4 space-y-4">
-                    {organization.website && (
+                    {currentUser.website && (
                       <a
-                        href={organization.website}
+                        href={currentUser.website}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
@@ -304,9 +363,9 @@ export default function OrganizationDashboard() {
                         Website
                       </a>
                     )}
-                    {organization.facebook && (
+                    {currentUser.facebook && (
                       <a
-                        href={organization.facebook}
+                        href={currentUser.facebook}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
@@ -315,9 +374,9 @@ export default function OrganizationDashboard() {
                         Facebook
                       </a>
                     )}
-                    {organization.instagram && (
+                    {currentUser.instagram && (
                       <a
-                        href={organization.instagram}
+                        href={currentUser.instagram}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
@@ -346,19 +405,19 @@ export default function OrganizationDashboard() {
                   <div className="mt-4 space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Name</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_name}</p>
+                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_name}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">IC Number</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_ic}</p>
+                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_ic}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_phone}</p>
+                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_phone}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_email}</p>
+                      <p className="mt-1 text-sm text-gray-900">{currentUser.representative_email}</p>
                     </div>
                   </div>
                 </div>
@@ -368,9 +427,9 @@ export default function OrganizationDashboard() {
                   <div className="mt-4 grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Front</label>
-                      {organization.representative_front_ic && (
+                      {currentUser.representative_front_ic && (
                         <img
-                          src={formatImageUrl(organization.representative_front_ic)}
+                          src={formatImageUrl(currentUser.representative_front_ic)}
                           alt="Front IC"
                           className="mt-2 h-48 w-full object-cover rounded-lg"
                         />
@@ -378,9 +437,9 @@ export default function OrganizationDashboard() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Back</label>
-                      {organization.representative_back_ic && (
+                      {currentUser.representative_back_ic && (
                         <img
-                          src={formatImageUrl(organization.representative_back_ic)}
+                          src={formatImageUrl(currentUser.representative_back_ic)}
                           alt="Back IC"
                           className="mt-2 h-48 w-full object-cover rounded-lg"
                         />

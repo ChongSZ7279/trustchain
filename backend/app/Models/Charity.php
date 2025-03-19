@@ -48,6 +48,14 @@ class Charity extends Model
     }
 
     /**
+     * Get the donations for this charity.
+     */
+    public function donations()
+    {
+        return $this->hasMany(Donation::class, 'cause_id');
+    }
+
+    /**
      * Get the follower count for this charity.
      */
     public function getFollowerCountAttribute()

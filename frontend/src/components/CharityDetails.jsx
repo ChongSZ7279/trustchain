@@ -45,6 +45,13 @@ import {
   FaEye
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+import Web3 from 'web3';
+import CharityContract from '../contracts/CharityContract.json';
+import MilestoneTracker from './MilestoneTracker';
+import TransactionHistory from './TransactionHistory';
+import { useBlockchain } from '../context/BlockchainContext';
+import BlockchainVerificationBadge from './BlockchainVerificationBadge';
+import WalletConnectButton from './WalletConnectButton';
 
 // Add this helper function at the top of the file, after imports
 const getFileIcon = (fileType) => {
@@ -74,6 +81,10 @@ export default function CharityDetails() {
   const [donationAmount, setDonationAmount] = useState('');
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [web3, setWeb3] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [account, setAccount] = useState('');
+  const [milestones, setMilestones] = useState([]);
 
   // Add new loading states
   const [imageLoading, setImageLoading] = useState({
@@ -87,29 +98,49 @@ export default function CharityDetails() {
     name: null
   });
 
-  // Add the local formatImageUrl function
-  const formatImageUrl = (path) => {
-    if (!path) return null;
+  const { 
+    account: blockchainAccount, 
+    donateToCharity, 
+    getCharityDonations, 
+    loading: blockchainLoading, 
+    error: blockchainError 
+  } = useBlockchain();
+  
+  const [blockchainDonations, setBlockchainDonations] = useState([]);
+  const [donationLoading, setDonationLoading] = useState(false);
+
+  // Initialize Web3 and smart contract
+  useEffect(() => {
+    const initWeb3 = async () => {
+      if (window.ethereum) {
+        try {
+          // Request account access
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const web3Instance = new Web3(window.ethereum);
+          setWeb3(web3Instance);
+          
+          // Get user account
+          const accounts = await web3Instance.eth.getAccounts();
+          setAccount(accounts[0]);
+          
+          // Initialize contract
+          const networkId = await web3Instance.eth.net.getId();
+          const deployedNetwork = CharityContract.networks[networkId];
+          const contractInstance = new web3Instance.eth.Contract(
+            CharityContract.abi,
+            deployedNetwork && deployedNetwork.address,
+          );
+          setContract(contractInstance);
+        } catch (error) {
+          console.error("User denied account access or error occurred:", error);
+        }
+      } else {
+        console.log('Please install MetaMask or another Web3 provider');
+      }
+    };
     
-    // If it's already a full URL
-    if (path.startsWith('http')) return path;
-    
-    // For storage paths like "organization_covers/filename.jpg"
-    if (path.includes('organization_covers/') || 
-        path.includes('organization_logos/') || 
-        path.includes('charity_pictures/') ||
-        path.includes('task_pictures/') ||
-        path.includes('task_proofs/') ||
-        path.includes('charity_documents/')) {
-      return `/storage/${path}`;
-    }
-    
-    // If path starts with a slash, it's already a relative path
-    if (path.startsWith('/')) return path;
-    
-    // Otherwise, add a slash to make it a relative path from the root
-    return `/${path}`;
-  };
+    initWeb3();
+  }, []);
 
   useEffect(() => {
     fetchCharityData();
@@ -196,6 +227,42 @@ export default function CharityDetails() {
         } catch (err) {
           console.error('Error fetching follow status:', err);
         }
+      }
+
+      // Fetch charity donations and milestones
+      if (contract && charity) {
+        const fetchDonations = async () => {
+          try {
+            const donationEvents = await contract.getPastEvents('DonationMade', {
+              filter: { charityId: charity.blockchain_id },
+              fromBlock: 0,
+              toBlock: 'latest'
+            });
+            
+            const formattedDonations = donationEvents.map(event => ({
+              donor: event.returnValues.donor,
+              amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
+              timestamp: new Date(event.returnValues.timestamp * 1000).toLocaleString(),
+              transactionHash: event.transactionHash
+            }));
+            
+            setDonations(formattedDonations);
+          } catch (error) {
+            console.error('Error fetching donations:', error);
+          }
+        };
+        
+        const fetchMilestones = async () => {
+          try {
+            const response = await axios.get(`/api/charities/${id}/milestones`);
+            setMilestones(response.data);
+          } catch (error) {
+            console.error('Error fetching milestones:', error);
+          }
+        };
+        
+        fetchDonations();
+        fetchMilestones();
       }
     } catch (err) {
       console.error('Error fetching charity details:', err);
@@ -314,6 +381,49 @@ export default function CharityDetails() {
     const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
     return `${days} days left`;
   };
+
+  const handleDonation = async (amount) => {
+    if (!charity?.blockchain_id) {
+      toast.error('This charity is not configured for blockchain donations');
+      return;
+    }
+    
+    setDonationLoading(true);
+    
+    try {
+      await donateToCharity(charity.blockchain_id, amount);
+      
+      toast.success('Donation successful! Your transaction is being processed on the blockchain.');
+      
+      // Refresh donations
+      const donations = await getCharityDonations(charity.blockchain_id);
+      setBlockchainDonations(donations);
+      
+      // Close donation modal
+      setShowDonationModal(false);
+    } catch (error) {
+      console.error('Error making donation:', error);
+      toast.error('Error making donation. Please try again.');
+    } finally {
+      setDonationLoading(false);
+    }
+  };
+
+  // Add a new useEffect to fetch blockchain donations
+  useEffect(() => {
+    const fetchBlockchainDonations = async () => {
+      if (!charity?.blockchain_id) return;
+      
+      try {
+        const donations = await getCharityDonations(charity.blockchain_id);
+        setBlockchainDonations(donations);
+      } catch (error) {
+        console.error('Error fetching blockchain donations:', error);
+      }
+    };
+    
+    fetchBlockchainDonations();
+  }, [charity, getCharityDonations]);
 
   if (loading) {
     return (
@@ -512,6 +622,16 @@ export default function CharityDetails() {
             }`}
           >
             Milestones
+          </button>
+          <button
+            onClick={() => setActiveTab('blockchain')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'blockchain'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Blockchain
           </button>
           <button
             onClick={() => setActiveTab('transactions')}
@@ -824,6 +944,87 @@ export default function CharityDetails() {
             </motion.div>
           )}
 
+          {activeTab === 'blockchain' && (
+            <motion.div
+              key="blockchain"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mt-4"
+            >
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Blockchain Verification</h3>
+                  <p className="text-gray-600">
+                    This charity uses blockchain technology to ensure transparency and accountability.
+                    All donations are tracked on the blockchain and funds are only released when milestones are verified.
+                  </p>
+                  
+                  <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-indigo-800">Blockchain ID</h4>
+                        <p className="mt-1 text-sm text-indigo-700">
+                          {charity?.blockchain_id || 'Not available'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Wallet Connection</h3>
+                  {blockchainAccount ? (
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-green-800">Wallet Connected</h4>
+                          <p className="mt-1 text-sm text-green-700">
+                            {blockchainAccount.substring(0, 6)}...{blockchainAccount.substring(blockchainAccount.length - 4)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-yellow-50 rounded-lg">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-yellow-800">Wallet Not Connected</h4>
+                          <p className="mt-1 text-sm text-yellow-700">
+                            Connect your wallet to make blockchain donations and verify milestones.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <WalletConnectButton />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Blockchain Donations</h3>
+                  <TransactionHistory donations={blockchainDonations} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'transactions' && (
             <motion.div
               key="transactions"
@@ -926,7 +1127,11 @@ export default function CharityDetails() {
             exit={{ scale: 0.95, opacity: 0 }}
             className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl"
           >
-            <DonationForm charity={charity} />
+            <DonationForm 
+              onDonate={handleDonation} 
+              loading={donationLoading} 
+              isWalletConnected={!!blockchainAccount}
+            />
           </motion.div>
         </motion.div>
       )}

@@ -1,117 +1,34 @@
-import { useState } from "react";
-import { FaTimes } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { FaTimes, FaWallet, FaExclamationTriangle } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
-export default function DonationForm() {
+const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    amount: "",
-    name: "",
-    email: "",
-    message: "",
-    paymentMethod: "credit_card",
-  });
-
-  const handleNext = () => setStep(step + 1);
-  const handlePrev = () => setStep(step - 1);
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <div>
-            <label className="block text-gray-700">Donation Amount</label>
-            <input
-              type="number"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-              placeholder="Enter amount"
-            />
-            <button
-              onClick={handleNext}
-              className="bg-blue-600 text-white px-4 py-2 rounded mt-4 w-full"
-            >
-              Next
-            </button>
-          </div>
-        );
-      case 2:
-        return (
-          <div>
-            <label className="block text-gray-700">Full Name</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-              placeholder="Enter your name"
-            />
-            <label className="block text-gray-700 mt-3">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-              placeholder="Enter your email"
-            />
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={handlePrev}
-                className="bg-gray-400 text-white px-4 py-2 rounded"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleNext}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        );
-      case 3:
-        return (
-          <div>
-            <label className="block text-gray-700">Payment Method</label>
-            <select
-              name="paymentMethod"
-              value={formData.paymentMethod}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-            >
-              <option value="credit_card">Credit Card</option>
-              <option value="paypal">PayPal</option>
-              <option value="bank_transfer">Bank Transfer</option>
-            </select>
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={handlePrev}
-                className="bg-gray-400 text-white px-4 py-2 rounded"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => alert("Donation Submitted!")}
-                className="bg-green-600 text-white px-4 py-2 rounded"
-              >
-                Submit
-              </button>
-            </div>
-          </div>
-        );
-      default:
-        return null;
+  const [amount, setAmount] = useState('');
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      alert('Please enter a valid donation amount');
+      return;
+    }
+    
+    if (!agreeTerms) {
+      alert('Please agree to the terms');
+      return;
+    }
+    
+    try {
+      await onDonate(parseFloat(amount));
+      setAmount('');
+      setAgreeTerms(false);
+    } catch (error) {
+      console.error('Error processing donation:', error);
     }
   };
-
+  
   return (
     <div className="relative bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto">
       {/* Close Button */}
@@ -122,8 +39,104 @@ export default function DonationForm() {
         <FaTimes size={20} />
       </button>
 
-      <h2 className="text-xl font-bold mb-4">Make a Donation</h2>
-      {renderStep()}
+      <h2 className="text-xl font-bold mb-4">Make a Blockchain Donation</h2>
+      
+      {!isWalletConnected && (
+        <div className="mb-4 p-3 bg-yellow-50 rounded-md">
+          <div className="flex items-start">
+            <FaExclamationTriangle className="text-yellow-500 mt-0.5 mr-2" />
+            <div>
+              <p className="text-sm text-yellow-700">
+                You need to connect your wallet to make a blockchain donation.
+              </p>
+              <button 
+                onClick={() => window.ethereum.request({ method: 'eth_requestAccounts' })}
+                className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <FaWallet className="mr-1" />
+                Connect Wallet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
+            Amount (ETH)
+          </label>
+          <input
+            type="number"
+            id="donationAmount"
+            placeholder="0.1"
+            step="0.01"
+            min="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            disabled={loading || !isWalletConnected}
+          />
+        </div>
+        
+        <div className="mb-4">
+          <div className="flex items-start">
+            <div className="flex items-center h-5">
+              <input
+                id="agreeTerms"
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                required
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                disabled={loading || !isWalletConnected}
+              />
+            </div>
+            <div className="ml-3 text-sm">
+              <label htmlFor="agreeTerms" className="font-medium text-gray-700">
+                I understand that my donation will be processed via blockchain
+              </label>
+              <p className="text-gray-500">
+                Funds will be held in escrow and released based on milestone completion.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <button 
+            type="submit" 
+            className={`w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
+              loading || !isWalletConnected
+                ? 'bg-indigo-400 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+            }`}
+            disabled={loading || !isWalletConnected}
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </>
+            ) : (
+              'Donate Now'
+            )}
+          </button>
+        </div>
+        
+        <div className="mt-4 text-xs text-gray-500">
+          <p>
+            Your donation will be processed on the Ethereum blockchain. Gas fees may apply.
+            All transactions are transparent and can be verified on the blockchain.
+          </p>
+        </div>
+      </form>
     </div>
   );
-}
+};
+
+export default DonationForm;

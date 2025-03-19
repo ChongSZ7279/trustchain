@@ -36,6 +36,7 @@ import {
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
+import AIGenerator from "./Recommendation";
 
 export default function UserDashboard() {
   const { currentUser, logout } = useAuth();
@@ -55,6 +56,7 @@ export default function UserDashboard() {
   const [followedCharities, setFollowedCharities] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(null);
+  const [recommendedCharity, setRecommendedCharity] = useState(null);
   
   // Define available frames based on REWARD_TIERS from rewardSystem.js
   const availableFrames = [
@@ -875,7 +877,64 @@ export default function UserDashboard() {
               </div>
             )}
             </div>
+            {/* Recommended Charity Section */}
+            <div>
+              <br />
+              <br />
+
+              {followedCharities && followedCharities.length > 0 ? (
+                <>
+                  <AIGenerator 
+                    userHistory={followedCharities.map(charity => `Supports ${charity.category}`)} 
+                    followedCharityNames={followedCharities.map(charity => charity.name.toLowerCase())} 
+                    onRecommendation={setRecommendedCharity} 
+                  />
+
+                  <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Recommended Charity</h3>
+
+                  {recommendedCharity ? (
+                    <div className="grid grid-cols-1 gap-6">
+                      <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">No recommendations available.</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-gray-600">No followed charities. Follow some to get recommendations!</p>
+              )}
+            </div>
+            {/* <div>
+              <br></br>
+              <br></br>
+              <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Recommended Charities</h3>
+              <AIGenerator userHistory={["Work in a childcare center"]}/>
+              {recommendedCharity ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <FaHeart className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                  <h3 className="text-md font-medium text-gray-900 mb-2">No recommended charities</h3>
+                  <p className="text-gray-600 mb-4">We couldn't generate a recommendation for you.</p>
+                  <Link
+                    to="/charities"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <FaHandHoldingUsd className="mr-2" />
+                    Browse Charities
+                  </Link>
+                </div>
+              )}
+            </div> */}
+
+
           </div>
+
+            
+
+          
         )}
 
         {/* Transaction History Tab */}

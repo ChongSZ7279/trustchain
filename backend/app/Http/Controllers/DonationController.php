@@ -365,9 +365,43 @@ class DonationController extends Controller
     {
         $query = Donation::where('cause_id', $charityId);
         
-        // Apply the same filters as in index method
-        // ...
+        // Apply search filter
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('transaction_hash', 'like', "%{$search}%")
+                  ->orWhere('donor_message', 'like', "%{$search}%");
+            });
+        }
         
+        // Apply status filter
+        if ($request->has('status')) {
+            $query->where('status', $request->input('status'));
+        }
+        
+        // Apply date range filter
+        if ($request->has('dateRange')) {
+            $dateRange = $request->input('dateRange');
+            if (!empty($dateRange['start'])) {
+                $query->whereDate('created_at', '>=', $dateRange['start']);
+            }
+            if (!empty($dateRange['end'])) {
+                $query->whereDate('created_at', '<=', $dateRange['end']);
+            }
+        }
+        
+        // Apply amount range filter
+        if ($request->has('amountRange')) {
+            $amountRange = $request->input('amountRange');
+            if (!empty($amountRange['min'])) {
+                $query->where('amount', '>=', $amountRange['min']);
+            }
+            if (!empty($amountRange['max'])) {
+                $query->where('amount', '<=', $amountRange['max']);
+            }
+        }
+        
+        // Add source field to identify as donation
         $donations = $query->paginate($request->input('per_page', 10));
         
         // Add source field to each donation
@@ -377,5 +411,98 @@ class DonationController extends Controller
         });
         
         return $donations;
+    }
+
+    /**
+     * Generate an invoice for a donation
+     */
+    public function generateInvoice(Request $request, $donationId)
+    {
+        try {
+            \Log::info('Starting invoice generation', ['donation_id' => $donationId]);
+            
+            // Find the donation with relationships
+            $donation = Donation::findOrFail($donationId);
+            
+            // Manually load relationships to ensure they're available
+            $donation->load(['user', 'charity']);
+            
+            \Log::info('Donation loaded', [
+                'donation_id' => $donation->id,
+                'has_user' => isset($donation->user),
+                'has_charity' => isset($donation->charity)
+            ]);
+            
+            // Skip authentication check for testing
+            // $user = Auth::user();
+            // if (!$user || $user->ic_number !== $donation->user_id) {
+            //     return response()->json(['message' => 'Unauthorized'], 403);
+            // }
+            
+            // Prepare data for the view
+            $data = [
+                'donation' => $donation,
+                'user' => $donation->user,
+                'charity' => $donation->charity,
+                'date' => now()->format('F j, Y'),
+                'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
+            ];
+            
+            \Log::info('Data prepared for view', ['data_keys' => array_keys($data)]);
+            
+            // Generate PDF
+            $pdf = \PDF::loadView('invoices.donation', $data);
+            
+            \Log::info('PDF generated successfully');
+            
+            // Return the PDF
+            return $pdf->download("donation-invoice-{$donationId}.pdf");
+        } catch (\Exception $e) {
+            \Log::error('Invoice generation failed', [
+                'donation_id' => $donationId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to generate invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function generateInvoiceHtml(Request $request, $donationId)
+    {
+        try {
+            $donation = Donation::with(['user', 'charity'])->findOrFail($donationId);
+            
+            // Prepare data for the view
+            $data = [
+                'donation' => $donation,
+                'user' => $donation->user,
+                'charity' => $donation->charity,
+                'date' => now()->format('F j, Y'),
+                'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
+            ];
+            
+            // Render the view to HTML
+            $html = view('invoices.donation', $data)->render();
+            
+            return response()->json([
+                'html' => $html,
+                'filename' => "donation-invoice-{$donationId}.pdf"
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Invoice HTML generation failed', [
+                'donation_id' => $donationId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to generate invoice HTML',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

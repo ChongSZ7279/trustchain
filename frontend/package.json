@@ -21,6 +21,7 @@
     "cors": "^2.8.5",
     "ethers": "^5.8.0",
     "framer-motion": "^12.5.0",
+    "html2pdf.js": "^0.10.3",
     "postcss": "^8.4.35",
     "react": "^18.2.0",
     "react-bootstrap": "^2.10.9",

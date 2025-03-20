@@ -85,52 +85,57 @@ export default function TransactionList() {
       // Add data source parameter to fetch combined data
       queryParams.append('source', dataSource);
 
-      // Determine the appropriate endpoint based on the data source
+      // Determine the appropriate endpoint based on the data source and context
       let endpoint;
-      if (dataSource === 'donations') {
-        endpoint = charityId ? `/charities/${charityId}/donations` : '/donations';
-      } else if (dataSource === 'combined') {
-        endpoint = charityId ? `/charities/${charityId}/financial-activities` : '/financial-activities';
+      
+      if (charityId) {
+        // Charity-specific endpoints
+        if (dataSource === 'donations') {
+          endpoint = `/charities/${charityId}/donations`;
+        } else if (dataSource === 'combined') {
+          endpoint = `/charities/${charityId}/financial-activities`;
+        } else {
+          endpoint = `/charities/${charityId}/transactions`;
+        }
       } else {
-        // Default to transactions
-        endpoint = charityId ? `/charities/${charityId}/transactions` : '/transactions';
+        // General endpoints
+        if (dataSource === 'donations') {
+          endpoint = '/donations';
+        } else if (dataSource === 'combined') {
+          endpoint = '/financial-activities';
+        } else {
+          endpoint = '/transactions';
+        }
       }
 
-      console.log('Fetching data from endpoint:', endpoint);
-      console.log('Query params:', queryParams.toString());
+      console.log(`Fetching data from endpoint: ${endpoint} with params:`, Object.fromEntries(queryParams));
       
-      const response = await axios.get(`${endpoint}?${queryParams}`);
+      const response = await axios.get(endpoint, { params: queryParams });
+      console.log('API Response:', response.data);
       
-      console.log('Response data:', response.data);
+      setTransactions(response.data.data || response.data);
       
-      if (response.data && response.data.data) {
-        setTransactions(response.data.data);
-        setPagination(prev => ({
-          ...prev,
+      // Update pagination if the response includes pagination data
+      if (response.data.meta) {
+        setPagination({
+          currentPage: response.data.meta.current_page,
+          totalPages: response.data.meta.last_page,
+          totalItems: response.data.meta.total,
+          itemsPerPage: response.data.meta.per_page
+        });
+      } else if (response.data.current_page) {
+        setPagination({
+          currentPage: response.data.current_page,
           totalPages: response.data.last_page,
-          totalItems: response.data.total
-        }));
-      } else {
-        console.log('No data found in response');
-        setTransactions([]);
-        setPagination(prev => ({
-          ...prev,
-          totalPages: 1,
-          totalItems: 0
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      if (error.response) {
-        console.error('Error response:', {
-          status: error.response.status,
-          data: error.response.data,
-          headers: error.response.headers
+          totalItems: response.data.total,
+          itemsPerPage: response.data.per_page
         });
       }
-      setError(error.response?.data?.message || 'Failed to fetch transactions');
-      setTransactions([]);
-    } finally {
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Please try again.');
       setLoading(false);
     }
   };

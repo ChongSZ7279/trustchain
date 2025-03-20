@@ -32,11 +32,20 @@ import {
   FaThumbsUp,
   FaMoneyBillWave,
   FaLock,
-  FaCheck
+  FaCheck,
+  FaSync,
+  FaFilter,
+  FaExchangeAlt,
+  FaFileInvoice,
+  FaDownload,
+  FaClock,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
 import AIGenerator from "./Recommendation";
+import { toast } from 'react-hot-toast';
+import html2pdf from 'html2pdf.js';
 
 export default function UserDashboard() {
   const { currentUser, logout } = useAuth();
@@ -57,6 +66,9 @@ export default function UserDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(null);
   const [recommendedCharity, setRecommendedCharity] = useState(null);
+  const [donations, setDonations] = useState([]);
+  const [combinedTransactions, setCombinedTransactions] = useState([]);
+  const [currentDataSource, setCurrentDataSource] = useState('transactions');
   
   // Define available frames based on REWARD_TIERS from rewardSystem.js
   const availableFrames = [
@@ -114,36 +126,9 @@ export default function UserDashboard() {
         setLoading(true);
         setError('');
         
-        // Fetch user's transactions
-        try {
-          const transactionsRes = await axios.get(`/users/${currentUser.ic_number}/transactions`);
-          setTransactions(transactionsRes.data);
-          
-          // Calculate total donation amount
-          const total = calculateTotalDonationAmount(transactionsRes.data);
-          setTotalDonationAmount(parseFloat(total) || 0);
-          
-          // Calculate reward tier
-          const tier = calculateRewardTier(total);
-          setRewardTier(tier);
-          
-          // Calculate progress to next tier
-          const progress = calculateNextTierProgress(total);
-          setNextTierProgress(progress);
-          
-          // Get achievements
-          const userAchievements = getAchievements(transactionsRes.data);
-          setAchievements(userAchievements);
-        } catch (err) {
-          console.error('Error fetching transactions:', err);
-          // Set default values if transactions fetch fails
-          setTransactions([]);
-          setTotalDonationAmount(0);
-          setRewardTier(calculateRewardTier(0));
-          setNextTierProgress(calculateNextTierProgress(0));
-          setAchievements([]);
-        }
-
+        // Load data based on the current data source
+        await loadDataBySource(currentDataSource);
+        
         // Fetch user's charities
         try {
           const charitiesRes = await axios.get(`/users/${currentUser.ic_number}/charities`);
@@ -181,16 +166,71 @@ export default function UserDashboard() {
           console.error('Error fetching followed charities:', err);
           setFollowedCharities([]);
         }
+        
       } catch (err) {
         console.error('Error in fetchUserData:', err);
-        setError('Some data could not be loaded. Please try again later.');
+        setError('Failed to load user data');
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchUserData();
   }, [currentUser]);
+  
+  // Add this useEffect to reload data when the data source changes
+  useEffect(() => {
+    if (currentUser) {
+      loadDataBySource(currentDataSource);
+    }
+  }, [currentDataSource, currentUser]);
+  
+  // Add a function to download e-invoice
+  const downloadInvoice = async (donationId) => {
+    try {
+      console.log(`Downloading invoice for donation ${donationId}`);
+      
+      // Get the HTML content
+      const response = await axios.get(`/donations/${donationId}/invoice-html`);
+      const { html, filename } = response.data;
+      
+      // Generate PDF on the client side
+      const opt = {
+        margin: 1,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      
+      html2pdf().set(opt).from(html).save();
+      
+      toast.success('Invoice downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      toast.error('Failed to download invoice. Please try again.');
+    }
+  };
+  
+  // Add a function to view e-invoice
+  const viewInvoice = async (donationId) => {
+    try {
+      console.log(`Viewing invoice for donation ${donationId}`);
+      
+      // Use the correct URL without the /api prefix
+      const response = await axios.get(`/donations/${donationId}/invoice`, {
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+    } catch (error) {
+      console.error('Error viewing invoice:', error);
+      toast.error('Failed to view invoice. Please try again.');
+    }
+  };
 
   // Fetch blockchain donation amount if wallet is connected
   useEffect(() => {
@@ -270,6 +310,101 @@ export default function UserDashboard() {
     
     // Otherwise, add a slash to make it a relative path from the root
     return `/${path}`;
+  };
+
+  // Add a function to load data based on the current data source
+  const loadDataBySource = async (source) => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      let endpoint;
+      if (source === 'transactions') {
+        endpoint = `/users/${currentUser.ic_number}/transactions`;
+      } else if (source === 'donations') {
+        endpoint = `/users/${currentUser.ic_number}/donations`;
+      } else if (source === 'combined') {
+        endpoint = `/users/${currentUser.ic_number}/financial-activities`;
+      }
+      
+      console.log(`Loading data from ${endpoint}`);
+      const response = await axios.get(endpoint);
+      console.log(`${source} data:`, response.data);
+      
+      // Handle both paginated and non-paginated responses
+      const data = response.data.data ? response.data.data : response.data;
+      
+      if (source === 'transactions') {
+        setTransactions(data);
+        
+        // Calculate total donation amount
+        const total = calculateTotalDonationAmount(data);
+        setTotalDonationAmount(parseFloat(total) || 0);
+        
+        // Calculate reward tier
+        const tier = calculateRewardTier(total);
+        setRewardTier(tier);
+        
+        // Calculate progress to next tier
+        const progress = calculateNextTierProgress(total);
+        setNextTierProgress(progress);
+        
+        // Get achievements
+        const userAchievements = getAchievements(data);
+        setAchievements(userAchievements);
+      } else if (source === 'donations') {
+        setDonations(data);
+      }
+      
+      // Always update the combined transactions for display
+      setCombinedTransactions(data);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error(`Error loading ${source} data:`, error);
+      setError(`Failed to load ${source} data`);
+      setLoading(false);
+    }
+  };
+
+  // Add these helper functions
+  const formatStatus = (status) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'verified':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    if (!status) return null;
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'verified':
+        return <FaCheckCircle className="mr-1.5 h-2 w-2 text-green-500" />;
+      case 'pending':
+        return <FaClock className="mr-1.5 h-2 w-2 text-yellow-500" />;
+      case 'failed':
+        return <FaExclamationTriangle className="mr-1.5 h-2 w-2 text-red-500" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -934,17 +1069,53 @@ export default function UserDashboard() {
         {/* Transaction History Tab */}
         {activeTab === 'transactions' && (
           <div className="bg-white shadow-sm rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <FaHistory className="mr-2" />
-              Transaction History
-            </h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                <FaHistory className="mr-2" />
+                Transaction History
+              </h2>
+              
+              {/* Add filter dropdown */}
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">View:</span>
+                <select
+                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  value={currentDataSource}
+                  onChange={(e) => {
+                    setCurrentDataSource(e.target.value);
+                  }}
+                >
+                  <option value="transactions">Transactions</option>
+                  <option value="donations">Donations</option>
+                  <option value="combined">Combined</option>
+                </select>
+                
+                <button
+                  onClick={() => loadDataBySource(currentDataSource)}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <FaSync className="mr-2" />
+                  Refresh
+                </button>
+              </div>
+            </div>
             
-            {transactions.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-600">{error}</div>
+            ) : combinedTransactions.length === 0 ? (
               <div className="text-center py-8">
                 <FaHistory className="mx-auto h-12 w-12 text-gray-300" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  You haven't made any transactions yet.
+                  {currentDataSource === 'donations' 
+                    ? "You haven't made any donations yet." 
+                    : currentDataSource === 'combined'
+                      ? "You haven't made any financial activities yet."
+                      : "You haven't made any transactions yet."}
                 </p>
               </div>
             ) : (
@@ -967,47 +1138,83 @@ export default function UserDashboard() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Details
                       </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {transactions.map(transaction => (
-                      <tr key={transaction.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(transaction.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.type === 'charity' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                          }`}>
-                            {transaction.type === 'charity' ? 'Charity Donation' : 'Task Funding'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                          ${transaction.amount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                            transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {transaction.type === 'charity' && transaction.charity_id && (
-                            <Link to={`/charities/${transaction.charity_id}`} className="text-indigo-600 hover:text-indigo-900">
-                              View Charity
-                            </Link>
-                          )}
-                          {transaction.type === 'task' && transaction.task_id && (
-                            <Link to={`/tasks/${transaction.task_id}`} className="text-indigo-600 hover:text-indigo-900">
-                              View Task
-                            </Link>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {combinedTransactions.map(item => {
+                      if (!item) return null; // Skip null or undefined items
+                      
+                      // Determine if this is a donation or transaction
+                      const isDonation = item.source === 'Donation' || item.donor_message;
+                      
+                      return (
+                        <tr key={item.id || item.transaction_hash || Math.random()} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(item.created_at || item.completed_at || new Date())}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              isDonation ? 'bg-purple-100 text-purple-800' : 
+                              item.type === 'charity' ? 'bg-blue-100 text-blue-800' : 
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {isDonation ? 'Donation' : 
+                               item.type === 'charity' ? 'Charity Donation' : 
+                               'Task Funding'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {item.amount ? `$${item.amount}` : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                              {getStatusIcon(item.status)}
+                              {formatStatus(item.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {isDonation ? (
+                              <Link to={`/donations/${item.id}`} className="text-indigo-600 hover:text-indigo-900">
+                                View Donation
+                              </Link>
+                            ) : item.type === 'charity' && item.charity_id ? (
+                              <Link to={`/charities/${item.charity_id}`} className="text-indigo-600 hover:text-indigo-900">
+                                View Charity
+                              </Link>
+                            ) : item.type === 'task' && item.task_id ? (
+                              <Link to={`/tasks/${item.task_id}`} className="text-indigo-600 hover:text-indigo-900">
+                                View Task
+                              </Link>
+                            ) : (
+                              <span className="text-gray-400">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {isDonation && item.status === 'completed' && (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => downloadInvoice(item.id)}
+                                  className="text-indigo-600 hover:text-indigo-900 flex items-center"
+                                  title="Download Invoice"
+                                >
+                                  <FaDownload className="mr-1" />
+                                </button>
+                                <button
+                                  onClick={() => viewInvoice(item.id)}
+                                  className="text-indigo-600 hover:text-indigo-900 flex items-center"
+                                  title="View Invoice"
+                                >
+                                  <FaFileInvoice className="mr-1" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

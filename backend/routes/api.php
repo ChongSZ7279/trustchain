@@ -92,6 +92,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // Combined financial activities routes
     Route::get('/financial-activities', [FinancialActivityController::class, 'index']);
     Route::get('/charities/{charity}/financial-activities', [FinancialActivityController::class, 'getCharityFinancialActivities']);
+
+    // Organization financial activity routes
+    Route::get('/organizations/{organization}/transactions', [OrganizationController::class, 'getOrganizationTransactions']);
+    Route::get('/organizations/{organization}/donations', [OrganizationController::class, 'getOrganizationDonations']);
+    Route::get('/organizations/{organization}/financial-activities', [OrganizationController::class, 'getOrganizationFinancialActivities']);
+
+    // User financial activity routes
+    Route::get('/users/{user}/donations', [UserController::class, 'getUserDonations']);
+    Route::get('/users/{user}/financial-activities', [UserController::class, 'getUserFinancialActivities']);
+    Route::get('/donations/{donation}/invoice', [DonationController::class, 'generateInvoice']);
+    Route::get('/donations/{donation}/invoice-html', [DonationController::class, 'generateInvoiceHtml']);
 });
 
 // Add a test route to check storage configuration
@@ -138,4 +149,47 @@ Route::post('/test-upload', function (Request $request) {
         'message' => 'No file uploaded',
         'data' => $request->all(),
     ]);
+});
+
+// Add this outside of any middleware groups for testing
+Route::get('/test-invoice', function() {
+    try {
+        $pdf = \PDF::loadView('invoices.test', [
+            'title' => 'Test Invoice',
+            'date' => now()->format('F j, Y')
+        ]);
+        
+        return $pdf->download('test-invoice.pdf');
+    } catch (\Exception $e) {
+        \Log::error('Test invoice error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Add this outside of any middleware groups for testing
+Route::get('/simple-test-pdf', function() {
+    try {
+        // Create a very simple PDF with minimal content
+        $html = '<html><body><h1>Test PDF</h1><p>This is a test.</p></body></html>';
+        $pdf = \PDF::loadHTML($html);
+        
+        return $pdf->download('simple-test.pdf');
+    } catch (\Exception $e) {
+        \Log::error('Simple PDF test error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
 }); 

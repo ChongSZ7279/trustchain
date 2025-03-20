@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\TestController;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\FixTaskController;
+use App\Http\Controllers\FinancialActivityController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -86,8 +87,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Donation routes
     Route::apiResource('donations', DonationController::class);
-    Route::get('/user/donations', [DonationController::class, 'userDonations']);
-    Route::get('/charity/{charityId}/donations', [DonationController::class, 'charityDonations']);
+    Route::get('/charities/{charity}/donations', [DonationController::class, 'getCharityDonations']);
+
+    // Combined financial activities routes
+    Route::get('/financial-activities', [FinancialActivityController::class, 'index']);
+    Route::get('/charities/{charity}/financial-activities', [FinancialActivityController::class, 'getCharityFinancialActivities']);
 });
 
 // Add a test route to check storage configuration

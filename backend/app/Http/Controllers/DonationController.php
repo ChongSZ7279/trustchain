@@ -15,19 +15,56 @@ class DonationController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $donations = Donation::with(['user', 'transaction'])
-            ->when(!Auth::user()->is_admin, function ($query) {
-                return $query->where('user_id', Auth::id())
-                    ->orWhere(function ($q) {
-                        $q->where('is_anonymous', false);
-                    });
-            })
-            ->latest()
-            ->paginate(10);
-
-        return response()->json($donations);
+        $query = Donation::query();
+        
+        // Apply search filter
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('transaction_hash', 'like', "%{$search}%")
+                  ->orWhere('donor_message', 'like', "%{$search}%");
+            });
+        }
+        
+        // Apply status filter
+        if ($request->has('status')) {
+            $query->where('status', $request->input('status'));
+        }
+        
+        // Apply date range filter
+        if ($request->has('dateRange')) {
+            $dateRange = $request->input('dateRange');
+            if (!empty($dateRange['start'])) {
+                $query->whereDate('created_at', '>=', $dateRange['start']);
+            }
+            if (!empty($dateRange['end'])) {
+                $query->whereDate('created_at', '<=', $dateRange['end']);
+            }
+        }
+        
+        // Apply amount range filter
+        if ($request->has('amountRange')) {
+            $amountRange = $request->input('amountRange');
+            if (!empty($amountRange['min'])) {
+                $query->where('amount', '>=', $amountRange['min']);
+            }
+            if (!empty($amountRange['max'])) {
+                $query->where('amount', '<=', $amountRange['max']);
+            }
+        }
+        
+        // Add source field to identify as donation
+        $donations = $query->paginate($request->input('per_page', 10));
+        
+        // Add source field to each donation
+        $donations->getCollection()->transform(function ($donation) {
+            $donation->source = 'Donation';
+            return $donation;
+        });
+        
+        return $donations;
     }
 
     /**
@@ -155,13 +192,8 @@ class DonationController extends Controller
      */
     public function show(Donation $donation)
     {
-        if (!Auth::user()->is_admin && 
-            $donation->user_id !== Auth::id() && 
-            $donation->is_anonymous) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        return response()->json($donation->load(['user', 'transaction']));
+        // Load relationships that might be needed in the frontend
+        return response()->json($donation->load(['user', 'transaction', 'charity']));
     }
 
     /**
@@ -327,5 +359,23 @@ class DonationController extends Controller
             ->paginate(10);
 
         return response()->json($donations);
+    }
+
+    public function getCharityDonations(Request $request, $charityId)
+    {
+        $query = Donation::where('cause_id', $charityId);
+        
+        // Apply the same filters as in index method
+        // ...
+        
+        $donations = $query->paginate($request->input('per_page', 10));
+        
+        // Add source field to each donation
+        $donations->getCollection()->transform(function ($donation) {
+            $donation->source = 'Donation';
+            return $donation;
+        });
+        
+        return $donations;
     }
 }

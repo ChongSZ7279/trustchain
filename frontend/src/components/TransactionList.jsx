@@ -47,6 +47,7 @@ export default function TransactionList() {
       max: ''
     }
   });
+  const [dataSource, setDataSource] = useState('transactions');
 
   const fetchTransactions = async () => {
     try {
@@ -81,17 +82,26 @@ export default function TransactionList() {
         queryParams.append('amountRange[max]', filters.amountRange.max);
       }
 
-      let endpoint = '/transactions';
-      if (viewType === 'charity' && charityId) {
-        endpoint = `/charities/${charityId}/transactions`;
+      // Add data source parameter to fetch combined data
+      queryParams.append('source', dataSource);
+
+      // Determine the appropriate endpoint based on the data source
+      let endpoint;
+      if (dataSource === 'donations') {
+        endpoint = charityId ? `/charities/${charityId}/donations` : '/donations';
+      } else if (dataSource === 'combined') {
+        endpoint = charityId ? `/charities/${charityId}/financial-activities` : '/financial-activities';
+      } else {
+        // Default to transactions
+        endpoint = charityId ? `/charities/${charityId}/transactions` : '/transactions';
       }
 
-      console.log('Fetching transactions from endpoint:', endpoint);
+      console.log('Fetching data from endpoint:', endpoint);
       console.log('Query params:', queryParams.toString());
       
       const response = await axios.get(`${endpoint}?${queryParams}`);
       
-      console.log('Transaction response:', response.data);
+      console.log('Response data:', response.data);
       
       if (response.data && response.data.data) {
         setTransactions(response.data.data);
@@ -101,7 +111,7 @@ export default function TransactionList() {
           totalItems: response.data.total
         }));
       } else {
-        console.log('No transaction data found in response');
+        console.log('No data found in response');
         setTransactions([]);
         setPagination(prev => ({
           ...prev,
@@ -127,7 +137,7 @@ export default function TransactionList() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [pagination.currentPage, searchTerm, filters, viewType, charityId]);
+  }, [pagination.currentPage, searchTerm, filters, viewType, charityId, dataSource]);
 
   const handlePageChange = (page) => {
     setPagination(prev => ({ ...prev, currentPage: page }));
@@ -148,8 +158,12 @@ export default function TransactionList() {
   };
 
   const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch (status.toLowerCase()) {
       case 'completed':
+      case 'confirmed':
+      case 'verified':
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
@@ -161,8 +175,12 @@ export default function TransactionList() {
   };
 
   const getStatusIcon = (status) => {
+    if (!status) return null;
+    
     switch (status.toLowerCase()) {
       case 'completed':
+      case 'confirmed':
+      case 'verified':
         return <FaCheckCircle className="text-green-500" />;
       case 'pending':
         return <FaExclamationCircle className="text-yellow-500" />;
@@ -171,6 +189,40 @@ export default function TransactionList() {
       default:
         return null;
     }
+  };
+
+  const getTypeLabel = (item) => {
+    if (item.type) {
+      return item.type.charAt(0).toUpperCase() + item.type.slice(1);
+    } else if (item.task_proof) {
+      return 'Task';
+    } else if (item.donor_message || item.cause_id) {
+      return 'Donation';
+    } else {
+      return 'Transaction';
+    }
+  };
+
+  const formatAmount = (amount, currencyType) => {
+    if (!amount) return '$0.00';
+    
+    const formattedAmount = `$${parseFloat(amount).toFixed(2)}`;
+    return currencyType ? `${formattedAmount} (${currencyType})` : formattedAmount;
+  };
+
+  const getSourceLabel = (item) => {
+    if (item.source) {
+      return item.source;
+    } else if (item.donor_message || item.cause_id) {
+      return 'Donation';
+    } else {
+      return 'Transaction';
+    }
+  };
+
+  const getDetailsUrl = (item) => {
+    const sourceType = getSourceLabel(item).toLowerCase();
+    return `/${sourceType}s/${item.id}`;
   };
 
   if (loading) {
@@ -231,6 +283,24 @@ export default function TransactionList() {
           <p className="mt-2 text-sm text-gray-600">
             {viewType === 'charity' ? 'View charity-specific transactions' : 'View all system transactions'}
           </p>
+        </div>
+        
+        {/* Data Source Toggle */}
+        <div className="mt-4 md:mt-0">
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">Data Source:</span>
+            <div className="relative inline-block w-full">
+              <select
+                value={dataSource}
+                onChange={(e) => setDataSource(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                <option value="transactions">Transactions</option>
+                <option value="donations">Donations</option>
+                <option value="combined">Combined</option>
+              </select>
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -310,7 +380,7 @@ export default function TransactionList() {
                       Date
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Transaction ID
+                      ID
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
@@ -322,34 +392,40 @@ export default function TransactionList() {
                       Status
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Source
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Details
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {transactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gray-50">
+                  {transactions.map((item) => (
+                    <tr key={`${getSourceLabel(item)}-${item.id}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(transaction.created_at).toLocaleDateString()}
+                        {new Date(item.created_at || item.completed_at || Date.now()).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                        {transaction.transaction_hash?.slice(0, 8) || transaction.id}
+                        {item.transaction_hash?.slice(0, 8) || item.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                        {getTypeLabel(item)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${parseFloat(transaction.amount).toFixed(2)}
+                        {formatAmount(item.amount, item.currency_type)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
-                          {getStatusIcon(transaction.status)}
-                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                          {getStatusIcon(item.status)}
+                          {item.status?.charAt(0).toUpperCase() + item.status?.slice(1) || 'Unknown'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getSourceLabel(item)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button
-                          onClick={() => navigate(`/transactions/${transaction.id}`)}
+                          onClick={() => navigate(getDetailsUrl(item))}
                           className="text-indigo-600 hover:text-indigo-900"
                         >
                           View Details

@@ -185,6 +185,26 @@ const router = createBrowserRouter([
       {
         path: '/donations/:id',
         element: <DonationDetails />
+      },
+      {
+        path: '/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/charities/:charityId/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/charities/:charityId/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/charities/:charityId/financial-activities',
+        element: <TransactionList dataSource="combined" />
       }
     ]
   }

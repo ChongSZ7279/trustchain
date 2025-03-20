@@ -433,12 +433,6 @@ class DonationController extends Controller
                 'has_charity' => isset($donation->charity)
             ]);
             
-            // Skip authentication check for testing
-            // $user = Auth::user();
-            // if (!$user || $user->ic_number !== $donation->user_id) {
-            //     return response()->json(['message' => 'Unauthorized'], 403);
-            // }
-            
             // Prepare data for the view
             $data = [
                 'donation' => $donation,
@@ -450,8 +444,14 @@ class DonationController extends Controller
             
             \Log::info('Data prepared for view', ['data_keys' => array_keys($data)]);
             
-            // Generate PDF
+            // Generate PDF with explicit options
             $pdf = \PDF::loadView('invoices.donation', $data);
+            $pdf->setPaper('a4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
             
             \Log::info('PDF generated successfully');
             
@@ -471,22 +471,48 @@ class DonationController extends Controller
         }
     }
 
+    /**
+     * Generate an invoice HTML for client-side PDF generation
+     */
     public function generateInvoiceHtml(Request $request, $donationId)
     {
         try {
-            $donation = Donation::with(['user', 'charity'])->findOrFail($donationId);
+            \Log::info('Starting invoice HTML generation', ['donation_id' => $donationId]);
             
-            // Prepare data for the view
+            // Find the donation
+            $donation = Donation::find($donationId);
+            
+            if (!$donation) {
+                \Log::error('Donation not found', ['donation_id' => $donationId]);
+                return response()->json([
+                    'message' => 'Donation not found',
+                    'error' => 'The requested donation does not exist'
+                ], 404);
+            }
+            
+            // Manually load relationships to ensure they're available
+            $donation->load(['user', 'charity']);
+            
+            \Log::info('Donation loaded for HTML generation', [
+                'donation_id' => $donation->id,
+                'has_user' => isset($donation->user),
+                'has_charity' => isset($donation->charity),
+                'donation_data' => $donation->toArray()
+            ]);
+            
+            // Prepare data for the view with fallbacks for missing relationships
             $data = [
                 'donation' => $donation,
-                'user' => $donation->user,
-                'charity' => $donation->charity,
+                'user' => $donation->user ?? (object)['name' => 'Anonymous', 'ic_number' => 'N/A'],
+                'charity' => $donation->charity ?? (object)['name' => 'Unknown Charity', 'category' => 'N/A'],
                 'date' => now()->format('F j, Y'),
                 'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
             ];
             
             // Render the view to HTML
             $html = view('invoices.donation', $data)->render();
+            
+            \Log::info('Invoice HTML generated successfully');
             
             return response()->json([
                 'html' => $html,

@@ -213,23 +213,8 @@ export default function UserDashboard() {
   };
   
   // Add a function to view e-invoice
-  const viewInvoice = async (donationId) => {
-    try {
-      console.log(`Viewing invoice for donation ${donationId}`);
-      
-      // Use the correct URL without the /api prefix
-      const response = await axios.get(`/donations/${donationId}/invoice`, {
-        responseType: 'blob'
-      });
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      
-    } catch (error) {
-      console.error('Error viewing invoice:', error);
-      toast.error('Failed to view invoice. Please try again.');
-    }
+  const viewInvoice = (donationId) => {
+    navigate(`/donations/${donationId}/invoice`);
   };
 
   // Fetch blockchain donation amount if wallet is connected

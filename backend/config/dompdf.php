@@ -45,7 +45,7 @@ return [
          * Times-Roman, Times-Bold, Times-BoldItalic, Times-Italic,
          * Symbol, ZapfDingbats.
          */
-        'font_dir' => storage_path('fonts'), // advised by dompdf (https://github.com/dompdf/dompdf/pull/782)
+        'font_dir' => storage_path('fonts/'),
 
         /**
          * The location of the DOMPDF font cache directory
@@ -55,7 +55,7 @@ return [
          *
          * Note: This directory must exist and be writable by the webserver process.
          */
-        'font_cache' => storage_path('fonts'),
+        'font_cache' => storage_path('fonts/'),
 
         /**
          * The location of a temporary directory.
@@ -91,10 +91,14 @@ return [
          * @var array
          */
         'allowed_protocols' => [
-            'data://' => ['rules' => []],
-            'file://' => ['rules' => []],
-            'http://' => ['rules' => []],
-            'https://' => ['rules' => []],
+            'file://' => [
+                'app',
+                'public',
+                'storage',
+                'vendor',
+            ],
+            'http://' => [],
+            'https://' => [],
         ],
 
         /**
@@ -179,7 +183,7 @@ return [
          *
          * @var string
          */
-        'default_font' => 'serif',
+        'default_font' => 'sans-serif',
 
         /**
          * Image DPI setting
@@ -267,7 +271,7 @@ return [
          *
          * @var bool
          */
-        'enable_remote' => false,
+        'enable_remote' => true,
 
         /**
          * List of allowed remote hosts
@@ -295,7 +299,7 @@ return [
          *
          * @var bool
          */
-        'enable_html5_parser' => true,
+        'enable_html5_parser' => false,
     ],
 
 ];

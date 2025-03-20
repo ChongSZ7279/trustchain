@@ -28,6 +28,7 @@ import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword'; 
 import ApiTest from './components/ApiTest';
+import Invoice from './components/Invoice';
 
 const router = createBrowserRouter([
   {
@@ -214,6 +215,10 @@ const router = createBrowserRouter([
       {
         path: '/charities/:charityId/financial-activities',
         element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/donations/:donationId/invoice',
+        element: <Invoice />
       }
     ]
   }

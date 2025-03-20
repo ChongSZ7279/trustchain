@@ -192,4 +192,191 @@ Route::get('/simple-test-pdf', function() {
             'trace' => $e->getTraceAsString()
         ], 500);
     }
+});
+
+// Add this outside of any middleware groups for testing
+Route::get('/test-invoice-html', function() {
+    try {
+        $html = '<html><body><h1>Test Invoice</h1><p>This is a test invoice.</p></body></html>';
+        
+        return response()->json([
+            'html' => $html,
+            'filename' => 'test-invoice.pdf'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Test invoice HTML error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'message' => 'Failed to generate test invoice HTML',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Make sure this route is outside any middleware groups for testing
+Route::get('/donations/{donation}/invoice-html', [App\Http\Controllers\DonationController::class, 'generateInvoiceHtml']);
+
+// Add this test route to create a test donation
+Route::get('/create-test-donation', function() {
+    try {
+        // Check if donation with ID 1 exists
+        $existingDonation = \App\Models\Donation::find(1);
+        
+        if ($existingDonation) {
+            return response()->json([
+                'message' => 'Test donation already exists',
+                'donation' => $existingDonation
+            ]);
+        }
+        
+        // Find a valid user and charity
+        $user = \App\Models\User::first();
+        $charity = \App\Models\Charity::first();
+        
+        if (!$user || !$charity) {
+            return response()->json([
+                'message' => 'Cannot create test donation - no users or charities found',
+                'users_exist' => (bool)$user,
+                'charities_exist' => (bool)$charity
+            ], 500);
+        }
+        
+        // Create a test donation
+        $donation = new \App\Models\Donation();
+        $donation->id = 1; // Force ID to be 1
+        $donation->user_id = $user->ic_number;
+        $donation->amount = 100.00;
+        $donation->currency_type = 'USD';
+        $donation->cause_id = $charity->id;
+        $donation->status = 'completed';
+        $donation->donor_message = 'This is a test donation';
+        $donation->is_anonymous = false;
+        $donation->save();
+        
+        return response()->json([
+            'message' => 'Test donation created successfully',
+            'donation' => $donation
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to create test donation',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Add this test route to directly return HTML for a donation
+Route::get('/donations/{donation}/direct-html', function($donationId) {
+    try {
+        $donation = \App\Models\Donation::find($donationId);
+        
+        if (!$donation) {
+            return response()->json([
+                'message' => 'Donation not found',
+                'error' => 'The requested donation does not exist'
+            ], 404);
+        }
+        
+        // Create a simple HTML directly
+        $html = "
+        <html>
+        <head>
+            <title>Simple Donation Receipt</title>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+                h1 { color: #4f46e5; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <h1>Donation Receipt</h1>
+                <p><strong>Receipt No:</strong> INV-" . str_pad($donation->id, 6, '0', STR_PAD_LEFT) . "</p>
+                <p><strong>Date:</strong> " . now()->format('F j, Y') . "</p>
+                <p><strong>Amount:</strong> $" . number_format($donation->amount, 2) . " " . $donation->currency_type . "</p>
+                <p><strong>Status:</strong> " . ucfirst($donation->status) . "</p>
+                <p>Thank you for your donation!</p>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        return response()->json([
+            'html' => $html,
+            'filename' => "donation-invoice-{$donationId}.pdf"
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to generate direct HTML',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Add this test route to check database tables
+Route::get('/check-database', function() {
+    try {
+        $tables = [
+            'donations' => \App\Models\Donation::count(),
+            'users' => \App\Models\User::count(),
+            'charities' => \App\Models\Charity::count(),
+            'transactions' => \App\Models\Transaction::count(),
+        ];
+        
+        $donationSample = \App\Models\Donation::first();
+        $userSample = \App\Models\User::first();
+        $charitySample = \App\Models\Charity::first();
+        
+        return response()->json([
+            'message' => 'Database check completed',
+            'table_counts' => $tables,
+            'donation_sample' => $donationSample ? $donationSample->toArray() : null,
+            'user_sample' => $userSample ? $userSample->toArray() : null,
+            'charity_sample' => $charitySample ? $charitySample->toArray() : null,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Database check failed',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Add this test route to use a simplified template
+Route::get('/donations/{donation}/simple-html', function($donationId) {
+    try {
+        $donation = \App\Models\Donation::find($donationId);
+        
+        if (!$donation) {
+            return response()->json([
+                'message' => 'Donation not found',
+                'error' => 'The requested donation does not exist'
+            ], 404);
+        }
+        
+        $data = [
+            'donation' => $donation,
+            'date' => now()->format('F j, Y'),
+            'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
+        ];
+        
+        $html = view('invoices.simple', $data)->render();
+        
+        return response()->json([
+            'html' => $html,
+            'filename' => "donation-invoice-{$donationId}.pdf"
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to generate simple HTML',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
 }); 

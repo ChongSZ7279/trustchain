@@ -23,6 +23,7 @@ import DonationForm from './components/DonationForm';
 import DonationDetails from './components/DonationDetails';
 import TermsAndConditions from './pages/TermsAndConditions';
 import Guidelines from './pages/Guidelines';
+import FAQ from './pages/FAQ';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword'; 
@@ -66,6 +67,14 @@ const router = createBrowserRouter([
         handle: {
           title: "Website Guidelines",
           subtitle: "How to use TrustChain effectively"
+        }
+      },
+      {
+        path: '/faq',
+        element: <FAQ />,
+        handle: {
+          title: "Frequently Asked Questions",
+          subtitle: "Find answers to common questions about TrustChain"
         }
       },
       {

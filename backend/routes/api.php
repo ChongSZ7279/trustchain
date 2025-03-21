@@ -17,6 +17,7 @@ use App\Http\Controllers\TestController;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\FixTaskController;
 use App\Http\Controllers\FinancialActivityController;
+use App\Http\Controllers\ContactController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -379,4 +380,7 @@ Route::get('/donations/{donation}/simple-html', function($donationId) {
             'trace' => $e->getTraceAsString()
         ], 500);
     }
-}); 
+});
+
+// Contact form route
+Route::post('/contact', [ContactController::class, 'submit']); 

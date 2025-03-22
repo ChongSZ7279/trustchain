@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\FixTaskController;
 use App\Http\Controllers\FinancialActivityController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\BlockchainController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -383,4 +384,8 @@ Route::get('/donations/{donation}/simple-html', function($donationId) {
 });
 
 // Contact form route
-Route::post('/contact', [ContactController::class, 'submit']); 
+Route::post('/contact', [ContactController::class, 'submit']);
+
+// Add these routes
+Route::get('/blockchain/donation-count', [BlockchainController::class, 'getDonationCount']);
+Route::post('/blockchain/verify-transaction', [BlockchainController::class, 'verifyTransaction']); 

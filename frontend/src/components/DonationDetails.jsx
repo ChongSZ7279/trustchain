@@ -17,6 +17,8 @@ import {
   FaMoneyBillWave,
   FaFileAlt
 } from 'react-icons/fa';
+import { ethers } from 'ethers';
+import { DonationContractABI } from '../utils/contractABI';
 
 export default function DonationDetails() {
   const { id } = useParams();
@@ -135,6 +137,26 @@ export default function DonationDetails() {
       toast.error('Failed to delete donation');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  // Update how you connect to the contract using ethers.js v6
+  const connectToContract = async () => {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || 
+                             process.env.REACT_APP_CONTRACT_ADDRESS;
+      
+      const contract = new ethers.Contract(
+        contractAddress, 
+        DonationContractABI,
+        signer
+      );
+      return contract;
+    } catch (error) {
+      console.error("Error connecting to contract:", error);
+      return null;
     }
   };
 

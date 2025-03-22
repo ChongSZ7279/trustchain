@@ -2,7 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { BlockchainProvider } from './context/BlockchainContext';
 import { LocalizationProvider } from './context/LocalizationContext';
-import router from './router';
+import router from './router.jsx';
 
 function App() {
   return (

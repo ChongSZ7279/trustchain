@@ -428,28 +428,29 @@ export default function CharityDetails() {
     return `${days} days left`;
   };
 
-  const handleDonation = async (amount) => {
-    if (!charity?.blockchain_id) {
-      toast.error('This charity is not configured for blockchain donations');
-      return;
-    }
-    
-    setDonationLoading(true);
-    
+  const handleDonation = async (amount, transactionHash) => {
     try {
-      await donateToCharity(charity.blockchain_id, amount);
+      setDonationLoading(true);
       
-      toast.success('Donation successful! Your transaction is being processed on the blockchain.');
-      
-      // Refresh donations
-      const donations = await getCharityDonations(charity.blockchain_id);
-      setBlockchainDonations(donations);
-      
-      // Close donation modal
-      setShowDonationModal(false);
+      // If we have a transaction hash, it means the blockchain transaction was successful
+      if (transactionHash) {
+        // You can optionally record this in your backend
+        const response = await axios.post(`/charities/${id}/donations`, {
+          amount: amount,
+          transaction_hash: transactionHash,
+          blockchain_verified: true
+        });
+        
+        // Update UI
+        toast.success('Donation successful! Transaction has been recorded on the blockchain.');
+        setShowDonationModal(false);
+        
+        // Refresh charity data
+        fetchCharityData();
+      }
     } catch (error) {
-      console.error('Error making donation:', error);
-      toast.error('Error making donation. Please try again.');
+      console.error('Error processing donation:', error);
+      toast.error('There was an error processing your donation.');
     } finally {
       setDonationLoading(false);
     }

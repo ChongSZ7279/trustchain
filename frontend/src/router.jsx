@@ -29,6 +29,7 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword'; 
 import ApiTest from './components/ApiTest';
 import Invoice from './components/Invoice';
+import BlockchainTester from './components/BlockchainTester';
 
 const router = createBrowserRouter([
   {
@@ -221,6 +222,10 @@ const router = createBrowserRouter([
         element: <Invoice />
       }
     ]
+  },
+  {
+    path: '/blockchain-test',
+    element: <BlockchainTester />
   }
 ]);
 

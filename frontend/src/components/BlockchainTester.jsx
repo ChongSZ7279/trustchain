@@ -18,6 +18,11 @@ export default function BlockchainTester() {
 
   useEffect(() => {
     const init = async () => {
+      console.log("Environment variables:", {
+        VITE_CONTRACT_ADDRESS: import.meta.env.VITE_CONTRACT_ADDRESS,
+        VITE_API_URL: import.meta.env.VITE_API_URL,
+      });
+      
       if (window.ethereum) {
         try {
           // Request account access
@@ -25,19 +30,34 @@ export default function BlockchainTester() {
           const account = accounts[0];
           setAccount(account);
           
-          // Create provider and signer
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          setProvider(provider);
+          // Create provider and signer - compatible with ethers v5 or v6
+          let provider;
+          let signer;
           
-          const signer = await provider.getSigner();
+          // Check ethers version by feature detection
+          if (typeof ethers.BrowserProvider === 'function') {
+            // ethers v6
+            console.log("Using ethers v6");
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = await provider.getSigner();
+          } else {
+            // ethers v5
+            console.log("Using ethers v5");
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+          }
+          
+          setProvider(provider);
           setSigner(signer);
           
           // Get balance
           const balance = await provider.getBalance(account);
-          setBalance(ethers.formatEther(balance));
+          setBalance(ethers.utils?.formatEther(balance) || ethers.formatEther(balance));
           
           // Connect to contract
           const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+          console.log("Contract address:", contractAddress);
+          
           const contract = new ethers.Contract(
             contractAddress,
             DonationContractABI,
@@ -49,7 +69,7 @@ export default function BlockchainTester() {
           const count = await contract.getDonationCount();
           setDonationCount(count.toString());
         } catch (err) {
-          console.error(err);
+          console.error("Detailed error:", err);
           setError('Failed to connect to blockchain');
         }
       } else {
@@ -61,41 +81,52 @@ export default function BlockchainTester() {
   }, []);
 
   const handleDonate = async () => {
-    if (!contract) return;
+    if (!contract) {
+      setError('Contract not initialized');
+      return;
+    }
     
     try {
       setLoading(true);
       setError('');
       setResult('');
       
-      const tx = await contract.donate(donationMessage, {
-        value: ethers.parseEther(donationAmount)
-      });
+      // Convert amount to wei - compatible with ethers v5 or v6
+      let amountInWei;
+      if (ethers.utils && ethers.utils.parseEther) {
+        // ethers v5
+        amountInWei = ethers.utils.parseEther(donationAmount);
+      } else if (ethers.parseEther) {
+        // ethers v6
+        amountInWei = ethers.parseEther(donationAmount);
+      } else {
+        throw new Error("Could not find parseEther function in ethers library");
+      }
       
-      setResult(`Transaction sent: ${tx.hash}`);
+      // Call the donate function on the contract
+      const tx = await contract.donate(donationMessage, { value: amountInWei });
       
-      // Wait for confirmation
+      // Wait for transaction to be mined
       const receipt = await tx.wait();
       
-      // Add to transactions list
-      setTransactions(prev => [
-        {
-          hash: tx.hash,
-          amount: donationAmount,
-          message: donationMessage,
-          timestamp: new Date().toISOString()
-        },
-        ...prev
-      ]);
+      setResult(`Donation successful! Transaction hash: ${receipt.hash || receipt.transactionHash}`);
       
       // Update donation count
       const count = await contract.getDonationCount();
       setDonationCount(count.toString());
       
-      setResult(`Transaction confirmed in block ${receipt.blockNumber}`);
+      // Add to transactions list
+      const newTransaction = {
+        hash: receipt.hash || receipt.transactionHash,
+        amount: donationAmount,
+        message: donationMessage,
+        timestamp: new Date().toISOString()
+      };
+      
+      setTransactions(prev => [newTransaction, ...prev]);
     } catch (err) {
-      console.error(err);
-      setError(err.message);
+      console.error("Donation error:", err);
+      setError(`Failed to donate: ${err.message}`);
     } finally {
       setLoading(false);
     }

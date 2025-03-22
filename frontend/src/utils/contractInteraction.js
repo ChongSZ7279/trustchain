@@ -18,9 +18,16 @@ export const initWeb3 = async () => {
       account = accounts[0];
       
       // Initialize contract with the ABI and address
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+      console.log("Using contract address:", contractAddress);
+      
+      if (!contractAddress) {
+        throw new Error("Contract address is not defined in environment variables");
+      }
+      
       contract = new web3.eth.Contract(
         DonationContractABI,
-        DonationContractAddress
+        contractAddress
       );
       
       return { web3, contract, account };

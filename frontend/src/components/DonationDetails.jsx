@@ -140,13 +140,24 @@ export default function DonationDetails() {
     }
   };
 
-  // Update how you connect to the contract using ethers.js v6
+  // Update how you connect to the contract using ethers.js v5 or v6
   const connectToContract = async () => {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || 
-                             process.env.REACT_APP_CONTRACT_ADDRESS;
+      let provider;
+      let signer;
+      
+      // Check ethers version by feature detection
+      if (typeof ethers.BrowserProvider === 'function') {
+        // ethers v6
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+      } else {
+        // ethers v5
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+      }
+      
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
       
       const contract = new ethers.Contract(
         contractAddress, 

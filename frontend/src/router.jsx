@@ -16,13 +16,20 @@ import CharityList from './components/CharityList';
 import CharityDetails from './components/CharityDetails';
 import CharityForm from './components/CharityForm';
 import TaskForm from './components/TaskForm';
-import TaskPictureManager from './components/TaskPictureManager';
 import UserEdit from './components/UserEdit';
 import TransactionList from './components/TransactionList';
 import TransactionDetails from './components/TransactionDetails';
-import TermsAndConditions from './pages/TermsAndConditions';
 import DonationForm from './components/DonationForm';
-
+import DonationDetails from './components/DonationDetails';
+import TermsAndConditions from './pages/TermsAndConditions';
+import Guidelines from './pages/Guidelines';
+import FAQ from './pages/FAQ';
+import Register from './components/Register';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword'; 
+import ApiTest from './components/ApiTest';
+import Invoice from './components/Invoice';
+import BlockchainTester from './components/BlockchainTester';
 
 const router = createBrowserRouter([
   {
@@ -34,7 +41,11 @@ const router = createBrowserRouter([
       },
       {
         path: '/organizations',
-        element: <OrganizationList />
+        element: <OrganizationList />,
+        handle: {
+          title: "Organizations",
+          subtitle: "Browse through our list of organizations"
+        }
       },
       {
         path: '/organizations/:id',
@@ -51,6 +62,30 @@ const router = createBrowserRouter([
       {
         path: '/terms',
         element: <TermsAndConditions />
+      },
+      {
+        path: '/guidelines',
+        element: <Guidelines />,
+        handle: {
+          title: "Website Guidelines",
+          subtitle: "How to use TrustChain effectively"
+        }
+      },
+      {
+        path: '/faq',
+        element: <FAQ />,
+        handle: {
+          title: "Frequently Asked Questions",
+          subtitle: "Find answers to common questions about TrustChain"
+        }
+      },
+      {
+        path: '/api-test',
+        element: <ApiTest />,
+        handle: {
+          title: "API Connection Test",
+          subtitle: "Test the connection to the backend API"
+        }
       }
     ]
   },
@@ -63,6 +98,14 @@ const router = createBrowserRouter([
         handle: {
           title: "Welcome Back!",
           subtitle: "Please sign in to your account"
+        }
+      },
+      {
+        path: '/register',
+        element: <Register />,
+        handle: {
+          title: "Create Your Account",
+          subtitle: "Join our community and start making a difference"
         }
       },
       {
@@ -79,6 +122,22 @@ const router = createBrowserRouter([
         handle: {
           title: "Register Your Organization",
           subtitle: "Join our platform and make a positive impact in the community"
+        }
+      },
+      {
+        path: '/forgot-password',
+        element: <ForgotPassword />,
+        handle: {
+          title: "Forgot Password",
+          subtitle: "Please enter your email to reset your password"
+        }
+      },
+      {
+        path: '/reset-password',
+        element: <ResetPassword />,
+        handle: {
+          title: "Reset Password",
+          subtitle: "Please enter your new password"
         }
       }
     ]
@@ -115,20 +174,12 @@ const router = createBrowserRouter([
         element: <CharityForm />
       },
       {
-        path: '/charities/:id/tasks/create',
+        path: '/charities/:charityId/tasks/create',
         element: <TaskForm />
       },
       {
-        path: '/charities/:id/donate',
-        element: <DonationForm />
-      },
-      {
-        path: 'tasks/:taskId/edit',
+        path: '/charities/:charityId/tasks/:taskId/edit',
         element: <TaskForm />
-      },
-      {
-        path: 'tasks/:taskId/pictures',
-        element: <TaskPictureManager />
       },
       {
         path: '/transactions',
@@ -137,8 +188,44 @@ const router = createBrowserRouter([
       {
         path: '/transactions/:id',
         element: <TransactionDetails />
+      },
+      {
+        path: '/charities/:id/donate',
+        element: <DonationForm />
+      },
+      {
+        path: '/donations/:id',
+        element: <DonationDetails />
+      },
+      {
+        path: '/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/charities/:charityId/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/charities/:charityId/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/charities/:charityId/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/donations/:donationId/invoice',
+        element: <Invoice />
       }
     ]
+  },
+  {
+    path: '/blockchain-test',
+    element: <BlockchainTester />
   }
 ]);
 

@@ -1,19 +1,30 @@
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 require("@matterlabs/hardhat-zksync-solc");
 require("@matterlabs/hardhat-zksync-verify");
 
-
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  zksolc: {
-    version: "1.5.11",
-    compilerSource: "binary",
-    settings: {
-      optimizer: {
-        enabled: true,
-      },
-    },
-  },
+  solidity: "0.8.19",
   networks: {
+    localhost: {
+      url: "http://127.0.0.1:8545"
+    },
+    hardhat: {
+      // For local development
+    },
+    // Add Sepolia network configuration
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
+      chainId: 11155111
+    },
+    // Add testnet configuration (alias for Sepolia)
+    testnet: {
+      url: process.env.SEPOLIA_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
+      chainId: 11155111
+    },
     zkSyncSepoliaTestnet: {
       url: "https://sepolia.era.zksync.dev",
       ethNetwork: "sepolia",
@@ -32,17 +43,17 @@ module.exports = {
     },
   },
   paths: {
-    artifacts: "./artifacts-zk",
-    cache: "./cache-zk",
     sources: "./contracts",
     tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
   },
-  solidity: {
-    version: "0.8.23",
+  zksolc: {
+    version: "1.5.11",
+    compilerSource: "binary",
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
       },
     },
   },

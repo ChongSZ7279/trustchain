@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transaction extends Model
 {
+    use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -23,6 +26,11 @@ class Transaction extends Model
         'contract_address',
         'message',
         'anonymous',
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'anonymous' => 'boolean'
     ];
 
     /**
@@ -47,5 +55,10 @@ class Transaction extends Model
     public function task(): BelongsTo
     {
         return $this->belongsTo(Task::class);
+    }
+
+    public function donation()
+    {
+        return $this->hasOne(Donation::class);
     }
 }

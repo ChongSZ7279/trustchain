@@ -6,6 +6,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Donation;
+use App\Models\Transaction;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserController extends Controller
 {
@@ -61,6 +64,106 @@ class UserController extends Controller
                 'message' => 'Failed to update user',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Get all donations for a user
+     */
+    public function getUserDonations(Request $request, $userId)
+    {
+        try {
+            $user = User::where('ic_number', $userId)->firstOrFail();
+            
+            $donations = Donation::with(['charity'])
+                ->where('user_id', $userId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            // Add source field to each donation
+            $donations->transform(function ($donation) {
+                $donation->source = 'Donation';
+                return $donation;
+            });
+            
+            \Log::info('Successfully retrieved donations', [
+                'user_ic' => $userId,
+                'count' => $donations->count()
+            ]);
+                
+            return response()->json($donations);
+        } catch (\Exception $e) {
+            \Log::error('Error retrieving donations', [
+                'user_ic' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json(['message' => 'Error retrieving donations'], 500);
+        }
+    }
+
+    /**
+     * Get all financial activities for a user
+     */
+    public function getUserFinancialActivities(Request $request, $userId)
+    {
+        try {
+            $user = User::where('ic_number', $userId)->firstOrFail();
+            
+            // Get transactions
+            $transactions = Transaction::with(['charity', 'task'])
+                ->where('user_ic', $userId)
+                ->get();
+            
+            // Add source field to each transaction
+            $transactions->transform(function ($transaction) {
+                $transaction->source = 'Transaction';
+                return $transaction;
+            });
+            
+            // Get donations
+            $donations = Donation::with(['charity'])
+                ->where('user_id', $userId)
+                ->get();
+            
+            // Add source field to each donation
+            $donations->transform(function ($donation) {
+                $donation->source = 'Donation';
+                return $donation;
+            });
+            
+            // Combine and sort by date
+            $combined = $transactions->concat($donations)
+                ->sortByDesc('created_at');
+            
+            // Manual pagination
+            $page = $request->input('page', 1);
+            $perPage = $request->input('per_page', 10);
+            $items = $combined->forPage($page, $perPage);
+            
+            $paginator = new LengthAwarePaginator(
+                $items,
+                $combined->count(),
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+            
+            \Log::info('Successfully retrieved financial activities', [
+                'user_ic' => $userId,
+                'transactions_count' => $transactions->count(),
+                'donations_count' => $donations->count(),
+                'total_count' => $combined->count()
+            ]);
+                
+            return $paginator;
+        } catch (\Exception $e) {
+            \Log::error('Error retrieving financial activities', [
+                'user_ic' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json(['message' => 'Error retrieving financial activities'], 500);
         }
     }
 } 

@@ -59,4 +59,22 @@ class User extends Authenticatable
     {
         return $this->hasMany(Organization::class, 'representative_id', 'ic_number');
     }
+
+    /**
+     * Get the organizations that the user follows.
+     */
+    public function followedOrganizations()
+    {
+        return $this->belongsToMany(Organization::class, 'organization_followers', 'user_ic', 'organization_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the charities that the user follows.
+     */
+    public function followedCharities()
+    {
+        return $this->belongsToMany(Charity::class, 'charity_followers', 'user_ic', 'charity_id')
+            ->withTimestamps();
+    }
 }

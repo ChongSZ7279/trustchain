@@ -1,50 +1,93 @@
 import { useState, useEffect } from "react";
 import { generateAIResponse } from "../context/geminiService";
 
-const AIGenerator = ({ userHistory }) => {
-  const [response, setResponse] = useState("");
+const AIGenerator = ({ userHistory, followedCharityNames, onRecommendation }) => {
+  const [charities, setCharities] = useState([]);
 
-  const charities = [
-    "Red Cross",
-    "Save the Children",
-    "World Wildlife Fund",
-    "Doctors Without Borders",
-    "UNICEF",
-    "Feeding America",
-  ];
+  // Fetch charities from API on mount
+  useEffect(() => {
+    const fetchCharities = async () => {
+      try {
+        const res = await fetch("/api/charities"); // Replace with actual API endpoint
+        if (!res.ok) throw new Error(`Failed to fetch charities: ${res.status}`);
 
+        const responseData = await res.json();
+        const charitiesList = responseData.data || [];
+
+        setCharities(charitiesList);
+      } catch (error) {
+        setCharities([]); // Ensure charities is an empty array on failure
+      }
+    };
+
+    fetchCharities();
+  }, []); // Fetch charities only once on mount
+
+  // Generate AI-based recommendation when userHistory or charities change
   useEffect(() => {
     const generateRecommendation = async () => {
       if (!userHistory || userHistory.length === 0) {
-        setResponse("No user history available.");
+        onRecommendation(null);
         return;
       }
 
-      setResponse("Analyzing your history...");
-      
-      // Create a prompt for AI
-      const prompt = `Based on this user history: ${JSON.stringify(userHistory)}, 
-      which of these charities would be the best match? ${charities.join(", ")}. 
-      Just provide a name of the most suitable charity.`;
+      if (charities.length === 0) {
+        onRecommendation(null);
+        return;
+      }
 
-      const aiResponse = await generateAIResponse(prompt);
-      setResponse(aiResponse);
+      // 🔹 Filter out followed charities
+      const availableCharities = charities.filter(
+        (charity) => !followedCharityNames.includes(charity.name.toLowerCase())
+      );
+
+      // 🔹 If ALL charities are followed, return NO recommendation
+      if (availableCharities.length === 0) {
+        console.warn("All charities are followed. No recommendations available.");
+        onRecommendation(null);
+        return;
+      }
+
+      try {
+        // Format charity data for AI
+        const charityNames = availableCharities
+          .map((charity) => `Name: ${charity.name}, Description: ${charity.description}`)
+          .join("; ");
+
+        // Create AI prompt
+        const prompt = `Based on this user history: ${JSON.stringify(userHistory)}, 
+        which of these charities would be the best match? ${charityNames}. 
+        Just provide the name of the most suitable charity.`;
+
+        const aiResponse = await generateAIResponse(prompt);
+        const cleanResponse = aiResponse?.trim();
+
+        // Try to find the recommended charity
+        let matchedCharity = availableCharities.find(
+          (charity) => charity.name.toLowerCase() === cleanResponse?.toLowerCase()
+        );
+
+        // 🔹 Fallback: If AI response is invalid, pick a random charity
+        if (!matchedCharity) {
+          matchedCharity = availableCharities[Math.floor(Math.random() * availableCharities.length)];
+        }
+
+        onRecommendation(matchedCharity);
+      } catch (error) {
+        console.error("AI recommendation failed. Falling back to random charity.");
+        
+        // 🔹 If AI fails, still pick a random charity
+        const fallbackCharity = availableCharities[Math.floor(Math.random() * availableCharities.length)];
+        onRecommendation(fallbackCharity);
+      }
     };
 
-    generateRecommendation(); // Auto-run on page load
-  }, [userHistory]); // Runs when userHistory changes
+    if (charities.length > 0) {
+      generateRecommendation();
+    }
+  }, [userHistory, charities, followedCharityNames]); // Runs when userHistory, charities, or followedCharityNames change
 
-  return (
-    <div className="p-4 max-w-md mx-auto bg-white shadow-lg rounded-lg">
-      <h2 className="text-lg font-bold mb-2">Charity Recommendation</h2>
-      {response ? (
-        <p className="mt-4 p-2 bg-gray-100 rounded">{response}</p>
-      ) : (
-        <p className="mt-4 p-2 bg-gray-100 rounded">Loading recommendation...</p>
-      )}
-    </div>
-  );
+  return null; // No UI needed, just handling logic
 };
 
 export default AIGenerator;
-

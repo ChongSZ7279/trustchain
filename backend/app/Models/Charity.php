@@ -37,4 +37,29 @@ class Charity extends Model
     {
         return $this->hasMany(Task::class);
     }
+
+    /**
+     * Get the users that follow this charity.
+     */
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'charity_followers', 'charity_id', 'user_ic')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the donations for this charity.
+     */
+    public function donations()
+    {
+        return $this->hasMany(Donation::class, 'cause_id');
+    }
+
+    /**
+     * Get the follower count for this charity.
+     */
+    public function getFollowerCountAttribute()
+    {
+        return $this->followers()->count();
+    }
 } 

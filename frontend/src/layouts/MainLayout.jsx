@@ -1,16 +1,20 @@
-import { Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export default function MainLayout() {
+  const location = useLocation();
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
-      <main className="flex-grow">
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="flex-grow pt-16">
+        {/* Main Content */}
+        <main className="flex-1 p-6">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
       <Footer />
     </div>
   );

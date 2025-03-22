@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -42,7 +42,8 @@ import {
   FaFileContract,
   FaFilePdf,
   FaFileWord,
-  FaEye
+  FaEye,
+  FaSync
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import Web3 from 'web3';
@@ -59,6 +60,45 @@ const getFileIcon = (fileType) => {
   if (fileType?.includes('word') || fileType?.includes('doc')) return <FaFileWord className="text-blue-500 text-xl" />;
   if (fileType?.includes('image')) return <FaImages className="text-green-500 text-xl" />;
   return <FaFileAlt className="text-gray-500 text-xl" />;
+};
+
+// Add this helper function at the top of your file
+const formatStatus = (status) => {
+  if (!status) return 'Unknown';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+// Update these functions to handle undefined values
+const getStatusColor = (status) => {
+  if (!status) return 'bg-gray-100 text-gray-800';
+  
+  switch (status.toLowerCase()) {
+    case 'completed':
+    case 'verified':
+      return 'bg-green-100 text-green-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'failed':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getStatusIcon = (status) => {
+  if (!status) return null;
+  
+  switch (status.toLowerCase()) {
+    case 'completed':
+    case 'verified':
+      return <FaCheckCircle className="mr-1.5 h-2 w-2 text-green-500" />;
+    case 'pending':
+      return <FaClock className="mr-1.5 h-2 w-2 text-yellow-500" />;
+    case 'failed':
+      return <FaExclamationTriangle className="mr-1.5 h-2 w-2 text-red-500" />;
+    default:
+      return null;
+  }
 };
 
 export default function CharityDetails() {
@@ -111,7 +151,42 @@ export default function CharityDetails() {
   const [donationLoading, setDonationLoading] = useState(false);
 
   // Add a new state for combined transactions
-  const [combinedTransactions, setCombinedTransactions] = useState([]);
+  const [transactionsList, setTransactionsList] = useState([]);
+
+  // Add a state for the current data source
+  const [currentDataSource, setCurrentDataSource] = useState('transactions');
+
+  // Add a function to load data based on the current data source
+  const loadDataBySource = async (source) => {
+    try {
+      let endpoint;
+      if (source === 'transactions') {
+        endpoint = `/charities/${id}/transactions`;
+      } else if (source === 'donations') {
+        endpoint = `/charities/${id}/donations`;
+      } else if (source === 'combined') {
+        endpoint = `/charities/${id}/financial-activities`;
+      }
+      
+      console.log(`Loading data from ${endpoint}`);
+      const response = await axios.get(endpoint);
+      console.log(`${source} data:`, response.data);
+      
+      // Handle both paginated and non-paginated responses
+      const data = response.data.data ? response.data.data : response.data;
+      setTransactionsList(data);
+    } catch (error) {
+      console.error(`Error loading ${source} data:`, error);
+      setTransactionsList([]);
+    }
+  };
+
+  // Call this function when the component mounts or when the data source changes
+  useEffect(() => {
+    if (currentUser && id) {
+      loadDataBySource(currentDataSource);
+    }
+  }, [currentUser, id, currentDataSource]);
 
   // Initialize Web3 and smart contract
   useEffect(() => {
@@ -174,59 +249,54 @@ export default function CharityDetails() {
   const fetchCharityData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // First fetch the charity data
-      let charityData;
-      try {
-        const charityResponse = await axios.get(`/charities/${id}`);
-        charityData = charityResponse.data;
-        setCharity(charityData);
-        
-        // Fetch organization details if charity has an organization_id
-        if (charityData.organization_id) {
-          try {
-            const orgResponse = await axios.get(`/organizations/${charityData.organization_id}`);
-            setOrganization(orgResponse.data);
-          } catch (err) {
-            console.error('Error fetching organization:', err);
-            setOrganization(null);
-          }
+      console.log("Fetching charity data for ID:", id);
+      
+      const response = await axios.get(`/charities/${id}`);
+      const charityData = response.data;
+      
+      console.log("Charity data received:", charityData);
+      
+      setCharity(charityData);
+      
+      if (charityData.organization_id) {
+        try {
+          const orgResponse = await axios.get(`/organizations/${charityData.organization_id}`);
+          setOrganization(orgResponse.data);
+        } catch (err) {
+          console.error('Error fetching organization:', err);
         }
-        
-        // Set follower status only if user is logged in
-        if (currentUser) {
-          if (charityData.is_following !== undefined) {
-            setIsFollowing(charityData.is_following);
-          }
-          if (charityData.follower_count !== undefined) {
-            setFollowerCount(charityData.follower_count);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching charity:', err);
-        setError('Failed to fetch charity details');
-        setLoading(false);
-        return;
       }
       
-      // Then fetch tasks
       try {
-        const tasksResponse = await axios.get(`/charities/${id}/tasks`);
-        // Transform tasks to include task pictures
-        const tasksWithPictures = tasksResponse.data.map(task => ({
-          ...task,
-          pictures: task.pictures || [] // Use pictures instead of task_pictures
-        }));
-        setTasks(tasksWithPictures);
+        const tasksRes = await axios.get(`/charities/${id}/tasks`);
+        console.log("Tasks response:", tasksRes.data);
+        setTasks(tasksRes.data);
       } catch (err) {
         console.error('Error fetching tasks:', err);
         setTasks([]);
       }
       
-      // Fetch donations only if user is authorized
-      if (currentUser && (accountType === 'admin' || currentUser.ic_number === charityData?.representative_id)) {
+      // Fetch transactions only if user is authorized
+      if (currentUser) {
         try {
-          const donationsRes = await axios.get(`/charity/${id}/donations`);
+          console.log("Fetching transactions for charity ID:", id);
+          const transactionsRes = await axios.get(`/charities/${id}/transactions`);
+          console.log("Transactions response:", transactionsRes.data);
+          setTransactions(transactionsRes.data);
+          
+          // Also set the transactionsList state with the initial data
+          setTransactionsList(transactionsRes.data);
+        } catch (err) {
+          console.error('Error fetching transactions:', err);
+          setTransactions([]);
+          setTransactionsList([]);
+        }
+        
+        try {
+          console.log("Fetching donations for charity ID:", id);
+          const donationsRes = await axios.get(`/charities/${id}/donations`);
           console.log("Donations response:", donationsRes.data);
           setDonations(donationsRes.data);
         } catch (err) {
@@ -234,65 +304,11 @@ export default function CharityDetails() {
           setDonations([]);
         }
       }
-
-      // Fetch transactions for all logged-in users
-      if (currentUser) {
-        try {
-          const transactionsRes = await axios.get(`/charities/${id}/transactions`);
-          console.log("Transactions response:", transactionsRes.data);
-          setTransactions(transactionsRes.data);
-        } catch (err) {
-          console.error('Error fetching transactions:', err);
-          setTransactions([]);
-        }
-      }
       
-      // Get follow status only if user is logged in
-      if (currentUser) {
-        try {
-          const followStatusRes = await axios.get(`/charities/${id}/follow-status`);
-          setIsFollowing(followStatusRes.data.is_following);
-          setFollowerCount(followStatusRes.data.follower_count);
-        } catch (err) {
-          console.error('Error fetching follow status:', err);
-        }
-      }
-
-      // Fetch blockchain data if available
-      if (contract && charityData?.blockchain_id) {
-        try {
-          // Fetch blockchain donations
-          const donationEvents = await contract.getPastEvents('DonationMade', {
-            filter: { charityId: charityData.blockchain_id },
-            fromBlock: 0,
-            toBlock: 'latest'
-          });
-          
-          const formattedDonations = donationEvents.map(event => ({
-            donor: event.returnValues.donor,
-            amount: web3.utils.fromWei(event.returnValues.amount, 'ether'),
-            timestamp: new Date(event.returnValues.timestamp * 1000).toLocaleString(),
-            transactionHash: event.transactionHash
-          }));
-          
-          console.log("Blockchain donations:", formattedDonations);
-          setBlockchainDonations(formattedDonations);
-          
-          // Fetch milestones
-          try {
-            const response = await axios.get(`/api/charities/${id}/milestones`);
-            setMilestones(response.data);
-          } catch (error) {
-            console.error('Error fetching milestones:', error);
-          }
-        } catch (error) {
-          console.error('Error fetching blockchain data:', error);
-        }
-      }
+      setLoading(false);
     } catch (err) {
-      console.error('Error fetching charity details:', err);
-      setError('Failed to fetch charity details');
-    } finally {
+      console.error('Error fetching charity:', err);
+      setError('Failed to load charity details. Please try again.');
       setLoading(false);
     }
   };
@@ -479,11 +495,38 @@ export default function CharityDetails() {
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       
       console.log("Combined transactions:", combined);
-      setCombinedTransactions(combined);
+      setTransactionsList(combined);
     } else {
-      setCombinedTransactions([]);
+      setTransactionsList([]);
     }
   }, [transactions, blockchainDonations]);
+
+  // Keep the useMemo for the comprehensive combined transactions
+  const combinedTransactions = useMemo(() => {
+    const formattedTransactions = transactions.data?.map(tx => ({
+      ...tx,
+      is_blockchain: false,
+      type: tx.type || 'transaction'
+    })) || [];
+    
+    const formattedDonations = donations.data?.map(donation => ({
+      ...donation,
+      is_blockchain: false,
+      type: 'donation',
+      // Map cause_id to charity_id for consistency
+      charity_id: donation.cause_id
+    })) || [];
+    
+    const formattedBlockchainDonations = blockchainDonations.map(tx => ({
+      ...tx,
+      is_blockchain: true,
+      type: 'donation',
+      status: 'completed'
+    }));
+    
+    return [...formattedTransactions, ...formattedDonations, ...formattedBlockchainDonations]
+      .sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
+  }, [transactions, donations, blockchainDonations]);
 
   if (loading) {
     return (
@@ -760,7 +803,7 @@ export default function CharityDetails() {
                         }`}>
                           {charity.status === 'active' && <FaCheckCircle className="mr-1" />}
                           {charity.status === 'completed' && <FaCheckCircle className="mr-1" />}
-                          {charity.status?.charAt(0).toUpperCase() + charity.status?.slice(1)}
+                          {charity.status ? (charity.status.charAt(0).toUpperCase() + charity.status.slice(1)) : 'Unknown'}
                         </span>
                       </div>
                     </div>
@@ -872,7 +915,7 @@ export default function CharityDetails() {
                               }`}>
                                 {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
                                 {task.status === 'in_progress' && <FaClock className="mr-1" />}
-                                {task.status?.charAt(0).toUpperCase() + task.status?.slice(1).replace('_', ' ')}
+                                {task.status ? (task.status.charAt(0).toUpperCase() + task.status.slice(1)) : 'Unknown'}
                               </span>
                             </div>
 
@@ -1073,7 +1116,7 @@ export default function CharityDetails() {
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                         </div>
                         <div className="ml-3">
@@ -1115,8 +1158,24 @@ export default function CharityDetails() {
                   />
                 </div>
                 
+                {/* Add this filter dropdown */}
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">View:</span>
+                  <select
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    onChange={(e) => {
+                      const newDataSource = e.target.value;
+                      setCurrentDataSource(newDataSource);
+                    }}
+                  >
+                    <option value="transactions">Transactions</option>
+                    <option value="donations">Donations</option>
+                    <option value="combined">Combined</option>
+                  </select>
+                </div>
+                
                 {currentUser ? (
-                  combinedTransactions.length > 0 ? (
+                  transactionsList.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -1142,80 +1201,48 @@ export default function CharityDetails() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {combinedTransactions.map(transaction => (
-                            <tr key={transaction.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(transaction.created_at)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                                {transaction.transaction_hash?.slice(0, 8) || transaction.id.slice(0, 8)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  transaction.is_blockchain 
-                                    ? 'bg-indigo-100 text-indigo-800'
-                                    : transaction.type === 'donation' 
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {transaction.is_blockchain ? (
-                                    <>
-                                      <FaWallet className="mr-1" />
-                                      Blockchain Donation
-                                    </>
-                                  ) : transaction.type === 'donation' ? (
-                                    <>
-                                      <FaHandHoldingHeart className="mr-1" />
-                                      Donation
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FaExchangeAlt className="mr-1" />
-                                      {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                                    </>
-                                  )}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {transaction.is_blockchain 
-                                  ? `${transaction.amount} ETH`
-                                  : `$${formatCurrency(transaction.amount)}`
-                                }
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  transaction.status === 'completed'
-                                    ? 'bg-green-100 text-green-800'
-                                    : transaction.status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {transaction.status === 'completed' && <FaCheckCircle className="mr-1" />}
-                                  {transaction.status === 'pending' && <FaClock className="mr-1" />}
-                                  {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {transaction.is_blockchain ? (
-                                  <a 
-                                    href={`https://etherscan.io/tx/${transaction.transaction_hash}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-600 hover:text-indigo-900"
-                                  >
-                                    View on Etherscan
-                                  </a>
-                                ) : (
+                          {(Array.isArray(transactionsList) ? transactionsList : []).map(transaction => {
+                            if (!transaction) return null; // Skip null or undefined transactions
+                            
+                            return (
+                              <tr key={transaction.id || transaction.transaction_hash || Math.random()} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {formatDate(transaction.created_at || new Date())}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                  {(transaction.transaction_hash || transaction.id || 'Unknown')?.slice(0, 8)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-sm text-gray-500">
+                                    {transaction.type || 'Transaction'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {transaction.amount ? `${transaction.amount} ${transaction.currency_type || 'ETH'}` : 'N/A'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
+                                    {getStatusIcon(transaction.status)}
+                                    {formatStatus(transaction.status)}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                   <button
-                                    onClick={() => navigate(`/transactions/${transaction.id}`)}
+                                    onClick={() => {
+                                      // Navigate to the appropriate details page based on transaction type
+                                      const path = transaction.type === 'donation' 
+                                        ? `/donations/${transaction.id}` 
+                                        : `/transactions/${transaction.id}`;
+                                      navigate(path);
+                                    }}
                                     className="text-indigo-600 hover:text-indigo-900"
                                   >
                                     View Details
                                   </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

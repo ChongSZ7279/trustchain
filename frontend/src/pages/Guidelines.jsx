@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function Guidelines() {
   const [activeTab, setActiveTab] = useState('getting-started');
@@ -13,6 +14,7 @@ export default function Guidelines() {
   ];
 
   return (
+    <>
     <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
       {/* Header with better spacing and styling */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8 text-white">
@@ -310,9 +312,12 @@ export default function Guidelines() {
                 <p className="text-gray-600">
                   Find answers to common questions in our comprehensive FAQ section.
                 </p>
-                <a href="/faq" className="inline-block mt-4 px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium">
+                <Link 
+                  to="/faq" 
+                  className="inline-block mt-4 px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+                >
                   Browse FAQs
-                </a>
+                </Link>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
                   <div className="flex items-center mb-4">
@@ -422,6 +427,22 @@ export default function Guidelines() {
           </svg>
         </button>
       </div>
+
     </div>
+
+      {/* FAQ Button Section */}
+      <div className="max-w-6xl mx-auto mt-10 bg-blue-50 rounded-lg shadow-sm border border-blue-100 p-6 text-center">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-3">Have Questions?</h2>
+        <p className="text-gray-700 mb-5">
+          Check out our Frequently Asked Questions section for quick answers to common questions.
+        </p>
+        <Link 
+          to="/faq" 
+          className="inline-block px-6 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        >
+          View FAQ
+        </Link>
+      </div>
+    </>
   );
 }

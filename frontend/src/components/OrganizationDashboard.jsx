@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
 import { useNavigate, Link } from 'react-router-dom';
@@ -27,7 +27,11 @@ import {
   FaUsers,
   FaCertificate,
   FaEdit as FaEditAlt,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaSync,
+  FaFilter,
+  FaExchangeAlt,
+  FaClock
 } from 'react-icons/fa';
 
 export default function OrganizationDashboard() {
@@ -39,6 +43,10 @@ export default function OrganizationDashboard() {
   const [charities, setCharities] = useState([]);
   const [activeTab, setActiveTab] = useState('charity');
   const [totalDonations, setTotalDonations] = useState(0);
+  const [donations, setDonations] = useState([]);
+  const [combinedTransactions, setCombinedTransactions] = useState([]);
+  const [currentDataSource, setCurrentDataSource] = useState('transactions');
+  const [organizationId, setOrganizationId] = useState(null);
 
   useEffect(() => {
     if (!currentUser) {
@@ -53,17 +61,16 @@ export default function OrganizationDashboard() {
       try {
         setLoading(true);
         
+        // Set the organization ID
+        setOrganizationId(currentUser.id);
+        
         // Fetch charities associated with this organization
         const charitiesResponse = await axios.get(`/organizations/${currentUser.id}/charities`);
         setCharities(charitiesResponse.data);
         
-        // Fetch transactions using the main transactions endpoint
-        const transactionsResponse = await axios.get('/transactions');
-        setTransactions(transactionsResponse.data.data || []);
+        // Load data based on the current data source
+        await loadDataBySource(currentDataSource);
         
-        // Calculate total donations
-        const total = transactionsResponse.data.data.reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
-        setTotalDonations(total);
       } catch (err) {
         console.error('Error in fetchOrganizationData:', err);
         setError('Failed to load some organization data');
@@ -74,6 +81,54 @@ export default function OrganizationDashboard() {
 
     fetchOrganizationData();
   }, [currentUser]);
+
+  const loadDataBySource = async (source) => {
+    if (!currentUser || !currentUser.id) return;
+    
+    try {
+      setLoading(true);
+      
+      let endpoint;
+      if (source === 'transactions') {
+        endpoint = `/organizations/${currentUser.id}/transactions`;
+      } else if (source === 'donations') {
+        endpoint = `/organizations/${currentUser.id}/donations`;
+      } else if (source === 'combined') {
+        endpoint = `/organizations/${currentUser.id}/financial-activities`;
+      }
+      
+      console.log(`Loading data from ${endpoint}`);
+      const response = await axios.get(endpoint);
+      console.log(`${source} data:`, response.data);
+      
+      // Handle both paginated and non-paginated responses
+      const data = response.data.data ? response.data.data : response.data;
+      
+      if (source === 'transactions') {
+        setTransactions(data);
+        // Calculate total donations from transactions
+        const total = data.reduce((sum, transaction) => sum + parseFloat(transaction.amount || 0), 0);
+        setTotalDonations(total);
+      } else if (source === 'donations') {
+        setDonations(data);
+      }
+      
+      // Always update the combined transactions for display
+      setCombinedTransactions(data);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error(`Error loading ${source} data:`, error);
+      setError(`Failed to load ${source} data`);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      loadDataBySource(currentDataSource);
+    }
+  }, [currentDataSource, currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -87,6 +142,43 @@ export default function OrganizationDashboard() {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'verified':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    if (!status) return null;
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'verified':
+        return <FaCheckCircle className="mr-1.5 h-2 w-2 text-green-500" />;
+      case 'pending':
+        return <FaClock className="mr-1.5 h-2 w-2 text-yellow-500" />;
+      case 'failed':
+        return <FaExclamationTriangle className="mr-1.5 h-2 w-2 text-red-500" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -404,10 +496,36 @@ export default function OrganizationDashboard() {
           {/* Transaction Tab */}
           {activeTab === 'transaction' && (
             <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <FaHistory className="mr-2" />
-                Transaction History
-              </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                  <FaHistory className="mr-2" />
+                  Financial Transactions
+                </h2>
+                
+                {/* Add filter dropdown */}
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">View:</span>
+                  <select
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    value={currentDataSource}
+                    onChange={(e) => {
+                      setCurrentDataSource(e.target.value);
+                    }}
+                  >
+                    <option value="transactions">Transactions</option>
+                    <option value="donations">Donations</option>
+                    <option value="combined">Combined</option>
+                  </select>
+                  
+                  <button
+                    onClick={() => loadDataBySource(currentDataSource)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <FaSync className="mr-2" />
+                    Refresh
+                  </button>
+                </div>
+              </div>
 
               {loading ? (
                 <div className="flex justify-center">
@@ -415,11 +533,17 @@ export default function OrganizationDashboard() {
                 </div>
               ) : error ? (
                 <div className="text-center text-red-600">{error}</div>
-              ) : transactions.length === 0 ? (
+              ) : combinedTransactions.length === 0 ? (
                 <div className="text-center py-12">
-                  <FaHistory className="mx-auto h-12 w-12 text-gray-400" />
+                  <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">Transactions will appear here once they occur.</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {currentDataSource === 'donations' 
+                      ? "No donations have been received yet." 
+                      : currentDataSource === 'combined'
+                        ? "No financial activities have been recorded yet."
+                        : "No transactions have been recorded yet."}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -447,7 +571,7 @@ export default function OrganizationDashboard() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex items-center">
                             <FaUsers className="mr-2" />
-                            From
+                            From/To
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -465,50 +589,48 @@ export default function OrganizationDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {transactions.map(transaction => (
-                        <tr key={transaction.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(transaction.created_at)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              transaction.type === 'charity' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {transaction.type === 'charity' ? 'Charity Donation' : 'Task Funding'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ${transaction.amount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {transaction.from_user ? (
-                              <Link to={`/users/${transaction.from_user.id}`} className="text-indigo-600 hover:text-indigo-900">
-                                {transaction.from_user.name}
+                      {combinedTransactions.map(item => {
+                        if (!item) return null; // Skip null or undefined items
+                        
+                        // Determine if this is a donation or transaction
+                        const isDonation = item.source === 'Donation' || item.donor_message;
+                        
+                        return (
+                          <tr key={item.id || item.transaction_hash || Math.random()} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(item.created_at || item.completed_at || new Date())}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                isDonation ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {isDonation ? 'Donation' : (item.type || 'Transaction')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.amount ? `${item.amount} ${item.currency_type || 'ETH'}` : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.user?.name || item.from_user?.name || (item.is_anonymous ? 'Anonymous' : 'Unknown')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                                {getStatusIcon(item.status)}
+                                {formatStatus(item.status)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <Link
+                                to={isDonation ? `/donations/${item.id}` : `/transactions/${item.id}`}
+                                className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
+                              >
+                                <FaEdit className="mr-2" />
+                                View Details
                               </Link>
-                            ) : (
-                              'Anonymous'
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <Link
-                              to={`/transactions/${transaction.id}`}
-                              className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
-                            >
-                              <FaEdit className="mr-2" />
-                              View Details
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

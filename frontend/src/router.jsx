@@ -23,10 +23,12 @@ import DonationForm from './components/DonationForm';
 import DonationDetails from './components/DonationDetails';
 import TermsAndConditions from './pages/TermsAndConditions';
 import Guidelines from './pages/Guidelines';
+import FAQ from './pages/FAQ';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword'; 
 import ApiTest from './components/ApiTest';
+import Invoice from './components/Invoice';
 
 const router = createBrowserRouter([
   {
@@ -66,6 +68,14 @@ const router = createBrowserRouter([
         handle: {
           title: "Website Guidelines",
           subtitle: "How to use TrustChain effectively"
+        }
+      },
+      {
+        path: '/faq',
+        element: <FAQ />,
+        handle: {
+          title: "Frequently Asked Questions",
+          subtitle: "Find answers to common questions about TrustChain"
         }
       },
       {
@@ -185,6 +195,30 @@ const router = createBrowserRouter([
       {
         path: '/donations/:id',
         element: <DonationDetails />
+      },
+      {
+        path: '/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/charities/:charityId/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/charities/:charityId/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/charities/:charityId/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/donations/:donationId/invoice',
+        element: <Invoice />
       }
     ]
   }

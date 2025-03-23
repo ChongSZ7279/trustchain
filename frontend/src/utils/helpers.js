@@ -4,15 +4,15 @@
  * @returns {string} The formatted URL
  */
 export const formatImageUrl = (path) => {
-  if (!path) return '';
-  
-  // If the path already starts with http, return it as is
-  if (path.startsWith('http')) {
-    return path;
-  }
-  
-  // Otherwise, prepend the backend URL
-  return `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${path}`;
+  if (!path) return null;
+    
+    // Check if the path already includes the base URL
+    if (path.startsWith('http')) {
+      return path;
+    }
+    
+    // Otherwise, construct the full URL - using import.meta.env for Vite
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/storage/${path}`;
 };
 
 /**

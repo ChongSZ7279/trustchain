@@ -269,7 +269,7 @@ export default function OrganizationDetails() {
                 {canEditOrganization() && (
                   <Link
                     to={`/organizations/${id}/edit`}
-                    className="px-4 py-2 rounded-md font-medium text-sm bg-indigo-600 border border-gray-300 text-white hover:bg-indigo-700 transition-all duration-200 text-center"
+                    className="px-4 py-2 rounded-md font-medium text-sm bg-green-600 border border-gray-300 text-white hover:bg-green-700 transition-all duration-200 text-center"
                   >
                     <FaEdit className="inline-block mr-2" />
                     Edit

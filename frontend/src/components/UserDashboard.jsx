@@ -1012,37 +1012,12 @@ export default function UserDashboard() {
 
               {recommendedCharity ? (
                 <div className="grid grid-cols-1 gap-6">
-                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
+                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={false} />
                 </div>
               ) : (
                 <p className="text-gray-600">No recommendations available.</p>
               )}
             </div>
-            {/* <div>
-              <br></br>
-              <br></br>
-              <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Recommended Charities</h3>
-              <AIGenerator userHistory={["Work in a childcare center"]}/>
-              {recommendedCharity ? (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-lg">
-                  <FaHeart className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-                  <h3 className="text-md font-medium text-gray-900 mb-2">No recommended charities</h3>
-                  <p className="text-gray-600 mb-4">We couldn't generate a recommendation for you.</p>
-                  <Link
-                    to="/charities"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <FaHandHoldingUsd className="mr-2" />
-                    Browse Charities
-                  </Link>
-                </div>
-              )}
-            </div> */}
-
 
           </div>
 

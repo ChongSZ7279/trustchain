@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { 
@@ -10,6 +10,7 @@ import {
   FaHistory, 
   FaEdit, 
   FaSignOutAlt,
+  FaFileContract,
   FaPlus,
   FaFileAlt,
   FaCheckCircle,
@@ -35,7 +36,8 @@ import {
 } from 'react-icons/fa';
 
 export default function OrganizationDashboard() {
-  const { currentUser, logout } = useAuth();
+  const { id } = useParams();
+  const { currentUser, logout, accountType } = useAuth();
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -181,6 +183,12 @@ export default function OrganizationDashboard() {
     }
   };
 
+  
+  const canEditOrganization = () => {
+    return (accountType === 'organization' && currentUser?.id === currentUser?.id) || 
+           (currentUser?.representative_id === currentUser?.ic_number);
+  };
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -198,6 +206,15 @@ export default function OrganizationDashboard() {
             Welcome back!
           </p>
         </div>
+        {canEditOrganization() && (
+                  <Link
+                    to={`/organizations/${id}/edit`}
+                    className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors duration-200"
+                  >
+                    <FaEdit className="mr-2" />
+                    Edit Organization
+                  </Link>
+                )}
       </motion.div>
 
       <div className="bg-gray-50 shadow-sm rounded-lg overflow-hidden">
@@ -321,6 +338,17 @@ export default function OrganizationDashboard() {
               >
                 <FaPhone className="mr-2 h-4 w-4" />
                 Contact
+              </button>
+              <button
+                onClick={() => setActiveTab('documents')}
+                className={`${
+                  activeTab === 'documents'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
+              >
+                <FaFileAlt className="mr-2 h-4 w-4" />
+                Documents
               </button>
               <button
                 onClick={() => setActiveTab('transaction')}
@@ -493,6 +521,73 @@ export default function OrganizationDashboard() {
             </div>
           )}
 
+          {/* Documents Tab */}
+          {activeTab === 'documents' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                <FaFileAlt className="mr-2" />
+                Documents
+              </h2>
+              
+              <div className="mb-8">
+                  {currentUser.verified_document ? (
+                    <div className="border border-gray-200 rounded-lg p-4 flex items-center">
+                      <div className="bg-indigo-100 p-3 rounded-lg mr-4">
+                        <FaFileAlt className="text-indigo-600 text-xl" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">Verification Document</h3>
+                        <p className="text-sm text-gray-500">Official verification document</p>
+                      </div>
+                      <a 
+                        href={formatImageUrl(currentUser.verified_document)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <FaFileAlt className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Verification Document</h3>
+                      <p className="text-gray-600">This organization hasn't uploaded a verification document yet.</p>
+                    </div>
+                  )}
+                </div>
+
+              <div>
+                  {currentUser.statutory_declaration ? (
+                    <div className="border border-gray-200 rounded-lg p-4 flex items-center">
+                      <div className="bg-green-100 p-3 rounded-lg mr-4">
+                        <FaFileAlt className="text-green-600 text-xl" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">Statutory Declaration</h3>
+                        <p className="text-sm text-gray-500">Official statutory declaration document</p>
+                      </div>
+                      <a 
+                        href={formatImageUrl(currentUser.statutory_declaration)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <FaFileAlt className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Statutory Declaration</h3>
+                      <p className="text-gray-600">This organization hasn't uploaded a statutory declaration yet.</p>
+                    </div>
+                  )}
+                </div>
+
+            </div>
+          )}
+          
           {/* Transaction Tab */}
           {activeTab === 'transaction' && (
             <div className="bg-white shadow rounded-lg p-6">

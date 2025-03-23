@@ -289,24 +289,6 @@ export default function TransactionList() {
             {viewType === 'charity' ? 'View charity-specific transactions' : 'View all system transactions'}
           </p>
         </div>
-        
-        {/* Data Source Toggle */}
-        <div className="mt-4 md:mt-0">
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">Data Source:</span>
-            <div className="relative inline-block w-full">
-              <select
-                value={dataSource}
-                onChange={(e) => setDataSource(e.target.value)}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="transactions">Transactions</option>
-                <option value="donations">Donations</option>
-                <option value="combined">Combined</option>
-              </select>
-            </div>
-          </div>
-        </div>
       </motion.div>
 
       {/* Search and Filter Bar */}
@@ -351,6 +333,22 @@ export default function TransactionList() {
             className="mt-4 pt-4 border-t border-gray-200"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Data Source Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Data Source
+                </label>
+                <select
+                  value={dataSource}
+                  onChange={(e) => setDataSource(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                >
+                  <option value="transactions">Transactions</option>
+                  <option value="donations">Donations</option>
+                  <option value="combined">Combined</option>
+                </select>
+              </div>
+
               {/* Status Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -367,6 +365,29 @@ export default function TransactionList() {
                   <option value="pending">Pending</option>
                   <option value="failed">Failed</option>
                 </select>
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date Range
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    name="dateRange.start"
+                    value={filters.dateRange.start}
+                    onChange={handleFilterChange}
+                    className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                  <input
+                    type="date"
+                    name="dateRange.end"
+                    value={filters.dateRange.end}
+                    onChange={handleFilterChange}
+                    className="block w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
               </div>
             </div>
           </motion.div>

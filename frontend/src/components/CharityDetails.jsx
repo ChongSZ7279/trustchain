@@ -43,7 +43,9 @@ import {
   FaFilePdf,
   FaFileWord,
   FaEye,
-  FaSync
+  FaSync,
+  FaCoins,
+  FaChartLine
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import Web3 from 'web3';
@@ -62,6 +64,16 @@ const getFileIcon = (fileType) => {
   if (fileType?.includes('word') || fileType?.includes('doc')) return <FaFileWord className="text-blue-500 text-xl" />;
   if (fileType?.includes('image')) return <FaImages className="text-green-500 text-xl" />;
   return <FaFileAlt className="text-gray-500 text-xl" />;
+};
+
+const formatCurrency = (amount) => {
+  if (!amount) return '0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
 };
 
 // Add this helper function at the top of your file
@@ -101,6 +113,64 @@ const getStatusIcon = (status) => {
     default:
       return null;
   }
+};
+
+// Add this helper function at the top of your file
+const FundingProgress = ({ current, target, donorCount, endDate, className = "" }) => {
+  const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+  const statusColor = progress >= 100 ? 'green' : progress >= 75 ? 'blue' : 'indigo';
+  
+  try {
+    return (
+      <div className={`funding-progress ${className}`}>
+        <div className="flex justify-between items-center text-sm mb-2">
+          <div className="flex items-center space-x-2">
+            <FaChartLine className={`text-${statusColor}-600`} />
+            <span className="font-medium text-gray-700">
+              {progress.toFixed(1)}% Funded
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaCoins className="text-yellow-600" />
+            <span className="font-medium text-gray-900">
+              {formatCurrency(current)} / {formatCurrency(target)}
+            </span>
+          </div>
+        </div>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full bg-${statusColor}-600 transition-all duration-500 ease-in-out`}
+            style={{ width: `${progress}%` }}
+          >
+            <div className="h-full w-full animate-pulse bg-white opacity-20"></div>
+          </div>
+        </div>
+        <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+          <div className="flex items-center space-x-1">
+            <FaUsers className="text-gray-400" />
+            <span>{donorCount || 0} Donors</span>
+          </div>
+          <span>{getRemainingDays(endDate)} days left</span>
+        </div>
+      </div>
+    );
+  } catch (error) {
+    console.error('Error in FundingProgress:', error);
+    return (
+      <div className="p-4 bg-red-50 rounded-lg">
+        <p className="text-red-600 text-sm">Error displaying funding progress</p>
+      </div>
+    );
+  }
+};
+
+// Add this helper function
+const getRemainingDays = (endDate) => {
+  if (!endDate) return 0;
+  const end = new Date(endDate);
+  const now = new Date();
+  const diff = end - now;
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 };
 
 export default function CharityDetails() {
@@ -408,10 +478,6 @@ export default function CharityDetails() {
     navigate(`/charities/${id}/donate?amount=${amount}`);
   };
 
-  const formatCurrency = (amount) => {
-    return typeof amount === 'number' ? amount.toLocaleString() : '0';
-  };
-
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -691,21 +757,14 @@ export default function CharityDetails() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">{charity?.name.toUpperCase()}</h1>
 
                 {/* Fund Progress */}
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-500">
-                      {calculateProgress()}% Complete
-                    </span>
-                    <span className="font-medium text-gray-900">
-                      ${formatCurrency(charity.fund_received)} / ${formatCurrency(charity.fund_targeted)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
-                      style={{ width: `${calculateProgress()}%` }}
-                    ></div>
-                  </div>
+                <div className="mt-6">
+                  <FundingProgress 
+                    current={charity?.fund_received || 0}
+                    target={charity?.fund_targeted || 0}
+                    donorCount={charity?.donor_count}
+                    endDate={charity?.end_date}
+                    className="mb-4"
+                  />
                 </div>
               </div>
 
@@ -1040,23 +1099,19 @@ export default function CharityDetails() {
                             {/* Funding Progress */}
                             {task.fund_targeted > 0 && (
                               <div className="mt-4">
-                                <div className="flex justify-between text-sm mb-2">
-                                  <span className="text-gray-500">Funding Progress</span>
-                                  <span className="font-medium text-blue-600">
-                                    ${formatCurrency(task.current_amount)} / ${formatCurrency(task.fund_targeted)}
-                                  </span>
-                                </div>
-                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
-                                    style={{
-                                      width: `${Math.min(
-                                        (task.current_amount / task.fund_targeted) * 100,
-                                        100
-                                      )}%`,
-                                    }}
-                                  ></div>
-                                </div>
+                                <FundingProgress 
+                                  current={task.current_amount || 0}
+                                  target={task.fund_targeted || 0}
+                                  donorCount={task.donor_count}
+                                  endDate={task.end_date}
+                                  className="border border-gray-100 rounded-lg p-4"
+                                />
+                                {task.status === 'completed' && (
+                                  <div className="mt-2 flex items-center justify-center text-green-600 text-sm">
+                                    <FaCheckCircle className="mr-1" />
+                                    Funding goal achieved!
+                                  </div>
+                                )}
                               </div>
                             )}
 
@@ -1275,14 +1330,10 @@ export default function CharityDetails() {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-900">All Transactions</h3>
-                  <BlockchainVerificationBadge 
-                    verified={charity?.blockchain_id ? true : false} 
-                    blockchainId={charity?.blockchain_id}
-                  />
                 </div>
                 
                 {/* Add this filter dropdown */}
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 mb-4">
                   <span className="text-sm text-gray-600">View:</span>
                   <select
                     className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"

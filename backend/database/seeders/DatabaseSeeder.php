@@ -49,7 +49,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Tech for Good',
                 'logo' => 'organizations/tech-logo.jpg',
-                'category' => 'Technology',
+                'category' => 'Education',
                 'description' => 'Technology solutions for social impact',
                 'objectives' => 'To leverage technology for social good and community development',
                 'representative_id' => 'A12345678',
@@ -107,7 +107,7 @@ class DatabaseSeeder extends Seeder
             [
                 'organization_id' => 2,
                 'name' => 'Food Bank Network',
-                'category' => 'Food Security',
+                'category' => 'Environment',
                 'description' => 'Fighting hunger in communities',
                 'objective' => 'To ensure no one goes to bed hungry',
                 'fund_targeted' => 75000.00,

@@ -30,6 +30,7 @@ import ResetPassword from './components/ResetPassword';
 import ApiTest from './components/ApiTest';
 import Invoice from './components/Invoice';
 import BlockchainTester from './components/BlockchainTester';
+import SponsorshipPartners from './components/SponsorshipPartners';
 
 const router = createBrowserRouter([
   {
@@ -77,6 +78,14 @@ const router = createBrowserRouter([
         handle: {
           title: "Frequently Asked Questions",
           subtitle: "Find answers to common questions about TrustChain"
+        }
+      },
+      {
+        path: '/sponsorship-partners',
+        element: <SponsorshipPartners />,
+        handle: {
+          title: "Sponsorship Partners",
+          subtitle: "The organizations that make our work possible"
         }
       },
       {

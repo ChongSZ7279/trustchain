@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import BackButton from './BackToHistory';
 import { formatImageUrl } from '../utils/helpers';
 import { 
   FaUser, 
@@ -253,16 +254,11 @@ export default function UserEdit() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-6">
+      <BackButton />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
             <div className="flex items-center">
-              <button
-                onClick={() => navigate('/user/dashboard')}
-                className="mr-4 text-gray-400 hover:text-gray-500"
-              >
-                <FaArrowLeft className="h-5 w-5" />
-              </button>
               <h3 className="text-lg leading-6 font-medium text-gray-900">Edit Profile</h3>
             </div>
           </div>
@@ -580,7 +576,7 @@ export default function UserEdit() {
               {/* Form Actions */}
               <div className="px-4 py-5 sm:p-6 bg-gray-50">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
-                  <div>
+                  <div className="flex space-x-4">
                     <button
                       type="button"
                       onClick={() => setShowDeleteConfirm(true)}

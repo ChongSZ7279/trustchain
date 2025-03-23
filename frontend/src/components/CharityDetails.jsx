@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { formatImageUrl, getFileType } from '../utils/helpers';
+import { formatImageUrl, getFileType, setupGlobalImageErrorHandler } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import DonationForm from './DonationForm';
 import BackButton from './BackToHistory';
@@ -53,6 +53,8 @@ import TransactionHistory from './TransactionHistory';
 import { useBlockchain } from '../context/BlockchainContext';
 import BlockchainVerificationBadge from './BlockchainVerificationBadge';
 import WalletConnectButton from './WalletConnectButton';
+import { verifyTransaction } from '../utils/blockchainUtils';
+import { getCharityDonations } from '../services/donationService';
 
 // Add this helper function at the top of the file, after imports
 const getFileIcon = (fileType) => {
@@ -428,25 +430,48 @@ export default function CharityDetails() {
     return `${days} days left`;
   };
 
-  const handleDonation = async (amount, transactionHash) => {
+  const handleDonation = async (amount, transactionHash, isBlockchain) => {
     try {
       setDonationLoading(true);
       
-      // If we have a transaction hash, it means the blockchain transaction was successful
       if (transactionHash) {
-        // You can optionally record this in your backend
-        const response = await axios.post(`/charities/${id}/donations`, {
-          amount: amount,
-          transaction_hash: transactionHash,
-          blockchain_verified: true
-        });
-        
-        // Update UI
-        toast.success('Donation successful! Transaction has been recorded on the blockchain.');
+        toast.success(
+          isBlockchain 
+            ? 'Donation successful! Transaction has been recorded on the blockchain.' 
+            : 'Donation successful! Thank you for your contribution.'
+        );
         setShowDonationModal(false);
         
+        // Add console logs to debug
+        console.log("Donation successful, refreshing data...");
+        
         // Refresh charity data
-        fetchCharityData();
+        await fetchCharityData();
+        
+        // Explicitly fetch donations again
+        try {
+          const donationsResponse = await axios.get(`http://localhost:8000/api/charities/${id}/donations`);
+          console.log("Fetched donations:", donationsResponse.data);
+          // Handle paginated response
+          setDonations(donationsResponse.data.data || donationsResponse.data);
+        } catch (donationError) {
+          console.error("Error fetching donations:", donationError);
+        }
+        
+        // Also refresh blockchain donations if the function is available
+        try {
+          if (typeof getCharityDonations === 'function') {
+            const blockchainDonations = await getCharityDonations(id);
+            console.log("Fetched blockchain donations:", blockchainDonations);
+            setBlockchainDonations(blockchainDonations);
+          } else {
+            console.warn("getCharityDonations is not a function");
+          }
+        } catch (blockchainError) {
+          console.error("Error fetching blockchain donations:", blockchainError);
+        }
+      } else {
+        toast.error('Donation process was incomplete. Please try again.');
       }
     } catch (error) {
       console.error('Error processing donation:', error);
@@ -491,9 +516,20 @@ export default function CharityDetails() {
         is_blockchain: true
       }));
       
-      // Combine and sort by date (newest first)
-      const combined = [...transactions, ...formattedBlockchainDonations]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Get unique transactions by transaction_hash to avoid duplicates
+      const uniqueTransactions = [...transactions];
+      
+      // Only add blockchain transactions that aren't already in the database
+      formattedBlockchainDonations.forEach(blockchainTx => {
+        if (!uniqueTransactions.some(tx => tx.transaction_hash === blockchainTx.transaction_hash)) {
+          uniqueTransactions.push(blockchainTx);
+        }
+      });
+      
+      // Sort by date (newest first)
+      const combined = uniqueTransactions.sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      );
       
       console.log("Combined transactions:", combined);
       setTransactionsList(combined);
@@ -528,6 +564,33 @@ export default function CharityDetails() {
     return [...formattedTransactions, ...formattedDonations, ...formattedBlockchainDonations]
       .sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
   }, [transactions, donations, blockchainDonations]);
+
+  // Add this at the beginning of your component
+  useEffect(() => {
+    // Set up global image error handling
+    setupGlobalImageErrorHandler();
+  }, []);
+
+  // Add this function to your component
+  const verifyBlockchainTransaction = async (transactionHash) => {
+    try {
+      const result = await verifyTransaction(transactionHash);
+      
+      if (result.verified) {
+        toast.success('Transaction verified on blockchain!');
+        console.log('Transaction details:', result.details);
+        
+        // You could display these details in a modal or tooltip
+        setVerificationDetails(result.details);
+        setShowVerificationModal(true);
+      } else {
+        toast.error(`Verification failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error during verification:', error);
+      toast.error('Could not verify transaction');
+    }
+  };
 
   if (loading) {
     return (
@@ -595,7 +658,7 @@ export default function CharityDetails() {
                       onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
                       onError={(e) => {
                         console.error('Error loading charity image:', e);
-                        e.target.src = 'https://via.placeholder.com/128';
+                        e.target.src = 'https://placehold.co/128';
                       }}
                     />
                   ) : (
@@ -965,7 +1028,7 @@ export default function CharityDetails() {
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
                                           console.error('Error loading task picture:', e);
-                                          e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                                          e.target.src = 'https://placehold.co/400x300?text=Image+Not+Found';
                                         }}
                                       />
                                     </div>
@@ -1136,7 +1199,66 @@ export default function CharityDetails() {
                 
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Blockchain Donations</h3>
-                  <TransactionHistory donations={blockchainDonations} />
+                  {blockchainDonations.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Transaction Hash
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Donor
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Amount (ETH)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {blockchainDonations.map((donation, index) => (
+                            <tr key={donation.transactionHash || index} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {donation.timestamp ? new Date(donation.timestamp).toLocaleString() : 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                <a 
+                                  href={`https://etherscan.io/tx/${donation.transactionHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  {donation.transactionHash.substring(0, 10)}...
+                                </a>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <a 
+                                  href={`https://etherscan.io/address/${donation.donor}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  {donation.donor.substring(0, 6)}...{donation.donor.substring(donation.donor.length - 4)}
+                                </a>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {donation.amount}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FaInfoCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Blockchain Donations Yet</h3>
+                      <p className="text-gray-600">This charity hasn't received any blockchain donations yet.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1288,9 +1410,9 @@ export default function CharityDetails() {
             className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl"
           >
             <DonationForm 
+              charityId={id}
               onDonate={handleDonation} 
               loading={donationLoading} 
-              isWalletConnected={!!blockchainAccount}
             />
           </motion.div>
         </motion.div>

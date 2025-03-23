@@ -14,6 +14,8 @@ TrustChain is a transparent charity platform that leverages blockchain technolog
 - **Smart Contract Integration**: Ethereum smart contracts for transparency and accountability
 - **Transparent Fund Allocation**: Funds are allocated transparently
 - **Tax Receipt Generation**: Generate tax receipts for donations
+- **AI-Powered Recommendations**: GeminiAI integration for personalized charity recommendations
+- **Email Notifications**: Gmail integration for sending donation receipts and updates
 
 ## Project Structure
 
@@ -30,6 +32,7 @@ The project consists of three main components:
 - MySQL or SQLite database
 - MetaMask or another Ethereum wallet
 - XAMPP (for local development)
+- Google API credentials (for Gmail and GeminiAI integration)
 
 ## Installation
 
@@ -99,6 +102,9 @@ The project consists of three main components:
    ```
    VITE_API_URL=http://localhost:8000
    VITE_CHARITY_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+   VITE_GEMINI_API_KEY=your_gemini_api_key
+   VITE_GMAIL_CLIENT_ID=your_gmail_client_id
+   VITE_GMAIL_CLIENT_SECRET=your_gmail_client_secret
    ```
 
 5. Start the development server:
@@ -173,7 +179,7 @@ After setting up the demo data, you can log in with the following credentials:
 - Password: password123
 
 **Organization Account:**
-- Email: contact@hopefoundation.org
+- Email: tech@trustchain.com
 - Password: password123
 
 ## Smart Contract Details
@@ -212,6 +218,33 @@ All transactions are recorded both on the blockchain and in the platform's datab
 - Amount donated
 - Current status of the transaction
 
+## AI and Email Integration
+
+### GeminiAI Recommendations
+
+TrustChain uses Google's GeminiAI to provide personalized charity recommendations based on:
+
+- User's followed charity and organization history
+- Stated preferences and interests
+- Current trending causes
+- Location-based recommendations
+
+To use this feature:
+1. Ensure your `.env` file contains a valid `VITE_GEMINI_API_KEY`
+2. The recommendation system is accessible from the user dashboard
+3. Users can receive personalized charity suggestions based on their profile
+
+### Gmail Integration
+
+The platform integrates with Gmail to send:
+
+- Question or feedback through the contact us section on the homepage
+
+To enable Gmail sending:
+1. Configure the Gmail API credentials in your `.env` file
+2. Users will receive email confirmations after donations
+3. Organizations can send updates to donors through the platform
+
 ## Technical Stack
 
 - **Frontend**: React.js with Vite and Tailwind CSS
@@ -219,6 +252,8 @@ All transactions are recorded both on the blockchain and in the platform's datab
 - **Blockchain**: Ethereum (Solidity smart contracts)
 - **Web3 Integration**: ethers.js for blockchain interaction
 - **Smart Contract Development**: Hardhat and thirdweb
+- **AI Integration**: Google GeminiAI API
+- **Email Service**: Gmail API
 
 ## License
 

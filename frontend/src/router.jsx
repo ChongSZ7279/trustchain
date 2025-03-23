@@ -81,7 +81,7 @@ const router = createBrowserRouter([
         }
       },
       {
-        path: '/sponsorship-partners',
+        path: '/partners',
         element: <SponsorshipPartners />,
         handle: {
           title: "Sponsorship Partners",

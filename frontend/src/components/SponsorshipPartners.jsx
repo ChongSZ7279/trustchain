@@ -10,11 +10,14 @@ const sponsorData = {
   diamond: [
     {
       id: 1,
-      name: "Global Tech Solutions",
+      name: "Vitrox Technologies",
       logo: DiamondImg,
-      description: "Leading technology provider supporting innovative blockchain solutions for humanitarian causes.",
-      contact: "contact@globaltechsolutions.com",
-      website: "https://www.globaltechsolutions.com"
+      description: "Non-Profit Organization & NGOs – Charities looking for fixed-proof, automated fund disbursement while reducing operational costs.",
+      facebook: "https://facebook.com/vitroxtech",
+      instagram: "https://instagram.com/vitroxtech",
+      youtube: "https://youtube.com/vitroxtech",
+      website: "https://www.vitroxtech.com",
+      email: "contact@vitroxtech.com"
     },
     {
       id: 2,
@@ -110,67 +113,54 @@ const sponsorData = {
       contact: "alliance@healthfirst.org",
       website: "https://www.healthfirst.org"
     },
-    {
-      id: 4,
-      name: "Education Forward",
-      logo: SilverImg,
-      description: "Educational nonprofit promoting access to learning resources globally.",
-      contact: "programs@educationforward.org",
-      website: "https://www.educationforward.org"
-    }
   ]
 };
 
-const SponsorTier = ({ title, sponsors, bgColor, borderColor, iconColor }) => {
+const SponsorTier = ({ title, sponsors, bgColor, borderColor }) => {
+  const getLogo = (tier, logo) => {
+    const sizes = {
+      Diamond: "w-40 h-40",
+      Platinum: "w-32 h-32",
+      Gold: "w-24 h-24",
+      Silver: "w-20 h-20"
+    };
+    return sizes[tier];
+  };
+
+  const getSocialLinks = (sponsor) => (
+    <div className="flex gap-3 mt-2">
+      <a href={sponsor.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </a>
+      <a href={sponsor.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:text-pink-800">
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href={sponsor.youtube} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-800">
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      </a>
+      <a href={`mailto:${sponsor.email}`} className="text-gray-600 hover:text-gray-800">
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </a>
+      <a href={sponsor.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21.41 8.64v-.05a10 10 0 1 0-18.82 0v.05a9.86 9.86 0 0 0 0 6.72v.05a10 10 0 1 0 18.82 0v-.05a9.86 9.86 0 0 0 0-6.72zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.987 7.987 0 0 1 5.08 16zm2.95-8H5.08a7.987 7.987 0 0 1 4.33-3.56A15.558 15.558 0 0 0 8.03 8zM12 20c-.7-1.19-1.23-2.35-1.6-3.56h3.2c-.37 1.21-.9 2.37-1.6 3.56zM13.6 14H10.4c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h3.2c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.4-6h-2.8c.37-1.21.9-2.37 1.6-3.56.7 1.19 1.23 2.35 1.6 3.56zm3.97 6c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>
+      </a>
+    </div>
+  );
+
   return (
-    <div className={`mb-12 ${bgColor} rounded-lg shadow-lg p-6 border-t-4 ${borderColor}`}>
-      <div className="flex items-center justify-center mb-6">
-        <div className={`w-12 h-12 ${iconColor} rounded-full flex items-center justify-center mr-3`}>
-          {title === "Diamond" && (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          )}
-          {title === "Platinum" && (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
-          )}
-          {title === "Gold" && (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )}
-          {title === "Silver" && (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          )}
-        </div>
-        <h2 className="text-2xl font-bold text-center">{title} Sponsors</h2>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className={`mb-12 ${bgColor} rounded-lg shadow-lg p-6 border-l-4 ${borderColor}`}>
+      <h2 className="text-3xl text-center font-bold mb-6">{title} Sponsors</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-center items-center mb-12">
         {sponsors.map(sponsor => (
-          <div key={sponsor.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col items-center transition-all hover:shadow-xl hover:scale-105">
-            <div className="w-24 h-24 flex items-center justify-center mb-4 p-2 rounded-full bg-gray-50">
-              <img src={sponsor.logo} alt={`${sponsor.name} logo`} className="w-20 h-20 object-contain" />
+          <div key={sponsor.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col items-center">
+            <div className={`${getLogo(title)} flex items-center justify-center mb-4`}>
+              <img src={sponsor.logo} alt={`${sponsor.name} logo`} className="object-contain" />
             </div>
             <h3 className="text-xl font-semibold text-center">{sponsor.name}</h3>
-            <p className="text-gray-600 text-center my-3">{sponsor.description}</p>
-            <div className="mt-auto pt-4 w-full border-t border-gray-100">
-              <p className="text-sm text-gray-500"><span className="font-medium">Contact:</span> {sponsor.contact}</p>
-              <a 
-                href={sponsor.website} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-indigo-600 hover:text-indigo-800 hover:underline text-sm block mt-1 flex items-center"
-              >
-                Visit Website
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            </div>
+            {title !== 'Silver' && (
+              <p className="text-gray-600 text-center my-3">{sponsor.description}</p>
+            )}
+            {getSocialLinks(sponsor)}
           </div>
         ))}
       </div>
@@ -182,34 +172,65 @@ const SponsorshipPartners = () => {
   const [showContactForm, setShowContactForm] = useState(false);
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-16">
+    <div className="container mx-auto px-4 py-8 mt-8">
       {/* Header section with consistent styling */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg p-8 mb-12">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Our Sponsorship Partners</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Our Partners</h1>
           <p className="text-lg md:text-xl opacity-90 mb-6">
-            We're grateful to our sponsors who make our mission possible. Their support enables us to build transparency and trust in charitable giving through blockchain technology.
+            We're grateful to our partners who make our mission possible. Their support enables us to build transparency and trust in charitable giving through blockchain technology.
           </p>
           <div className="flex flex-wrap justify-center gap-4 mt-8">
             <button 
               onClick={() => setShowContactForm(true)}
               className="px-6 py-3 bg-white text-indigo-700 font-medium rounded-md shadow-sm hover:bg-gray-100 transition-colors"
             >
-              Become a Sponsor
+              Become a Partner
             </button>
             <a 
-              href="#sponsors-list"
+              href="#partners-list"
               className="px-6 py-3 bg-indigo-700 text-white font-medium rounded-md shadow-sm hover:bg-indigo-800 transition-colors"
             >
-              View Our Sponsors
+              View Our Partners
             </a>
           </div>
         </div>
       </div>
 
-      {/* Sponsorship benefits section */}
+      {/* Partners list section */}
+      <div id="partners-list">
+        <SponsorTier 
+          title="Diamond" 
+          sponsors={sponsorData.diamond} 
+          bgColor="bg-blue-50" 
+          borderColor="border-blue-600"
+        />
+        
+        <SponsorTier 
+          title="Platinum" 
+          sponsors={sponsorData.platinum} 
+          bgColor="bg-purple-50" 
+          borderColor="border-purple-600"
+        />
+        
+        <SponsorTier 
+          title="Gold" 
+          sponsors={sponsorData.gold} 
+          bgColor="bg-yellow-50" 
+          borderColor="border-yellow-600"
+        />
+        
+        <SponsorTier 
+          title="Silver" 
+          sponsors={sponsorData.silver} 
+          bgColor="bg-gray-50" 
+          borderColor="border-gray-500"
+        />
+      </div>
+
+      {/* Partnership benefits section */}
       <div className="mb-16">
-        <h2 className="text-2xl font-bold text-center mb-8">How Your Sponsorship Helps</h2>
+        <h2 className="text-2xl font-bold text-center mb-8">How Your Partnership Helps</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white p-6 rounded-lg shadow-md text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -231,7 +252,7 @@ const SponsorshipPartners = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Global Reach</h3>
             <p className="text-gray-600">
-              Sponsorships enable us to expand our reach globally, connecting more donors with impactful charitable organizations worldwide.
+                Partnerships enable us to expand our reach globally, connecting more donors with impactful charitable organizations worldwide.
             </p>
           </div>
           
@@ -243,52 +264,17 @@ const SponsorshipPartners = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Innovation</h3>
             <p className="text-gray-600">
-              We continuously innovate to improve transparency in charitable giving. Your sponsorship funds research and development of new features.
+              We continuously innovate to improve transparency in charitable giving. Your partnership funds research and development of new features.
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Sponsors list section */}
-      <div id="sponsors-list">
-        <SponsorTier 
-          title="Diamond" 
-          sponsors={sponsorData.diamond} 
-          bgColor="bg-blue-50" 
-          borderColor="border-blue-600"
-          iconColor="bg-blue-600"
-        />
-        
-        <SponsorTier 
-          title="Platinum" 
-          sponsors={sponsorData.platinum} 
-          bgColor="bg-purple-50" 
-          borderColor="border-purple-600"
-          iconColor="bg-purple-600"
-        />
-        
-        <SponsorTier 
-          title="Gold" 
-          sponsors={sponsorData.gold} 
-          bgColor="bg-yellow-50" 
-          borderColor="border-yellow-600"
-          iconColor="bg-yellow-600"
-        />
-        
-        <SponsorTier 
-          title="Silver" 
-          sponsors={sponsorData.silver} 
-          bgColor="bg-gray-50" 
-          borderColor="border-gray-500"
-          iconColor="bg-gray-500"
-        />
       </div>
 
       {/* Contact form or CTA */}
       {showContactForm ? (
         <div className="mt-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Sponsorship Application</h2>
+            <h2 className="text-2xl font-bold">Partnership Application</h2>
             <button 
               onClick={() => setShowContactForm(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -302,7 +288,7 @@ const SponsorshipPartners = () => {
         </div>
       ) : (
         <div className="text-center mt-12 p-8 bg-gray-100 rounded-lg">
-          <h2 className="text-2xl font-bold mb-4">Become a TrustChain Sponsor</h2>
+          <h2 className="text-2xl font-bold mb-4">Become a TrustChain Partner</h2>
           <p className="mb-6 max-w-3xl mx-auto">
             Join our mission to revolutionize charitable giving through blockchain technology. As a sponsor, you'll help us create a more transparent, accountable, and efficient charitable sector while gaining visibility with our growing community of donors and organizations.
           </p>
@@ -328,7 +314,7 @@ const SponsorshipPartners = () => {
             onClick={() => setShowContactForm(true)}
             className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
           >
-            Apply for Sponsorship
+            Apply for Partnership
           </button>
         </div>
       )}

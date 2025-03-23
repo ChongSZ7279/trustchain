@@ -59,7 +59,7 @@ The project consists of three main components:
    DB_CONNECTION=mysql
    DB_HOST=127.0.0.1
    DB_PORT=3306
-   DB_DATABASE=trustchain
+   DB_DATABASE=charity
    DB_USERNAME=root
    DB_PASSWORD=
    ```

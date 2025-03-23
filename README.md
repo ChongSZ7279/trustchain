@@ -56,7 +56,7 @@ The project consists of three main components:
    DB_CONNECTION=mysql
    DB_HOST=127.0.0.1
    DB_PORT=3306
-   DB_DATABASE=trustchain
+   DB_DATABASE=charity
    DB_USERNAME=root
    DB_PASSWORD=
    ```
@@ -173,7 +173,7 @@ After setting up the demo data, you can log in with the following credentials:
 - Password: password123
 
 **Organization Account:**
-- Email: contact@hopefoundation.org
+- Email: tech@trustchain.com
 - Password: password123
 
 ## Smart Contract Details

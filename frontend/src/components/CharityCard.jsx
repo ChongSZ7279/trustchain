@@ -112,6 +112,10 @@ export default function CharityCard({ charity, inDashboard = false }) {
     }
   };
 
+  const progressPercentage = charity.funding_goal > 0 
+    ? Math.min(100, (charity.funds_raised / charity.funding_goal) * 100) 
+    : 0;
+
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -186,23 +190,26 @@ export default function CharityCard({ charity, inDashboard = false }) {
         
         {/* Fund Progress */}
         <div className="mt-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center">
-              <FaMoneyBillWave className="text-indigo-400 mr-2" />
-              <span className="text-sm text-gray-900 font-medium">
-                ${charity.fund_received || 0} / ${charity.fund_targeted || 0}
-              </span>
-            </div>
-            <span className="text-xs font-medium text-gray-500">
-              {Math.min(100, ((charity.fund_received || 0) / (charity.fund_targeted || 1)) * 100).toFixed(0)}% Complete
-            </span>
+          <div className="flex justify-between text-sm mb-1">
+            <span>Funding Progress</span>
+            <span>{progressPercentage.toFixed(0)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, ((charity.fund_received || 0) / (charity.fund_targeted || 1)) * 100)}%` }}
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className="bg-indigo-600 h-2.5 rounded-full" 
+              style={{ width: `${progressPercentage}%` }}
             ></div>
           </div>
+          <div className="flex justify-between text-sm mt-1">
+            <span>{charity.funds_raised} ETH raised</span>
+            <span>Goal: {charity.funding_goal} ETH</span>
+          </div>
+          
+          {charity.is_fully_funded && (
+            <div className="mt-2 text-green-600 text-sm font-semibold">
+              Fully Funded! 🎉
+            </div>
+          )}
         </div>
       </div>
 

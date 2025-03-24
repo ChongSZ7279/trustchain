@@ -394,14 +394,21 @@ export default function CharityForm() {
                       <FaTag className="mr-2 text-gray-400" />
                       Category
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="category"
                       id="category"
                       value={formData.category}
                       onChange={handleChange}
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
-                    />
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Education">Education</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Environment">Environment</option>
+                      <option value="Youth Development">Youth Development</option>
+                      <option value="Disaster Relief">Disaster Relief</option>
+                      <option value="Other">Other</option>
+                    </select>
                     {isSubmitted && formErrors.category && (
                       <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>
                     )}

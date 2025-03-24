@@ -21,6 +21,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Define wallet addresses from your Hardhat node
+        $walletAddresses = [
+            'admin' => '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', // Account #0
+            'tech_org' => '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', // Account #1
+            'green_org' => '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC', // Account #2
+            'john' => '0x90F79bf6EB2c4f870365E785982E1f101E93b906', // Account #3
+            'jane' => '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65'  // Account #4
+        ];
+
         // Create admin user
         $admin = User::create([
             'ic_number' => 'A12345678',
@@ -31,7 +40,7 @@ class DatabaseSeeder extends Seeder
             'back_ic_picture' => 'ic/admin-back.jpg',
             'phone_number' => '+60123456789',
             'gmail' => 'admin@trustchain.com',
-            'wallet_address' => '0x1234567890abcdef',
+            'wallet_address' => $walletAddresses['admin'],
             'frame_color_code' => '#FF5733'
         ]);
 
@@ -40,13 +49,13 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Tech for Good',
                 'logo' => 'organizations/tech-logo.jpg',
-                'category' => 'Technology',
+                'category' => 'Education',
                 'description' => 'Technology solutions for social impact',
                 'objectives' => 'To leverage technology for social good and community development',
                 'representative_id' => 'A12345678',
                 'statutory_declaration' => 'documents/tech-statutory.pdf',
                 'verified_document' => 'documents/tech-verified.pdf',
-                'wallet_address' => '0x2345678901abcdef',
+                'wallet_address' => $walletAddresses['tech_org'],
                 'register_address' => '123 Tech Street, San Francisco, CA 94105',
                 'gmail' => 'tech@trustchain.com',
                 'phone_number' => '+60123456790',
@@ -66,7 +75,7 @@ class DatabaseSeeder extends Seeder
                 'representative_id' => 'A12345678',
                 'statutory_declaration' => 'documents/green-statutory.pdf',
                 'verified_document' => 'documents/green-verified.pdf',
-                'wallet_address' => '0x3456789012abcdef',
+                'wallet_address' => $walletAddresses['green_org'],
                 'register_address' => '456 Green Street, Seattle, WA 98101',
                 'gmail' => 'green@trustchain.com',
                 'phone_number' => '+60123456791',
@@ -98,7 +107,7 @@ class DatabaseSeeder extends Seeder
             [
                 'organization_id' => 2,
                 'name' => 'Food Bank Network',
-                'category' => 'Food Security',
+                'category' => 'Environment',
                 'description' => 'Fighting hunger in communities',
                 'objective' => 'To ensure no one goes to bed hungry',
                 'fund_targeted' => 75000.00,
@@ -145,7 +154,7 @@ class DatabaseSeeder extends Seeder
                 'back_ic_picture' => 'ic/john-back.jpg',
                 'phone_number' => '+60123456794',
                 'gmail' => 'john@example.com',
-                'wallet_address' => '0x6789012345abcdef'
+                'wallet_address' => $walletAddresses['john']
             ],
             [
                 'ic_number' => 'C12345678',
@@ -155,7 +164,7 @@ class DatabaseSeeder extends Seeder
                 'back_ic_picture' => 'ic/jane-back.jpg',
                 'phone_number' => '+60123456795',
                 'gmail' => 'jane@example.com',
-                'wallet_address' => '0x7890123456abcdef'
+                'wallet_address' => $walletAddresses['jane']
             ]
         ];
 
@@ -164,6 +173,8 @@ class DatabaseSeeder extends Seeder
         }
 
         // Create donations
+        $contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3"; // Your deployed contract address
+        
         $donations = [
             [
                 'user_id' => 'B12345678',
@@ -173,7 +184,7 @@ class DatabaseSeeder extends Seeder
                 'cause_id' => 1,
                 'status' => 'completed',
                 'smart_contract_data' => json_encode([
-                    'contract_address' => '0xcontract1',
+                    'contract_address' => $contractAddress,
                     'network' => 'Ethereum'
                 ]),
                 'donor_message' => 'Happy to help with education!',
@@ -188,7 +199,7 @@ class DatabaseSeeder extends Seeder
                 'cause_id' => 2,
                 'status' => 'completed',
                 'smart_contract_data' => json_encode([
-                    'contract_address' => '0xcontract2',
+                    'contract_address' => $contractAddress,
                     'network' => 'Ethereum'
                 ]),
                 'donor_message' => 'Supporting food security!',
@@ -244,7 +255,7 @@ class DatabaseSeeder extends Seeder
                 'type' => 'charity',
                 'status' => 'completed',
                 'transaction_hash' => '0xabc123def456',
-                'contract_address' => '0xcontract1',
+                'contract_address' => $contractAddress,
                 'message' => 'Happy to help with education!',
                 'anonymous' => false
             ],
@@ -255,7 +266,7 @@ class DatabaseSeeder extends Seeder
                 'type' => 'charity',
                 'status' => 'completed',
                 'transaction_hash' => '0xdef456abc789',
-                'contract_address' => '0xcontract2',
+                'contract_address' => $contractAddress,
                 'message' => 'Supporting food security!',
                 'anonymous' => false
             ]

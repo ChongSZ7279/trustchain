@@ -1,11 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTimes, FaWallet, FaExclamationTriangle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { initWeb3, donateToCharity, isWalletConnected } from '../utils/contractInteraction';
+import { processDonation } from '../services/donationService';
+import { testDonationAPI } from '../utils/testDonation';
 
-const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) => {
+const DonationForm = ({ charityId, onDonate, loading = false }) => {
+  console.log("DonationForm received charityId:", charityId);
+  
   const navigate = useNavigate();
   const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [processingDonation, setProcessingDonation] = useState(false);
+  
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      try {
+        await initWeb3();
+        setWalletConnected(isWalletConnected());
+      } catch (error) {
+        console.error('Error checking wallet connection:', error);
+      }
+    };
+    
+    checkWalletConnection();
+  }, []);
+  
+  useEffect(() => {
+    const handleImageErrors = () => {
+      const images = document.querySelectorAll('img');
+      images.forEach(img => {
+        img.onerror = function() {
+          console.log('Image failed to load, using fallback');
+          this.src = '/fallback-image.png';
+          this.onerror = null;
+        };
+      });
+    };
+    
+    handleImageErrors();
+  }, []);
+  
+  const connectWallet = async () => {
+    try {
+      await initWeb3();
+      setWalletConnected(isWalletConnected());
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
+    }
+  };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,12 +65,81 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
       return;
     }
     
+    console.log("Processing donation for charity ID:", charityId);
+    
     try {
-      await onDonate(parseFloat(amount));
+      setProcessingDonation(true);
+      
+      // Use the combined processDonation function with the correct charityId
+      const result = await processDonation(charityId, parseFloat(amount), message);
+      console.log('Donation result:', result);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Unknown error occurred');
+      }
+      
+      // Add detailed logging about the donation result
+      console.log('Donation details:', {
+        charityId,
+        amount: parseFloat(amount),
+        transactionHash: result.transactionHash,
+        isBlockchain: result.isBlockchain,
+        databaseId: result.donationId || 'Not provided',
+        savedToDatabase: !result.databaseError,
+        databaseError: result.databaseError
+      });
+      
+      // Call the onDonate callback with the result
+      if (onDonate) {
+        onDonate(parseFloat(amount), result.transactionHash, result.isBlockchain, result.donationId);
+      }
+      
+      // Reset form
       setAmount('');
+      setMessage('');
       setAgreeTerms(false);
+      
+      // Show more detailed success message based on the actual response structure
+      if (result.isBlockchain && result.databaseError) {
+        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nWarning: May not have been saved to database`);
+      } else if (result.isBlockchain) {
+        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nSaved to database with ID: ${result.donationId || 'Unknown'}`);
+      } else if (result.donationId) {
+        alert(`Donation successful! Saved to database with ID: ${result.donationId}`);
+      } else {
+        alert('Donation processed, but status unclear. Please check your dashboard for confirmation.');
+      }
+      
+      // Only redirect if we have a donation ID
+      if (result.donationId) {
+        navigate(`/donations/${result.donationId}`);
+      }
     } catch (error) {
       console.error('Error processing donation:', error);
+      alert(`Error processing donation: ${error.message}. Please check console for details.`);
+    } finally {
+      setProcessingDonation(false);
+    }
+  };
+  
+  const handleImageError = (e) => {
+    e.target.src = "/fallback-image.png"; // Use a local fallback image
+    // Or just hide the image
+    // e.target.style.display = 'none';
+  };
+  
+  const testDonation = async () => {
+    try {
+      console.log("Testing donation API...");
+      const result = await testDonationAPI(charityId);
+      if (result.success) {
+        alert("Test donation successful! Check console for details.");
+      } else {
+        alert(`Test donation failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error in test donation:", error);
+      alert("Test donation error. Check console for details.");
     }
   };
   
@@ -41,7 +155,7 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
 
       <h2 className="text-xl font-bold mb-4">Make a Blockchain Donation</h2>
       
-      {!isWalletConnected && (
+      {!walletConnected && (
         <div className="mb-4 p-3 bg-yellow-50 rounded-md">
           <div className="flex items-start">
             <FaExclamationTriangle className="text-yellow-500 mt-0.5 mr-2" />
@@ -50,7 +164,7 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
                 You need to connect your wallet to make a blockchain donation.
               </p>
               <button 
-                onClick={() => window.ethereum.request({ method: 'eth_requestAccounts' })}
+                onClick={connectWallet}
                 className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <FaWallet className="mr-1" />
@@ -76,7 +190,22 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
             onChange={(e) => setAmount(e.target.value)}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            disabled={loading || !isWalletConnected}
+            disabled={processingDonation || !walletConnected}
+          />
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-1">
+            Message (Optional)
+          </label>
+          <textarea
+            id="donationMessage"
+            placeholder="Add a message with your donation"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            disabled={processingDonation || !walletConnected}
+            rows="3"
           />
         </div>
         
@@ -90,7 +219,7 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
                 onChange={(e) => setAgreeTerms(e.target.checked)}
                 required
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                disabled={loading || !isWalletConnected}
+                disabled={processingDonation || !walletConnected}
               />
             </div>
             <div className="ml-3 text-sm">
@@ -108,13 +237,13 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
           <button 
             type="submit" 
             className={`w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
-              loading || !isWalletConnected
+              processingDonation || !walletConnected
                 ? 'bg-indigo-400 cursor-not-allowed'
                 : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
             }`}
-            disabled={loading || !isWalletConnected}
+            disabled={processingDonation || !walletConnected}
           >
-            {loading ? (
+            {processingDonation ? (
               <>
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -134,6 +263,14 @@ const DonationForm = ({ onDonate, loading = false, isWalletConnected = false }) 
             All transactions are transparent and can be verified on the blockchain.
           </p>
         </div>
+        
+        <button 
+          type="button"
+          onClick={testDonation}
+          className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+        >
+          Test API Connection
+        </button>
       </form>
     </div>
   );

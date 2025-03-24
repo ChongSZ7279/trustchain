@@ -10,7 +10,7 @@ export default function Guidelines() {
     { id: 'organizations', label: 'For Organizations' },
     { id: 'blockchain', label: 'Understanding Blockchain' },
     { id: 'privacy', label: 'Privacy & Security' },
-    { id: 'help', label: 'Getting Help' },
+    // { id: 'help', label: 'Getting Help' },
   ];
 
   return (
@@ -76,7 +76,7 @@ export default function Guidelines() {
                   Complete Your Profile
                 </h3>
                 <p className="text-gray-700 ml-11">
-                  Add your details and preferences to personalize your TrustChain experience.
+                  Add your details to personalize your TrustChain experience.
                 </p>
               </div>
               <div className="bg-blue-50 p-5 rounded-lg">
@@ -156,7 +156,7 @@ export default function Guidelines() {
                   icon: "🏢"
                 },
                 {
-                  title: "Manage Campaigns",
+                  title: "Manage Charities",
                   description: "Add charitable projects and fundraising campaigns to drive support.",
                   icon: "📢"
                 },
@@ -292,7 +292,7 @@ export default function Guidelines() {
           </div>
         )}
         
-        {/* Getting Help */}
+        {/* Getting Help
         {activeTab === 'help' && (
           <div>
             <h2 className="text-xl font-semibold text-gray-800">Getting Help</h2>
@@ -378,7 +378,7 @@ export default function Guidelines() {
               </a>
             </div>
           </div>
-        )}
+        )} */}
       </div>
       
       {/* Footer with navigation controls */}

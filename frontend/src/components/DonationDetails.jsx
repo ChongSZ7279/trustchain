@@ -176,6 +176,11 @@ export default function DonationDetails() {
     }
   };
 
+  const viewOnBlockExplorer = () => {
+    // Update to use Sepolia block explorer
+    window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -387,15 +392,9 @@ export default function DonationDetails() {
                   </div>
                   
                   <div className="mt-4">
-                    <a 
-                      href={`https://etherscan.io/tx/${donation.transaction_hash}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm text-indigo-600 hover:text-indigo-900"
-                    >
-                      View on Etherscan
-                      <FaExternalLinkAlt className="inline-block ml-1 h-4 w-4" />
-                    </a>
+                    <button onClick={viewOnBlockExplorer} className="text-sm text-indigo-600 hover:text-indigo-900">
+                      View on Sepolia Explorer
+                    </button>
                   </div>
                 </div>
               </div>

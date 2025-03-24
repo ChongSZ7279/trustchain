@@ -141,4 +141,13 @@ class Donation extends Model
     {
         return in_array($this->status, ['pending', 'confirmed']);
     }
+
+    public function getBlockExplorerUrlAttribute()
+    {
+        if ($this->transaction_hash) {
+            // Update to use Sepolia block explorer
+            return 'https://sepolia.etherscan.io/tx/' . $this->transaction_hash;
+        }
+        return null;
+    }
 }

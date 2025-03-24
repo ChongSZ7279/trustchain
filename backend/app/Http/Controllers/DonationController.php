@@ -531,4 +531,114 @@ class DonationController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Store a blockchain donation in the database
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function storeBlockchainDonation(Request $request)
+    {
+        try {
+            \Log::info('Blockchain donation request received', [
+                'data' => $request->all(),
+                'user' => auth()->check() ? auth()->id() : 'unauthenticated'
+            ]);
+            
+            // Check if user is authenticated
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'User not authenticated'
+                ], 401);
+            }
+            
+            $validated = $request->validate([
+                'charity_id' => 'required|exists:charities,id',
+                'amount' => 'required|numeric|min:0',
+                'transaction_hash' => 'required|string',
+                'message' => 'nullable|string',
+            ]);
+            
+            \Log::info('Blockchain donation validated', $validated);
+            
+            // Check if a donation with this transaction hash already exists
+            $existingDonation = Donation::where('transaction_hash', $validated['transaction_hash'])->first();
+            if ($existingDonation) {
+                return response()->json([
+                    'success' => true,
+                    'donation_id' => $existingDonation->id,
+                    'message' => 'Donation already recorded',
+                    'already_exists' => true
+                ]);
+            }
+            
+            // Get the user ID - use ic_number instead of id
+            $userId = auth()->user()->ic_number;
+            \Log::info('User ID for donation', ['user_id' => $userId, 'ic_number' => $userId]);
+            
+            // Create the donation with explicit values for all required fields
+            $donation = new Donation();
+            $donation->cause_id = $validated['charity_id'];
+            $donation->amount = $validated['amount'];
+            $donation->transaction_hash = $validated['transaction_hash'];
+            $donation->donor_message = $validated['message'] ?? null;
+            $donation->status = 'completed';
+            $donation->currency_type = 'ETH';
+            $donation->is_anonymous = false;
+            $donation->user_id = $userId; // This should be the ic_number
+            
+            // Add created_at and updated_at timestamps manually if needed
+            $now = now();
+            $donation->created_at = $now;
+            $donation->updated_at = $now;
+            
+            $donation->save();
+            
+            \Log::info('Blockchain donation saved', ['donation_id' => $donation->id]);
+            
+            return response()->json([
+                'success' => true,
+                'donation_id' => $donation->id,
+                'message' => 'Blockchain donation recorded successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Blockchain donation error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    protected function verifyBlockchainTransaction($transactionHash)
+    {
+        try {
+            // Update to use Sepolia testnet
+            $provider = new \Web3\Providers\HttpProvider(
+                new \Web3\RequestManagers\HttpRequestManager(
+                    'https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID', // Replace with your Infura project ID
+                    [
+                        'timeout' => 30,
+                    ]
+                )
+            );
+            
+            // ... existing code ...
+            
+            return [
+                'verified' => true,
+                'network' => 'sepolia',
+                // ... existing code ...
+            ];
+        } catch (\Exception $e) {
+            // ... existing code ...
+        }
+    }
 }

@@ -78,9 +78,20 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         throw new Error(result.error || 'Unknown error occurred');
       }
       
+      // Add detailed logging about the donation result
+      console.log('Donation details:', {
+        charityId,
+        amount: parseFloat(amount),
+        transactionHash: result.transactionHash,
+        isBlockchain: result.isBlockchain,
+        databaseId: result.donationId || 'Not provided',
+        savedToDatabase: !result.databaseError,
+        databaseError: result.databaseError
+      });
+      
       // Call the onDonate callback with the result
       if (onDonate) {
-        onDonate(parseFloat(amount), result.transactionHash, result.isBlockchain);
+        onDonate(parseFloat(amount), result.transactionHash, result.isBlockchain, result.donationId);
       }
       
       // Reset form
@@ -88,11 +99,24 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       setMessage('');
       setAgreeTerms(false);
       
-      // Show success message
-      alert('Donation successful! Thank you for your contribution.');
+      // Show more detailed success message based on the actual response structure
+      if (result.isBlockchain && result.databaseError) {
+        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nWarning: May not have been saved to database`);
+      } else if (result.isBlockchain) {
+        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nSaved to database with ID: ${result.donationId || 'Unknown'}`);
+      } else if (result.donationId) {
+        alert(`Donation successful! Saved to database with ID: ${result.donationId}`);
+      } else {
+        alert('Donation processed, but status unclear. Please check your dashboard for confirmation.');
+      }
+      
+      // Only redirect if we have a donation ID
+      if (result.donationId) {
+        navigate(`/donations/${result.donationId}`);
+      }
     } catch (error) {
       console.error('Error processing donation:', error);
-      alert('Error processing donation. Please try again.');
+      alert(`Error processing donation: ${error.message}. Please check console for details.`);
     } finally {
       setProcessingDonation(false);
     }

@@ -1095,25 +1095,6 @@ export default function CharityDetails() {
                                 </div>
                               </div>
                             )}
-                            
-                            {/* Funding Progress */}
-                            {task.fund_targeted > 0 && (
-                              <div className="mt-4">
-                                <FundingProgress 
-                                  current={task.current_amount || 0}
-                                  target={task.fund_targeted || 0}
-                                  donorCount={task.donor_count}
-                                  endDate={task.end_date}
-                                  className="border border-gray-100 rounded-lg p-4"
-                                />
-                                {task.status === 'completed' && (
-                                  <div className="mt-2 flex items-center justify-center text-green-600 text-sm">
-                                    <FaCheckCircle className="mr-1" />
-                                    Funding goal achieved!
-                                  </div>
-                                )}
-                              </div>
-                            )}
 
                             {/* Proof Document Preview */}
                             {task.proof && (
@@ -1145,6 +1126,27 @@ export default function CharityDetails() {
                                 </div>
                               </div>
                             )}
+                            
+                            {/* Funding Progress */}
+                            {task.fund_targeted > 0 && (
+                              <div className="mt-4">
+                                <FundingProgress 
+                                  current={task.current_amount || 0}
+                                  target={task.fund_targeted || 0}
+                                  donorCount={task.donor_count}
+                                  endDate={task.end_date}
+                                  className="border border-gray-100 rounded-lg p-4"
+                                />
+                                {task.status === 'completed' && (
+                                  <div className="mt-2 flex items-center justify-center text-green-600 text-sm">
+                                    <FaCheckCircle className="mr-1" />
+                                    Funding goal achieved!
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            
                           </div>
                         </div>
                       </motion.div>
@@ -1344,7 +1346,7 @@ export default function CharityDetails() {
                   >
                     <option value="transactions">Transactions</option>
                     <option value="donations">Donations</option>
-                    <option value="combined">Combined</option>
+                    <option value="combined">All</option>
                   </select>
                 </div>
                 

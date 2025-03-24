@@ -5,6 +5,7 @@ import PlatinumImg from '../assets/image/Platinum.png';
 import GoldImg from '../assets/image/Gold.png';
 import SilverImg from '../assets/image/Silver.png';
 import SponsorshipContact from './SponsorshipContact';
+import { FaFacebook, FaInstagram, FaYoutube, FaEnvelope, FaGlobe } from 'react-icons/fa';
 
 const sponsorData = {
   diamond: [
@@ -12,7 +13,7 @@ const sponsorData = {
       id: 1,
       name: "Vitrox Technologies",
       logo: DiamondImg,
-      description: "Non-Profit Organization & NGOs – Charities looking for fixed-proof, automated fund disbursement while reducing operational costs.",
+      description: "Non-Profit Organization & NGOs – Charities looking for fixed-proof, automated fund disbursement while reducing operational costs. We are a team of blockchain enthusiasts who are passionate about using technology to make the world a better place.",
       facebook: "https://facebook.com/vitroxtech",
       instagram: "https://instagram.com/vitroxtech",
       youtube: "https://youtube.com/vitroxtech",
@@ -23,15 +24,18 @@ const sponsorData = {
       id: 2,
       name: "Horizon Foundation",
       logo: DiamondImg,
-      description: "International foundation dedicated to transparency and accountability in charitable giving.",
-      contact: "partnerships@horizonfoundation.org",
-      website: "https://www.horizonfoundation.org"
+      description: "International foundation dedicated to transparency and accountability in charitable giving. We are a team of blockchain enthusiasts who are passionate about using technology to make the world a better place.",
+      facebook: "https://facebook.com/horizonfoundation",
+      instagram: "https://instagram.com/horizonfoundation",
+      youtube: "https://youtube.com/horizonfoundation",
+      website: "https://www.horizonfoundation.org",
+      email: "partnerships@horizonfoundation.org"
     },
     {
       id: 3,
       name: "TrustChain",
       logo: DiamondImg,
-      description: "Blockchain-based platform for transparent and accountable charitable giving.",
+      description: "Blockchain-based platform for transparent and accountable charitable giving. We are a team of blockchain enthusiasts who are passionate about using technology to make the world a better place.",
       contact: "tech@trustchain.com",
       website: "https://www.trustchain.com"
     }
@@ -41,7 +45,7 @@ const sponsorData = {
       id: 1,
       name: "EcoFuture Investments",
       logo: PlatinumImg,
-      description: "Sustainable investment firm supporting environmental and social impact projects worldwide.",
+      description: "Sustainable investment firm supporting environmental and social impact projects worldwide. This is a test description.",
       contact: "info@ecofutureinv.com",
       website: "https://www.ecofutureinv.com"
     },
@@ -49,7 +53,7 @@ const sponsorData = {
       id: 2,
       name: "Nexus Banking Group",
       logo: PlatinumImg,
-      description: "Financial institution pioneering blockchain-based transparency solutions for charitable donations.",
+      description: "Financial institution pioneering blockchain-based transparency solutions for charitable donations. This is a test description.",
       contact: "partnerships@nexusbanking.com",
       website: "https://www.nexusbanking.com"
     },
@@ -57,7 +61,7 @@ const sponsorData = {
       id: 3,
       name: "Quantum Security",
       logo: PlatinumImg,
-      description: "Cybersecurity experts ensuring the integrity and safety of blockchain transactions.",
+      description: "Cybersecurity experts ensuring the integrity and safety of blockchain transactions. This is a test description.",
       contact: "support@quantumsecurity.net",
       website: "https://www.quantumsecurity.net"
     }
@@ -160,7 +164,26 @@ const SponsorTier = ({ title, sponsors, bgColor, borderColor }) => {
             {title !== 'Silver' && (
               <p className="text-gray-600 text-center my-3">{sponsor.description}</p>
             )}
-            {getSocialLinks(sponsor)}
+            {title !== 'Silver' && (
+              // No social links for silver tier
+              <div className="flex gap-3 mt-2">
+                <a href={sponsor.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                  <FaFacebook className="w-5 h-5" />
+                </a>
+                <a href={sponsor.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:text-pink-800">
+                  <FaInstagram className="w-5 h-5" /> 
+                </a>
+                <a href={sponsor.youtube} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-800">
+                  <FaYoutube className="w-5 h-5" />
+                </a>
+                <a href={`mailto:${sponsor.email}`} className="text-gray-600 hover:text-gray-800">
+                    <FaEnvelope className="w-5 h-5" />
+                </a>
+                <a href={sponsor.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                    <FaGlobe className="w-5 h-5" />
+                </a>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -290,24 +313,40 @@ const SponsorshipPartners = () => {
         <div className="text-center mt-12 p-8 bg-gray-100 rounded-lg">
           <h2 className="text-2xl font-bold mb-4">Become a TrustChain Partner</h2>
           <p className="mb-6 max-w-3xl mx-auto">
-            Join our mission to revolutionize charitable giving through blockchain technology. As a sponsor, you'll help us create a more transparent, accountable, and efficient charitable sector while gaining visibility with our growing community of donors and organizations.
+            Join our mission to revolutionize charitable giving through blockchain technology. As a partner, you'll help us create a more transparent, accountable, and efficient charitable sector while gaining visibility with our growing community of donors and organizations.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
             <div className="bg-white p-4 rounded shadow-sm">
               <h3 className="font-bold text-blue-600">Diamond</h3>
-              <p className="text-sm text-gray-600">Premium placement, featured in all materials, dedicated support</p>
+              <ul className="list-disc pl-5 text-sm text-gray-600 mt-4 text-left">
+                <li>Big logo placement</li>
+                <li>Full company intro with key highlights</li>
+                <li>Maximum brand exposure with featured partnerships</li>
+              </ul>
             </div>
             <div className="bg-white p-4 rounded shadow-sm">
               <h3 className="font-bold text-purple-600">Platinum</h3>
-              <p className="text-sm text-gray-600">Priority placement, featured in major materials, direct support</p>
+              <ul className="list-disc pl-5 text-sm text-gray-600 mt-4 text-left">
+                <li>Medium logo placement</li>
+                <li>Company intro with key highlights</li>
+                <li>High visibility in selected campaigns & social media</li>
+              </ul>
             </div>
             <div className="bg-white p-4 rounded shadow-sm">
               <h3 className="font-bold text-yellow-600">Gold</h3>
-              <p className="text-sm text-gray-600">Enhanced visibility, featured in select materials</p>
+              <ul className="list-disc pl-5 text-sm text-gray-600 mt-4 text-left">
+                <li>Small logo placement</li>
+                <li>Name mention in partner section</li>
+                <li>Moderate exposure on website & newsletters</li>
+              </ul>
             </div>
             <div className="bg-white p-4 rounded shadow-sm">
               <h3 className="font-bold text-gray-600">Silver</h3>
-              <p className="text-sm text-gray-600">Standard visibility, listed in sponsor materials</p>
+              <ul className="list-disc pl-5 text-sm text-gray-600 mt-4 text-left">
+                <li>Small logo placement</li>
+                <li>No name listing</li>
+                <li>Limited exposure on sponsorship page</li>
+              </ul>
             </div>
           </div>
           <button 

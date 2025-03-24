@@ -609,7 +609,7 @@ export default function OrganizationDashboard() {
                   >
                     <option value="transactions">Transactions</option>
                     <option value="donations">Donations</option>
-                    <option value="combined">Combined</option>
+                    <option value="combined">All</option>
                   </select>
                   
                   <button

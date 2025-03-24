@@ -167,6 +167,9 @@ export default function UserDashboard() {
           setFollowedCharities([]);
         }
         
+        // Calculate achievements based on all available data
+        calculateUserAchievements();
+        
       } catch (err) {
         console.error('Error in fetchUserData:', err);
         setError('Failed to load user data');
@@ -190,20 +193,29 @@ export default function UserDashboard() {
     try {
       console.log(`Downloading invoice for donation ${donationId}`);
       
-      // Get the HTML content
-      const response = await axios.get(`/donations/${donationId}/invoice-html`);
-      const { html, filename } = response.data;
+      // Get the PDF directly instead of HTML
+      const response = await axios.get(`/api/donations/${donationId}/invoice`, {
+        responseType: 'blob', // Important: Set responseType to blob
+      });
       
-      // Generate PDF on the client side
-      const opt = {
-        margin: 1,
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
+      // Create a blob from the PDF data
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       
-      html2pdf().set(opt).from(html).save();
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${donationId}.pdf`; // Set the download filename
+      
+      // Append link to body, click it, and remove it
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the URL
+      window.URL.revokeObjectURL(url);
       
       toast.success('Invoice downloaded successfully');
     } catch (error) {
@@ -297,7 +309,38 @@ export default function UserDashboard() {
     return `/${path}`;
   };
 
-  // Add a function to load data based on the current data source
+  // Add a function to calculate the total donation amount from all sources
+  const calculateTotalFromAllSources = () => {
+    let total = 0;
+    
+    // Add amounts from transactions
+    transactions.forEach(transaction => {
+      if (transaction && transaction.amount) {
+        total += parseFloat(transaction.amount) || 0;
+      }
+    });
+    
+    // Add amounts from donations
+    donations.forEach(donation => {
+      if (donation && donation.amount) {
+        total += parseFloat(donation.amount) || 0;
+      }
+    });
+    
+    // Add amounts from combined transactions if they're not already counted
+    if (currentDataSource === 'combined') {
+      combinedTransactions.forEach(item => {
+        if (item && item.amount) {
+          total += parseFloat(item.amount) || 0;
+        }
+      });
+    }
+    
+    console.log('Calculated total donation amount:', total);
+    return total;
+  };
+
+  // Update the loadDataBySource function to use the new calculation
   const loadDataBySource = async (source) => {
     if (!currentUser) return;
     
@@ -323,28 +366,27 @@ export default function UserDashboard() {
       
       if (source === 'transactions') {
         setTransactions(data);
-        
-        // Calculate total donation amount
-        const total = calculateTotalDonationAmount(data);
-        setTotalDonationAmount(parseFloat(total) || 0);
-        
-        // Calculate reward tier
-        const tier = calculateRewardTier(total);
-        setRewardTier(tier);
-        
-        // Calculate progress to next tier
-        const progress = calculateNextTierProgress(total);
-        setNextTierProgress(progress);
-        
-        // Get achievements
-        const userAchievements = getAchievements(data);
-        setAchievements(userAchievements);
       } else if (source === 'donations') {
         setDonations(data);
       }
       
       // Always update the combined transactions for display
       setCombinedTransactions(data);
+      
+      // Calculate total donation amount from all sources
+      const totalAmount = calculateTotalFromAllSources();
+      setTotalDonationAmount(totalAmount);
+      
+      // Calculate reward tier based on the total
+      const tier = calculateRewardTier(totalAmount);
+      setRewardTier(tier);
+      
+      // Calculate progress to next tier
+      const progress = calculateNextTierProgress(totalAmount);
+      setNextTierProgress(progress);
+      
+      // Calculate achievements after loading data
+      calculateUserAchievements();
       
       setLoading(false);
     } catch (error) {
@@ -353,6 +395,22 @@ export default function UserDashboard() {
       setLoading(false);
     }
   };
+
+  // Add a useEffect to update the total donation amount when any data changes
+  useEffect(() => {
+    if (currentUser) {
+      const totalAmount = calculateTotalFromAllSources();
+      console.log('Updating total donation amount:', totalAmount);
+      setTotalDonationAmount(totalAmount);
+      
+      // Update reward tier and progress
+      const tier = calculateRewardTier(totalAmount);
+      setRewardTier(tier);
+      
+      const progress = calculateNextTierProgress(totalAmount);
+      setNextTierProgress(progress);
+    }
+  }, [transactions, donations, combinedTransactions, currentDataSource]);
 
   // Add these helper functions
   const formatStatus = (status) => {
@@ -391,6 +449,115 @@ export default function UserDashboard() {
         return null;
     }
   };
+
+  // Add a new function to calculate achievements based on all data
+  const calculateUserAchievements = () => {
+    // Create a comprehensive list of achievements
+    const userAchievements = [];
+    
+    // Debug logging
+    console.log('Calculating achievements with:');
+    console.log('Transactions:', transactions);
+    console.log('Donations:', donations);
+    console.log('Combined transactions:', combinedTransactions);
+    
+    // First donation achievement
+    if (transactions.length > 0 || donations.length > 0 || combinedTransactions.length > 0) {
+      console.log('Adding first donation achievement');
+      userAchievements.push({ 
+        id: 'first_donation', 
+        name: 'First Steps', 
+        description: 'Make your first donation' 
+      });
+    }
+    
+    // Count unique charities donated to
+    const uniqueCharityIds = new Set();
+    
+    // Add charity IDs from transactions
+    transactions.forEach(transaction => {
+      if (transaction.charity_id) {
+        uniqueCharityIds.add(transaction.charity_id);
+      }
+    });
+    
+    // Add charity IDs from donations
+    donations.forEach(donation => {
+      if (donation.charity_id) {
+        uniqueCharityIds.add(donation.charity_id);
+      }
+    });
+    
+    // Add charity IDs from combined transactions
+    combinedTransactions.forEach(item => {
+      if (item && item.charity_id) {
+        uniqueCharityIds.add(item.charity_id);
+      }
+    });
+    
+    const uniqueCharityCount = uniqueCharityIds.size;
+    console.log('Unique charity count:', uniqueCharityCount);
+    console.log('Unique charity IDs:', Array.from(uniqueCharityIds));
+    
+    // Donate to 3 different charities
+    if (uniqueCharityCount >= 3) {
+      console.log('Adding 3 charities achievement');
+      userAchievements.push({ 
+        id: 'donate_3_charities', 
+        name: 'Generous Heart', 
+        description: 'Donate to 3 different charities' 
+      });
+    }
+    
+    // Donate to 10 different charities
+    if (uniqueCharityCount >= 10) {
+      console.log('Adding 10 charities achievement');
+      userAchievements.push({ 
+        id: 'donate_10_charities', 
+        name: 'Community Pillar', 
+        description: 'Donate to 10 different charities' 
+      });
+    }
+    
+    // Complete profile achievement
+    if (currentUser?.profile_picture) {
+      userAchievements.push({ 
+        id: 'complete_profile', 
+        name: 'Identity', 
+        description: 'Complete your profile information' 
+      });
+    }
+    
+    // Following achievements
+    if (followedOrganizations.length >= 5) {
+      userAchievements.push({ 
+        id: 'follow_5_orgs', 
+        name: 'Connected', 
+        description: 'Follow 5 organizations' 
+      });
+    }
+    
+    if (followedCharities.length >= 5) {
+      userAchievements.push({ 
+        id: 'follow_5_charities', 
+        name: 'Charity Supporter', 
+        description: 'Follow 5 charities' 
+      });
+    }
+    
+    console.log('Final achievements:', userAchievements);
+    
+    // Update the achievements state
+    setAchievements(userAchievements);
+  };
+
+  // Add this useEffect to recalculate achievements when relevant data changes
+  useEffect(() => {
+    if (currentUser) {
+      console.log('Data changed, recalculating achievements');
+      calculateUserAchievements();
+    }
+  }, [transactions, donations, combinedTransactions, followedOrganizations, followedCharities, currentUser]);
 
   return (
     <div className="min-h-screen">
@@ -1130,12 +1297,12 @@ export default function UserDashboard() {
                             {item.amount ? `$${item.amount}` : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                            <span className={`px-2 items-center inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
                               {getStatusIcon(item.status)}
                               {formatStatus(item.status)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 items-center whitespace-nowrap text-sm text-gray-500">
                             {isDonation ? (
                               <Link to={`/donations/${item.id}`} className="text-indigo-600 hover:text-indigo-900">
                                 View Donation
@@ -1156,18 +1323,11 @@ export default function UserDashboard() {
                             {isDonation && item.status === 'completed' && (
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => downloadInvoice(item.id)}
-                                  className="text-indigo-600 hover:text-indigo-900 flex items-center"
-                                  title="Download Invoice"
-                                >
-                                  <FaDownload className="mr-1" />
-                                </button>
-                                <button
                                   onClick={() => viewInvoice(item.id)}
                                   className="text-indigo-600 hover:text-indigo-900 flex items-center"
                                   title="View Invoice"
                                 >
-                                  <FaFileInvoice className="mr-1" />
+                                  View Invoice
                                 </button>
                               </div>
                             )}

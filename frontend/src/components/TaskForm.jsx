@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import BackButton from './BackToHistory';
 import { formatImageUrl, getFileType } from '../utils/helpers';
 import { 
   FaTasks, 
@@ -475,20 +476,9 @@ export default function TaskForm() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-6">
+      <BackButton />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center text-gray-500 mb-6">
-          <Link 
-            to={`/charities/${charity ? charity.id : charityId}`} 
-            className="hover:text-gray-700 flex items-center"
-          >
-            <FaArrowLeft className="mr-2" />
-            Back to Charity
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">{taskId ? 'Edit Task' : 'Create Task'}</span>
-        </nav>
-
+        
         <div className="bg-white shadow-sm rounded-lg">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">

@@ -568,6 +568,21 @@ export default function DonationDetails() {
                 <p className="text-green-700">
                   Funds were released on {formatDate(donation.completed_at)}
                 </p>
+                
+                {donation.transfer_transaction_hash && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Transfer Transaction:</span>
+                    </p>
+                    <p className="text-xs break-all mt-1">{donation.transfer_transaction_hash}</p>
+                    <button 
+                      onClick={() => window.open(`https://sepolia.etherscan.io/tx/${donation.transfer_transaction_hash}`, '_blank')}
+                      className="mt-2 text-sm text-indigo-600 hover:text-indigo-900"
+                    >
+                      View Transfer on Sepolia Explorer
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -641,4 +641,204 @@ class DonationController extends Controller
             // ... existing code ...
         }
     }
+
+    /**
+     * Handle completing a donation and releasing funds
+     */
+    public function handleComplete(Donation $donation)
+    {
+        try {
+            // Check if donation can be completed
+            if (!$donation->canBeCompleted()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This donation cannot be completed at this time'
+                ], 400);
+            }
+            
+            // Get the organization's wallet address
+            $charity = \App\Models\Charity::find($donation->cause_id);
+            $organization = \App\Models\Organization::find($charity->organization_id);
+            
+            if (!$organization || !$organization->wallet_address) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization wallet address not found'
+                ], 400);
+            }
+            
+            // If this is a blockchain donation, transfer the funds
+            if ($donation->transaction_hash) {
+                $result = $this->transferFundsOnBlockchain(
+                    $donation->transaction_hash,
+                    $organization->wallet_address,
+                    $donation->amount
+                );
+                
+                if (!$result['success']) {
+                    \Log::error('Failed to transfer funds on blockchain', $result);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to transfer funds: ' . $result['error']
+                    ], 500);
+                }
+                
+                // Save the transfer transaction hash
+                $donation->transfer_transaction_hash = $result['transactionHash'];
+            }
+            
+            // Update donation status
+            $donation->status = 'completed';
+            $donation->completed_at = now();
+            $donation->save();
+            
+            // Update charity fund progress
+            $this->updateCharityFundProgress($charity);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Funds released successfully',
+                'donation' => $donation
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error completing donation', [
+                'error' => $e->getMessage(),
+                'donation_id' => $donation->id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to complete donation: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Transfer funds on blockchain
+     */
+    private function transferFundsOnBlockchain($transactionHash, $recipientAddress, $amount)
+    {
+        try {
+            // Initialize Web3
+            $web3 = new \Web3\Web3(env('BLOCKCHAIN_PROVIDER_URL'));
+            $eth = $web3->eth;
+            
+            // Get the contract instance
+            $contractAddress = env('CONTRACT_ADDRESS');
+            $contract = new \Web3\Contract($web3->provider, $this->getContractABI());
+            
+            // Get the private key for signing transactions
+            $privateKey = env('BLOCKCHAIN_PRIVATE_KEY');
+            if (substr($privateKey, 0, 2) === '0x') {
+                $privateKey = substr($privateKey, 2);
+            }
+            
+            // Create transaction data for withdrawFunds function
+            $data = $contract->getData('withdrawFunds', [$recipientAddress, $this->toWei($amount)]);
+            
+            // Create and sign transaction
+            $transaction = [
+                'from' => $this->getFromAddress(),
+                'to' => $contractAddress,
+                'data' => '0x' . $data,
+                'gas' => '0x' . dechex(300000),
+                'gasPrice' => '0x' . dechex(20000000000),
+            ];
+            
+            // Get nonce
+            $eth->getTransactionCount($this->getFromAddress(), 'latest', function ($err, $nonce) use (&$transaction) {
+                if ($err !== null) {
+                    throw new \Exception('Failed to get nonce: ' . $err->getMessage());
+                }
+                $transaction['nonce'] = '0x' . dechex($nonce);
+            });
+            
+            // Sign and send transaction
+            $signedTransaction = $this->signTransaction($transaction, $privateKey);
+            $transactionHash = null;
+            
+            $eth->sendRawTransaction('0x' . $signedTransaction, function ($err, $hash) use (&$transactionHash) {
+                if ($err !== null) {
+                    throw new \Exception('Failed to send transaction: ' . $err->getMessage());
+                }
+                $transactionHash = $hash;
+            });
+            
+            return [
+                'success' => true,
+                'transactionHash' => $transactionHash
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Update charity fund progress
+     */
+    private function updateCharityFundProgress($charity)
+    {
+        // Calculate total completed donations
+        $totalCompleted = \App\Models\Donation::where('cause_id', $charity->id)
+            ->where('status', 'completed')
+            ->sum('amount');
+        
+        // Update charity fund progress
+        $charity->funds_raised = $totalCompleted;
+        
+        // Check if target is reached
+        if ($charity->funds_raised >= $charity->funding_goal) {
+            $charity->is_fully_funded = true;
+        }
+        
+        $charity->save();
+        
+        return $charity;
+    }
+
+    /**
+     * Get contract ABI
+     */
+    private function getContractABI()
+    {
+        return json_decode(file_get_contents(base_path('resources/contracts/DonationContract.json')), true)['abi'];
+    }
+
+    /**
+     * Get from address from private key
+     */
+    private function getFromAddress()
+    {
+        $privateKey = env('BLOCKCHAIN_PRIVATE_KEY');
+        if (substr($privateKey, 0, 2) === '0x') {
+            $privateKey = substr($privateKey, 2);
+        }
+        
+        // Generate address from private key
+        // This is a simplified version - you may need a proper library for this
+        return '0x' . substr(hash('sha256', hex2bin($privateKey)), 0, 40);
+    }
+
+    /**
+     * Sign transaction
+     */
+    private function signTransaction($transaction, $privateKey)
+    {
+        // This is a placeholder - you'll need to use a proper Ethereum transaction signing library
+        // For example, you might use web3.php or ethereum-tx-decoder
+        
+        // For now, we'll return a dummy signed transaction for demonstration
+        return 'dummySignedTransaction';
+    }
+
+    /**
+     * Convert ETH to Wei
+     */
+    private function toWei($eth)
+    {
+        return bcmul($eth, '1000000000000000000');
+    }
 }

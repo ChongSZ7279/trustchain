@@ -22,6 +22,25 @@ export default function Invoice() {
   const [invoiceHtml, setInvoiceHtml] = useState('');
   const [invoiceData, setInvoiceData] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [ethToRmRate, setEthToRmRate] = useState(7500); // Default exchange rate (1 ETH ≈ 7500 RM)
+
+  useEffect(() => {
+    // Fetch current ETH to RM exchange rate
+    const fetchExchangeRate = async () => {
+      try {
+        // You can replace this with your preferred crypto exchange rate API
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=myr');
+        if (response.data && response.data.ethereum && response.data.ethereum.myr) {
+          setEthToRmRate(response.data.ethereum.myr);
+        }
+      } catch (error) {
+        console.error('Error fetching ETH to RM rate:', error);
+        // Keep using the default rate if fetch fails
+      }
+    };
+
+    fetchExchangeRate();
+  }, []);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -61,7 +80,10 @@ export default function Invoice() {
           throw new Error(`All endpoints failed: ${errorMessages.join(', ')}`);
         }
         
-        setInvoiceHtml(response.data.html);
+        // Convert ETH to RM in the HTML content
+        const convertedHtml = convertEthToRm(response.data.html, ethToRmRate);
+        
+        setInvoiceHtml(convertedHtml);
         setInvoiceData(response.data);
         setLoading(false);
       } catch (error) {
@@ -80,7 +102,51 @@ export default function Invoice() {
     };
 
     fetchInvoice();
-  }, [donationId, retryCount]);
+  }, [donationId, retryCount, ethToRmRate]);
+
+  // Function to convert ETH values to RM in the HTML
+  const convertEthToRm = (html, rate) => {
+    if (!html) return html;
+    
+    // Create a temporary DOM element to parse the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Find all elements that might contain ETH values
+    // This regex looks for patterns like "0.05 ETH" or "ETH 0.05"
+    const ethRegex = /(\d+(\.\d+)?\s*ETH|ETH\s*\d+(\.\d+)?)/gi;
+    
+    // Process text nodes to replace ETH values
+    const processNode = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent;
+        if (ethRegex.test(text)) {
+          // Reset regex lastIndex
+          ethRegex.lastIndex = 0;
+          
+          // Replace ETH values with ETH and RM equivalent
+          node.textContent = text.replace(ethRegex, (match) => {
+            // Extract the numeric value
+            const numericValue = parseFloat(match.replace(/[^\d.]/g, ''));
+            if (!isNaN(numericValue)) {
+              // Calculate RM value
+              const rmValue = (numericValue * rate).toFixed(2);
+              return `${match} (RM ${rmValue})`;
+            }
+            return match;
+          });
+        }
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        // Process child nodes recursively
+        Array.from(node.childNodes).forEach(processNode);
+      }
+    };
+    
+    // Process all nodes in the HTML
+    Array.from(tempDiv.childNodes).forEach(processNode);
+    
+    return tempDiv.innerHTML;
+  };
 
   const downloadInvoice = async () => {
     try {

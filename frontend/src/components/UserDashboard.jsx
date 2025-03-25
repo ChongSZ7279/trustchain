@@ -39,13 +39,25 @@ import {
   FaFileInvoice,
   FaDownload,
   FaClock,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaShoppingBag,
+  FaUtensils,
+  FaEllipsisH,
+  FaCocktail,
+  FaTicketAlt,
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
 import AIGenerator from "./Recommendation";
 import { toast } from 'react-hot-toast';
 import html2pdf from 'html2pdf.js';
+
+// Import additional images
+import BronzeImg from '../assets/image/Bronze.png';
+import SilverImg from '../assets/image/Silver.png';
+import GoldImg from '../assets/image/Gold.png';
+import ZeusImg from '../assets/image/coffe-4951985_1280.jpg';
+import TealiveImg from '../assets/image/tea-750850_1280.jpg';
 
 export default function UserDashboard() {
   const { currentUser, logout } = useAuth();
@@ -69,6 +81,9 @@ export default function UserDashboard() {
   const [donations, setDonations] = useState([]);
   const [combinedTransactions, setCombinedTransactions] = useState([]);
   const [currentDataSource, setCurrentDataSource] = useState('transactions');
+  const [claimedVouchers, setClaimedVouchers] = useState([]);
+  const [voucherFilter, setVoucherFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
   
   // Define available frames based on REWARD_TIERS from rewardSystem.js
   const availableFrames = [
@@ -559,6 +574,51 @@ export default function UserDashboard() {
     }
   }, [transactions, donations, combinedTransactions, followedOrganizations, followedCharities, currentUser]);
 
+  // Add this function to handle voucher claims
+  const handleClaimVoucher = async (voucherId, tierName) => {
+    try {
+      // In a real app, you would make an API call to claim the voucher
+      // For now, we'll just simulate it
+      toast.promise(
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+        {
+          loading: 'Claiming voucher...',
+          success: () => {
+            // Add the voucher to claimed vouchers
+            setClaimedVouchers([...claimedVouchers, { id: voucherId, tier: tierName, claimedAt: new Date() }]);
+            return `Successfully claimed ${tierName} tier voucher!`;
+          },
+          error: 'Failed to claim voucher. Please try again.',
+        }
+      );
+    } catch (error) {
+      console.error('Error claiming voucher:', error);
+      toast.error('Failed to claim voucher. Please try again.');
+    }
+  };
+  
+  // Add this function to check if a voucher is claimable
+  const isVoucherClaimable = (tierName) => {
+    // Check if the user's tier is high enough to claim this voucher
+    const tierLevels = {
+      'Bronze': 1,
+      'Silver': 2,
+      'Gold': 3,
+      'Platinum': 4,
+      'Diamond': 5
+    };
+    
+    const userTierLevel = tierLevels[rewardTier?.name] || 0;
+    const requiredTierLevel = tierLevels[tierName] || 999;
+    
+    return userTierLevel >= requiredTierLevel;
+  };
+  
+  // Add this function to check if a voucher is already claimed
+  const isVoucherClaimed = (voucherId) => {
+    return claimedVouchers.some(voucher => voucher.id === voucherId);
+  };
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -1034,6 +1094,109 @@ export default function UserDashboard() {
                       </li>
                     )}
                   </ul>
+                </div>
+              </div>
+
+              {/* New Voucher Claim Section - Improved UI */}
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                  <FaTicketAlt className="mr-2 text-indigo-600" />
+                  Your Reward Vouchers
+                </h3>
+                
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  {/* Header with title and description */}
+                  <div className="p-5 bg-gradient-to-r from-indigo-50 to-blue-50 border-b">
+                    <h4 className="text-lg font-medium text-gray-900">Exclusive Rewards for Your Generosity</h4>
+                    <p className="text-sm text-gray-600 mt-1">Unlock special offers as you reach higher donation tiers</p>
+                  </div>
+                  
+                  {/* Filter Buttons - Styled as circles with icons */}
+                  <div className="p-6 flex justify-center space-x-8 bg-white">
+                    <button 
+                      onClick={() => setVoucherFilter('all')}
+                      className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-blue-100 text-blue-700 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <FaEllipsisH className="text-xl mb-1" />
+                      <span className="text-xs font-medium">All</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setVoucherFilter('shopping')}
+                      className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-blue-100 text-blue-700 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <FaShoppingBag className="text-xl mb-1" />
+                      <span className="text-xs font-medium">Shopping</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setVoucherFilter('food')}
+                      className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-blue-100 text-blue-700 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <FaCocktail className="text-xl mb-1" />
+                      <span className="text-xs font-medium">Food & Beverage</span>
+                    </button>
+                  </div>
+                  
+                  {/* Voucher Cards - Styled as horizontal cards in a grid */}
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Zeus Voucher */}
+                    <div className="rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg transform hover:-translate-y-1">
+                      <div className="p-5 bg-blue-50 flex items-center">
+                        <div className="flex-none">
+                          <img src={ZeusImg} alt="Zeus" className="h-16 w-16 rounded-lg object-cover" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-blue-800">Buy 1 Free 1 Voucher</p>
+                          <p className="text-xs text-blue-600">*Terms & Conditions apply</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Tealive Voucher 1 */}
+                    <div className="rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg transform hover:-translate-y-1">
+                      <div className="p-5 bg-blue-50 flex items-center">
+                        <div className="flex-none">
+                          <img src={TealiveImg} alt="Tealive" className="h-16 w-16 rounded-lg object-cover" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-blue-800">Buy 1 Free 1 Voucher</p>
+                          <p className="text-xs text-blue-600">*Terms & Conditions apply</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Tealive Voucher 2 - Locked */}
+                    <div className="rounded-xl overflow-hidden shadow-md bg-gray-300 relative">
+                      <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+                      <div className="p-5 flex items-center relative">
+                        <div className="flex-none">
+                          <img src={TealiveImg} alt="Tealive" className="h-16 w-16 rounded-lg object-cover filter grayscale" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-gray-700">Buy 1 Free 1 Voucher</p>
+                          <p className="text-sm text-gray-600 flex items-center justify-end gap-2">
+                            <FaLock className="text-gray-500" /> Unlocked at Silver Tier
+                          </p>
+                        </div>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-gray-400 to-gray-500"></div>
+                    </div>
+                    
+                    {/* Tealive Voucher 3 */}
+                    <div className="rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg transform hover:-translate-y-1">
+                      <div className="p-5 bg-blue-50 flex items-center">
+                        <div className="flex-none">
+                          <img src={TealiveImg} alt="Tealive" className="h-16 w-16 rounded-lg object-cover" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-blue-800">Buy 1 Free 1 Voucher</p>
+                          <p className="text-xs text-blue-600">*Terms & Conditions apply</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
                 </div>
               </div>
             </div>

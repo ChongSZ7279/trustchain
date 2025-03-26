@@ -1,241 +1,267 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+
 /**
  * @title CharityContract
  * @dev A smart contract for managing charity donations and task funding with milestone-based distribution
  */
-contract CharityContract {
-    address public owner;
-    
-    // Mapping from charity ID to its balance
+contract CharityContract is ReentrancyGuard, Ownable, Pausable {
+    // State variables
     mapping(uint256 => uint256) public charityFunds;
-    
-    // Mapping from task ID to its balance
     mapping(uint256 => uint256) public taskFunds;
-    
-    // Mapping from task ID to its milestones
     mapping(uint256 => Milestone[]) public taskMilestones;
-    
-    // Mapping from donor address to their total donation amount
     mapping(address => uint256) public donorTotalAmount;
-    
-    // Mapping from charity ID to its donors
     mapping(uint256 => address[]) public charityDonors;
-    
-    // Mapping to track if an address is already in the donors list for a charity
     mapping(uint256 => mapping(address => bool)) private isDonorAdded;
+    mapping(uint256 => address) public charityOwners;
     
-    // Struct to represent a milestone
+    uint256 public constant PLATFORM_FEE = 1; // 1% platform fee
+    address public feeCollector;
+    uint256 public minDonationAmount = 0.001 ether;
+    
+    // Struct definitions
     struct Milestone {
         string description;
         uint256 amount;
         bool completed;
         bool fundsReleased;
+        uint256 deadline;
+        bytes32 proofHash;
     }
     
     // Events
-    event DonationReceived(uint256 indexed charityId, address indexed donor, uint256 amount, uint256 timestamp);
-    event TaskFunded(uint256 indexed taskId, address indexed donor, uint256 amount, uint256 timestamp);
-    event MilestoneAdded(uint256 indexed taskId, string description, uint256 amount);
-    event MilestoneCompleted(uint256 indexed taskId, uint256 milestoneIndex);
-    event MilestoneFundsReleased(uint256 indexed taskId, uint256 milestoneIndex, address recipient, uint256 amount);
-    event TaskFundsWithdrawn(uint256 indexed taskId, address indexed recipient, uint256 amount);
+    event DonationReceived(
+        uint256 indexed charityId, 
+        address indexed donor, 
+        uint256 amount, 
+        uint256 platformFee,
+        uint256 timestamp
+    );
+    event TaskFunded(
+        uint256 indexed taskId, 
+        address indexed donor, 
+        uint256 amount, 
+        uint256 platformFee,
+        uint256 timestamp
+    );
+    event MilestoneAdded(
+        uint256 indexed taskId, 
+        string description, 
+        uint256 amount, 
+        uint256 deadline
+    );
+    event MilestoneCompleted(
+        uint256 indexed taskId, 
+        uint256 milestoneIndex, 
+        bytes32 proofHash
+    );
+    event MilestoneFundsReleased(
+        uint256 indexed taskId, 
+        uint256 milestoneIndex, 
+        address recipient, 
+        uint256 amount
+    );
+    event CharityRegistered(uint256 indexed charityId, address owner);
+    event MinDonationAmountUpdated(uint256 newAmount);
+    event FeeCollectorUpdated(address newCollector);
     
-    constructor() {
-        owner = msg.sender;
+    // Constructor
+    constructor(address _feeCollector) {
+        feeCollector = _feeCollector;
     }
     
-    /**
-     * @dev Modifier to restrict function access to the contract owner
-     */
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only the contract owner can call this function");
+    // Modifiers
+    modifier onlyCharityOwner(uint256 charityId) {
+        require(charityOwners[charityId] == msg.sender, "Not charity owner");
         _;
     }
     
-    /**
-     * @dev Donate to a charity
-     * @param charityId The ID of the charity to donate to
-     */
-    function donate(uint256 charityId) external payable {
-        require(msg.value > 0, "Donation amount must be greater than 0");
+    modifier validAmount() {
+        require(msg.value >= minDonationAmount, "Amount below minimum");
+        _;
+    }
+    
+    // External/Public functions
+    function donate(uint256 charityId) external payable whenNotPaused nonReentrant validAmount {
+        require(charityOwners[charityId] != address(0), "Charity not registered");
         
-        charityFunds[charityId] += msg.value;
-        donorTotalAmount[msg.sender] += msg.value;
+        uint256 fee = (msg.value * PLATFORM_FEE) / 100;
+        uint256 donationAmount = msg.value - fee;
         
-        // Add donor to the charity's donor list if not already added
+        // Transfer platform fee
+        (bool feeSuccess,) = feeCollector.call{value: fee}("");
+        require(feeSuccess, "Fee transfer failed");
+        
+        // Update state
+        charityFunds[charityId] += donationAmount;
+        donorTotalAmount[msg.sender] += donationAmount;
+        
         if (!isDonorAdded[charityId][msg.sender]) {
             charityDonors[charityId].push(msg.sender);
             isDonorAdded[charityId][msg.sender] = true;
         }
         
-        emit DonationReceived(charityId, msg.sender, msg.value, block.timestamp);
+        emit DonationReceived(charityId, msg.sender, donationAmount, fee, block.timestamp);
     }
     
-    /**
-     * @dev Fund a specific task
-     * @param taskId The ID of the task to fund
-     */
-    function fundTask(uint256 taskId) external payable {
-        require(msg.value > 0, "Funding amount must be greater than 0");
+    function fundTask(uint256 taskId) external payable whenNotPaused nonReentrant validAmount {
+        uint256 fee = (msg.value * PLATFORM_FEE) / 100;
+        uint256 fundingAmount = msg.value - fee;
         
-        taskFunds[taskId] += msg.value;
-        donorTotalAmount[msg.sender] += msg.value;
+        // Transfer platform fee
+        (bool feeSuccess,) = feeCollector.call{value: fee}("");
+        require(feeSuccess, "Fee transfer failed");
         
-        emit TaskFunded(taskId, msg.sender, msg.value, block.timestamp);
+        taskFunds[taskId] += fundingAmount;
+        donorTotalAmount[msg.sender] += fundingAmount;
+        
+        emit TaskFunded(taskId, msg.sender, fundingAmount, fee, block.timestamp);
     }
     
-    /**
-     * @dev Add a milestone to a task
-     * @param taskId The ID of the task
-     * @param description The description of the milestone
-     * @param amount The amount of funds to be released upon completion
-     */
-    function addMilestone(uint256 taskId, string calldata description, uint256 amount) external onlyOwner {
-        require(bytes(description).length > 0, "Description cannot be empty");
-        require(amount > 0, "Amount must be greater than 0");
+    function addMilestone(
+        uint256 taskId,
+        string calldata description,
+        uint256 amount,
+        uint256 deadline
+    ) external onlyCharityOwner(taskId) {
+        require(bytes(description).length > 0, "Empty description");
+        require(amount > 0, "Invalid amount");
+        require(deadline > block.timestamp, "Invalid deadline");
         
         taskMilestones[taskId].push(Milestone({
             description: description,
             amount: amount,
             completed: false,
-            fundsReleased: false
+            fundsReleased: false,
+            deadline: deadline,
+            proofHash: bytes32(0)
         }));
         
-        emit MilestoneAdded(taskId, description, amount);
+        emit MilestoneAdded(taskId, description, amount, deadline);
     }
     
-    /**
-     * @dev Mark a milestone as completed
-     * @param taskId The ID of the task
-     * @param milestoneIndex The index of the milestone
-     */
-    function completeMilestone(uint256 taskId, uint256 milestoneIndex) external onlyOwner {
-        require(milestoneIndex < taskMilestones[taskId].length, "Milestone does not exist");
-        require(!taskMilestones[taskId][milestoneIndex].completed, "Milestone already completed");
+    function completeMilestone(
+        uint256 taskId,
+        uint256 milestoneIndex,
+        bytes32 proofHash
+    ) external onlyCharityOwner(taskId) {
+        require(milestoneIndex < taskMilestones[taskId].length, "Invalid milestone");
+        Milestone storage milestone = taskMilestones[taskId][milestoneIndex];
         
-        taskMilestones[taskId][milestoneIndex].completed = true;
+        require(!milestone.completed, "Already completed");
+        require(block.timestamp <= milestone.deadline, "Milestone expired");
+        require(proofHash != bytes32(0), "Invalid proof");
         
-        emit MilestoneCompleted(taskId, milestoneIndex);
+        milestone.completed = true;
+        milestone.proofHash = proofHash;
+        
+        emit MilestoneCompleted(taskId, milestoneIndex, proofHash);
     }
     
-    /**
-     * @dev Release funds for a completed milestone
-     * @param taskId The ID of the task
-     * @param milestoneIndex The index of the milestone
-     * @param recipient The address to send the funds to
-     */
-    function releaseMilestoneFunds(uint256 taskId, uint256 milestoneIndex, address payable recipient) external onlyOwner {
-        require(milestoneIndex < taskMilestones[taskId].length, "Milestone does not exist");
-        require(taskMilestones[taskId][milestoneIndex].completed, "Milestone not completed");
-        require(!taskMilestones[taskId][milestoneIndex].fundsReleased, "Funds already released");
-        require(taskFunds[taskId] >= taskMilestones[taskId][milestoneIndex].amount, "Insufficient funds");
+    function releaseMilestoneFunds(
+        uint256 taskId,
+        uint256 milestoneIndex,
+        address payable recipient
+    ) external onlyOwner nonReentrant {
+        require(milestoneIndex < taskMilestones[taskId].length, "Invalid milestone");
+        Milestone storage milestone = taskMilestones[taskId][milestoneIndex];
         
-        uint256 amount = taskMilestones[taskId][milestoneIndex].amount;
-        taskFunds[taskId] -= amount;
-        taskMilestones[taskId][milestoneIndex].fundsReleased = true;
+        require(milestone.completed, "Not completed");
+        require(!milestone.fundsReleased, "Already released");
+        require(taskFunds[taskId] >= milestone.amount, "Insufficient funds");
         
-        recipient.transfer(amount);
+        milestone.fundsReleased = true;
+        taskFunds[taskId] -= milestone.amount;
         
-        emit MilestoneFundsReleased(taskId, milestoneIndex, recipient, amount);
+        (bool success,) = recipient.call{value: milestone.amount}("");
+        require(success, "Transfer failed");
+        
+        emit MilestoneFundsReleased(taskId, milestoneIndex, recipient, milestone.amount);
     }
     
-    /**
-     * @dev Withdraw funds from a task (for non-milestone-based tasks)
-     * @param taskId The ID of the task to withdraw funds from
-     * @param recipient The address to send the funds to
-     */
-    function withdrawTaskFunds(uint256 taskId, address payable recipient) external onlyOwner {
-        require(taskFunds[taskId] > 0, "No funds available for this task");
+    // Admin functions
+    function registerCharity(uint256 charityId, address owner) external onlyOwner {
+        require(charityOwners[charityId] == address(0), "Already registered");
+        require(owner != address(0), "Invalid owner");
         
-        uint256 amount = taskFunds[taskId];
-        taskFunds[taskId] = 0;
-        
-        recipient.transfer(amount);
-        
-        emit TaskFundsWithdrawn(taskId, recipient, amount);
+        charityOwners[charityId] = owner;
+        emit CharityRegistered(charityId, owner);
     }
     
-    /**
-     * @dev Get the balance of a charity
-     * @param charityId The ID of the charity
-     * @return The balance of the charity
-     */
+    function updateMinDonationAmount(uint256 newAmount) external onlyOwner {
+        minDonationAmount = newAmount;
+        emit MinDonationAmountUpdated(newAmount);
+    }
+    
+    function updateFeeCollector(address newCollector) external onlyOwner {
+        require(newCollector != address(0), "Invalid address");
+        feeCollector = newCollector;
+        emit FeeCollectorUpdated(newCollector);
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+    
+    // View functions
     function getCharityBalance(uint256 charityId) external view returns (uint256) {
         return charityFunds[charityId];
     }
     
-    /**
-     * @dev Get the balance of a task
-     * @param taskId The ID of the task
-     * @return The balance of the task
-     */
     function getTaskBalance(uint256 taskId) external view returns (uint256) {
         return taskFunds[taskId];
     }
     
-    /**
-     * @dev Get the total donation amount of a donor
-     * @param donor The address of the donor
-     * @return The total donation amount
-     */
     function getDonorTotalAmount(address donor) external view returns (uint256) {
         return donorTotalAmount[donor];
     }
     
-    /**
-     * @dev Get the number of milestones for a task
-     * @param taskId The ID of the task
-     * @return The number of milestones
-     */
     function getMilestoneCount(uint256 taskId) external view returns (uint256) {
         return taskMilestones[taskId].length;
     }
     
-    /**
-     * @dev Get milestone details
-     * @param taskId The ID of the task
-     * @param milestoneIndex The index of the milestone
-     * @return description The description of the milestone
-     * @return amount The amount of funds to be released
-     * @return completed Whether the milestone is completed
-     * @return fundsReleased Whether the funds have been released
-     */
     function getMilestone(uint256 taskId, uint256 milestoneIndex) external view returns (
         string memory description,
         uint256 amount,
         bool completed,
-        bool fundsReleased
+        bool fundsReleased,
+        uint256 deadline,
+        bytes32 proofHash
     ) {
-        require(milestoneIndex < taskMilestones[taskId].length, "Milestone does not exist");
-        
-        Milestone memory milestone = taskMilestones[taskId][milestoneIndex];
+        require(milestoneIndex < taskMilestones[taskId].length, "Invalid milestone");
+        Milestone storage milestone = taskMilestones[taskId][milestoneIndex];
         return (
             milestone.description,
             milestone.amount,
             milestone.completed,
-            milestone.fundsReleased
+            milestone.fundsReleased,
+            milestone.deadline,
+            milestone.proofHash
         );
     }
     
-    /**
-     * @dev Get the number of donors for a charity
-     * @param charityId The ID of the charity
-     * @return The number of donors
-     */
     function getDonorCount(uint256 charityId) external view returns (uint256) {
         return charityDonors[charityId].length;
     }
     
-    /**
-     * @dev Get a donor address by index for a charity
-     * @param charityId The ID of the charity
-     * @param index The index of the donor
-     * @return The donor address
-     */
     function getDonorByIndex(uint256 charityId, uint256 index) external view returns (address) {
-        require(index < charityDonors[charityId].length, "Donor index out of bounds");
+        require(index < charityDonors[charityId].length, "Index out of bounds");
         return charityDonors[charityId][index];
+    }
+    
+    // Emergency functions
+    function emergencyWithdraw(address payable recipient) external onlyOwner {
+        require(recipient != address(0), "Invalid recipient");
+        uint256 balance = address(this).balance;
+        (bool success,) = recipient.call{value: balance}("");
+        require(success, "Transfer failed");
     }
 } 

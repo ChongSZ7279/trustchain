@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import BackButton from './BackToHistory';
 import { useBlockchain } from '../context/BlockchainContext';
 import { formatImageUrl } from '../utils/helpers';
 
@@ -14,10 +15,10 @@ export default function TransactionDetails() {
   const [blockchainDetails, setBlockchainDetails] = useState(null);
 
   useEffect(() => {
-    const fetchTransaction = async () => {
+    const fetchTransactionDetails = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/api/transactions/${id}`);
+        const response = await axios.get(`/transactions/${id}`);
         setTransaction(response.data);
         
         // Attempt to verify on blockchain
@@ -39,14 +40,14 @@ export default function TransactionDetails() {
           }
         }
       } catch (err) {
-        console.error('Error fetching transaction:', err);
-        setError('Failed to load transaction details');
+        console.error('Error fetching transaction details:', err);
+        setError('Failed to fetch transaction details');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTransaction();
+    fetchTransactionDetails();
   }, [id, contract]);
 
   // Format date to a readable format
@@ -94,14 +95,7 @@ export default function TransactionDetails() {
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <Link to="/transactions" className="text-indigo-600 hover:text-indigo-900 flex items-center">
-            <svg className="h-5 w-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Back to Transactions
-          </Link>
-        </div>
+        <BackButton />
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">

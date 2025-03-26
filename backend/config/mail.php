@@ -113,4 +113,14 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Email Address
+    |--------------------------------------------------------------------------
+    |
+    | This is the email address that will receive contact form submissions
+    |
+    */
+    'admin_email' => env('MAIL_ADMIN_EMAIL', 'admin@trustchain.org'),
+
 ];

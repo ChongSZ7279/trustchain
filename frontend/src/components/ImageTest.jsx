@@ -12,7 +12,7 @@ export default function ImageTest() {
     const fetchStorageInfo = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/storage-test');
+        const response = await axios.get('/storage-test');
         setStorageInfo(response.data);
         
         // Get the first few image files for testing

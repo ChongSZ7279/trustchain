@@ -1,146 +1,280 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { formatImageUrl } from '../utils/helpers';
+import { motion } from 'framer-motion';
 import { 
-  FaCheckCircle, FaExclamationTriangle, FaThumbsUp, FaChevronDown, 
-  FaChevronUp, FaPhone, FaEnvelope, FaMapMarkerAlt, FaExternalLinkAlt, FaEdit 
+  FaCheckCircle, 
+  FaExclamationTriangle, 
+  FaThumbsUp, 
+  FaChevronDown, 
+  FaChevronUp, 
+  FaPhone, 
+  FaEnvelope, 
+  FaMapMarkerAlt, 
+  FaExternalLinkAlt, 
+  FaEdit,
+  FaTag,
+  FaHeart,
+  FaImage,
+  FaUserCheck,
+  FaUserPlus
 } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
-export default function OrganizationCard({ organization }) {
+export default function OrganizationCard({ organization, inDashboard = false }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(organization.is_following || false);
+  const { currentUser, accountType } = useAuth();
+  const [isFollowing, setIsFollowing] = useState(inDashboard || organization.is_following || false);
   const [followerCount, setFollowerCount] = useState(organization.follower_count || 0);
   const [showDetails, setShowDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [coverImageError, setCoverImageError] = useState(false);
+  const [logoImageError, setLogoImageError] = useState(false);
+
+  // Helper function to format image URL
+  const formatImageUrl = (path) => {
+    if (!path) return null;
+    
+    // If it's already a full URL
+    if (path.startsWith('http')) return path;
+    
+    // For storage paths like "organization_covers/filename.jpg"
+    if (path.includes('organization_covers/') || 
+        path.includes('organization_logos/') || 
+        path.includes('charity_pictures/')) {
+      return `/storage/${path}`;
+    }
+    
+    // If path starts with a slash, it's already a relative path
+    if (path.startsWith('/')) return path;
+    
+    // Otherwise, add a slash to make it a relative path from the root
+    return `/${path}`;
+  };
+
+  // Log image paths for debugging
+  useEffect(() => {
+    console.log('Organization cover image path:', organization.cover_image_path);
+    console.log('Organization logo path:', organization.logo);
+  }, [organization]);
 
   const toggleFollow = async () => {
-    if (!user) {
-      navigate('/login');
+    if (!currentUser) {
+      toast.error('Please login to follow organizations');
+      return;
+    }
+
+    // Hide follow button for organization users
+    if (currentUser.account_type === 'organization') {
+      return;
+    }
+
+    // Prevent users from following their own organization
+    if (currentUser.ic_number === organization.representative_id) {
+      toast.error('You cannot follow your own organization');
       return;
     }
 
     try {
       setIsLoading(true);
-      const response = await axios.post(`/api/organizations/${organization.id}/follow`);
+      console.log(`Making request to: /organizations/${organization.id}/follow`);
+      
+      const response = await axios.post(`/organizations/${organization.id}/follow`);
+      console.log('Follow response:', response.data);
+      
+      // Update the UI based on the response
       setIsFollowing(response.data.is_following);
-      setFollowerCount(response.data.follower_count);
+      setFollowerCount(response.data.follower_count || followerCount);
+      
+      toast.success(response.data.is_following ? 
+        'Successfully followed organization' : 
+        'Successfully unfollowed organization'
+      );
     } catch (error) {
       console.error('Error toggling follow status:', error);
+      toast.error(error.response?.data?.message || 'Failed to follow organization');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const canEditOrganization = () => user && (user.ic_number === organization.representative_id);
+  const canEditOrganization = () => {
+    // Allow if user is the representative (IC number matches)
+    if (currentUser && currentUser.ic_number === organization.representative_id) {
+      return true;
+    }
+    
+    // Allow if user is an organization and is the same organization
+    if (currentUser && accountType === 'organization' && currentUser.id === organization.id) {
+      return true;
+    }
+    
+    return false;
+  };
+  
+  // Default placeholder images
+  const defaultCoverImage = '/images/placeholder.jpg';
+  const defaultLogoImage = '/images/logo-placeholder.jpg';
 
   return (
-    <div className="bg-white overflow-hidden shadow-md rounded-lg border border-gray-200 w-96 flex flex-col mt-4  ">
+    <motion.div 
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.2 }}
+      className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
+    >
+      {/* Cover Image */}
+    <div className="relative p-4"> 
+      <div 
+        className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden relative"
+        style={{ boxShadow: "6px 6px 10px rgba(0, 0, 0, 0.2)" }} // Custom shadow on bottom-right
+      >
+        {coverImageError || !organization.cover_image_path ? (
+          <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg">
+            <FaImage className="h-12 w-12 text-gray-400" />
+          </div>
+        ) : (
+          <img
+            className="w-full h-full object-cover rounded-lg"
+            src={formatImageUrl(organization.cover_image_path)}
+            alt={`${organization.name} cover`}
+            onError={(e) => {
+              console.error('Failed to load cover image:', organization.cover_image_path);
+              setCoverImageError(true);
+            }}
+          />
+        )}
+      </div>
       
-      {/* Row 1: Logo & Organization Info */}
-      <div className="p-4 flex items-center space-x-4">
-        {/* Organization Logo */}
-        <img
-          className="h-16 w-16 rounded-lg object-cover"
-          src={formatImageUrl(organization.logo) || 'https://via.placeholder.com/64'}
-          alt={organization.name}
-        />
+      {/* Like button positioned on the top right */}
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={toggleFollow}
+          disabled={isLoading}
+          className={`p-2 rounded-full transition-colors shadow-md ${
+            isFollowing 
+              ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
+              : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
+          }`}
+        >
+          {isFollowing ? (
+            <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
+          ) : (
+            <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
+          )}
+        </button>
+      </div>
+    </div>
 
-        {/* Organization Details */}
-        <div className="flex-grow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">{organization.name}</h3>
-              <div className="flex items-center space-x-2 mt-2">
-                  <p className="text-sm text-gray-500">{organization.category}</p>
-                  {/* Verification Badge */}
-                  {organization.is_verified ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <FaCheckCircle className="mr-1" /> Verified
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      <FaExclamationTriangle className="mr-1" /> Pending
-                    </span>
-                  )}
-              </div>
+      
+      {/* Organization Info with Logo */}
+      <div className="p-4 flex-grow">
+        <div className="flex items-start space-x-3">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <div className="h-16 w-16 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
+              {logoImageError || !organization.logo ? (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <FaImage className="h-8 w-8 text-gray-400" />
+                </div>
+              ) : (
+                <img
+                  className="h-full w-full object-cover"
+                  src={formatImageUrl(organization.logo)}
+                  alt={organization.name}
+                  onError={(e) => {
+                    console.error('Failed to load logo image:', organization.logo);
+                    setLogoImageError(true);
+                  }}
+                />
+              )}
             </div>
-
-            {/* Thumbs Up & Follower Count */}
-            <div className="flex flex-col items-center space-x-2">
-              <button
-                onClick={toggleFollow}
-                disabled={isLoading}
-                className={`p-2 rounded-full transition-colors ${
-                  isFollowing ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'
-                }`}
-              >
-                <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-              </button>
-              <span className="text-xs text-gray-500">{followerCount}</span>
+          </div>
+          
+          {/* Info */}
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-gray-900">{organization.name}</h3>
+            
+            <div className="flex items-center mt-1 space-x-2">
+              <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium flex items-center">
+                <FaTag className="mr-1 text-blue-500" />
+                {organization.category || 'CATEGORY'}
+              </div>
+              
+              {organization.is_verified ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                  <FaCheckCircle className="mr-1 text-green-500" /> Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">
+                  <FaExclamationTriangle className="mr-1 text-yellow-500" /> Pending
+                </span>
+              )}
+            </div>
+            
+            {/* Location */}
+            <div className="mt-2 flex items-center text-gray-600">
+              <FaMapMarkerAlt className="mr-2 text-gray-400" />
+              <span className="text-sm">{organization.register_address || 'Pulau Pinang, Malaysia'}</span>
             </div>
           </div>
         </div>
+        
       </div>
 
-      {/* Row 2: Cover Image */}
-      <img
-        className="w-full h-48 object-cover p-2"
-        src={formatImageUrl(organization.cover_image_path) || 'https://via.placeholder.com/300x200'}
-        alt={`${organization.name} cover`}
-      />
-      
-      {/* Row 3: Objective */}
-      <div className="p-4">
-        <p className="text-sm text-gray-600 line-clamp-3">{organization.description}</p>
-      </div>
-
-      {/* Row 4: More Details */}
-      {showDetails && (
-        <div className="p-4 border-t border-gray-100">
-          {organization.phone_number && (
-            <p className="text-sm text-gray-600 flex items-center">
-              <FaPhone className="mr-2 text-gray-400" /> {organization.phone_number}
-            </p>
-          )}
-          {organization.gmail && (
-            <p className="text-sm text-gray-600 flex items-center">
-              <FaEnvelope className="mr-2 text-gray-400" /> {organization.gmail}
-            </p>
-          )}
-          {organization.register_address && (
-            <p className="text-sm text-gray-600 flex items-center">
-              <FaMapMarkerAlt className="mr-2 text-gray-400" /> {organization.register_address}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Row 5: Actions (More Details, View, Edit) */}
-      <div className="p-4 border-t border-gray-100 flex justify-between">
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-        >
-          {showDetails ? 'Less Details' : 'More Details'}
-          {showDetails ? <FaChevronUp className="ml-1" /> : <FaChevronDown className="ml-1" />}
-        </button>
-        <div className="flex space-x-2">
-          <Link to={`/organizations/${organization.id}`} className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center">
+      {/* Actions */}
+      <div className="p-4 border-t border-gray-100 flex justify-end mt-auto">
+        <div className="flex space-x-4">
+          {/* View button - visible to all */}
+          <Link 
+            to={`/organizations/${organization.id}`} 
+            className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
+          >
             <FaExternalLinkAlt className="mr-1" /> View
           </Link>
+
+          {/* Edit button - only visible to organization owner */}
           {canEditOrganization() && (
-            <button
-              onClick={() => navigate(`/organizations/${organization.id}/edit`)}
-              className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center"
+            <Link
+              to={`/organizations/${organization.id}/edit`}
+              className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
             >
               <FaEdit className="mr-1" /> Edit
+            </Link>
+          )}
+
+          {/* Only show follow button for non-organization users and not in dashboard */}
+          {currentUser && currentUser.account_type !== 'organization' && !inDashboard && (
+            <button
+              onClick={toggleFollow}
+              className={`text-sm flex items-center transition-colors duration-200 ${
+                isFollowing
+                  ? 'text-indigo-600 hover:text-indigo-900'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {isFollowing ? (
+                <>
+                  <FaHeart className="mr-1" /> Following
+                </>
+              ) : (
+                <>
+                  <FaThumbsUp className="mr-1" /> Follow
+                </>
+              )}
             </button>
+          )}
+
+          {/* Show a static "Following" indicator when in dashboard */}
+          {inDashboard && (
+            <div className="text-sm flex items-center text-indigo-600">
+              <FaHeart className="mr-1" /> Following
+            </div>
           )}
         </div>
       </div>
-    </div>
+
+      
+    </motion.div>
   );
 }

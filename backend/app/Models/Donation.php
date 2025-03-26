@@ -37,12 +37,12 @@ class Donation extends Model
     // Relationships
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'ic_number');
     }
 
     public function transaction()
     {
-        return $this->hasOne(Transaction::class);
+        return $this->belongsTo(Transaction::class, 'transaction_hash', 'transaction_hash');
     }
 
     public function charity()
@@ -140,5 +140,14 @@ class Donation extends Model
     public function canBeModified()
     {
         return in_array($this->status, ['pending', 'confirmed']);
+    }
+
+    public function getBlockExplorerUrlAttribute()
+    {
+        if ($this->transaction_hash) {
+            // Update to use Sepolia block explorer
+            return 'https://sepolia.etherscan.io/tx/' . $this->transaction_hash;
+        }
+        return null;
     }
 }

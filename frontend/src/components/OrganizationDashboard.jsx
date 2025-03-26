@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import { 
   FaBuilding, 
@@ -9,6 +10,7 @@ import {
   FaHistory, 
   FaEdit, 
   FaSignOutAlt,
+  FaFileContract,
   FaPlus,
   FaFileAlt,
   FaCheckCircle,
@@ -26,48 +28,51 @@ import {
   FaUsers,
   FaCertificate,
   FaEdit as FaEditAlt,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaSync,
+  FaFilter,
+  FaExchangeAlt,
+  FaClock
 } from 'react-icons/fa';
 
 export default function OrganizationDashboard() {
-  const { organization, logout } = useAuth();
+  const { id } = useParams();
+  const { currentUser, logout, accountType } = useAuth();
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [charities, setCharities] = useState([]);
   const [activeTab, setActiveTab] = useState('charity');
+  const [totalDonations, setTotalDonations] = useState(0);
+  const [donations, setDonations] = useState([]);
+  const [combinedTransactions, setCombinedTransactions] = useState([]);
+  const [currentDataSource, setCurrentDataSource] = useState('transactions');
+  const [organizationId, setOrganizationId] = useState(null);
 
   useEffect(() => {
-    if (!organization) {
+    if (!currentUser) {
       navigate('/login');
     }
-  }, [organization, navigate]);
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     const fetchOrganizationData = async () => {
-      if (!organization) return;
+      if (!currentUser) return;
       
       try {
         setLoading(true);
         
-        // Fetch organization's charities
-        try {
-          const charitiesResponse = await axios.get(`/api/organizations/${organization.id}/charities`);
-          setCharities(charitiesResponse.data);
-        } catch (err) {
-          console.error('Error fetching charities:', err);
-          setCharities([]); // Set empty array if charities endpoint fails
-        }
+        // Set the organization ID
+        setOrganizationId(currentUser.id);
         
-        // Fetch transactions
-        try {
-          const transactionsResponse = await axios.get(`/api/organizations/${organization.id}/transactions`);
-          setTransactions(transactionsResponse.data);
-        } catch (err) {
-          console.error('Error fetching transactions:', err);
-          setTransactions([]); // Set empty array if transactions endpoint fails
-        }
+        // Fetch charities associated with this organization
+        const charitiesResponse = await axios.get(`/organizations/${currentUser.id}/charities`);
+        setCharities(charitiesResponse.data);
+        
+        // Load data based on the current data source
+        await loadDataBySource(currentDataSource);
+        
       } catch (err) {
         console.error('Error in fetchOrganizationData:', err);
         setError('Failed to load some organization data');
@@ -77,7 +82,55 @@ export default function OrganizationDashboard() {
     };
 
     fetchOrganizationData();
-  }, [organization]);
+  }, [currentUser]);
+
+  const loadDataBySource = async (source) => {
+    if (!currentUser || !currentUser.id) return;
+    
+    try {
+      setLoading(true);
+      
+      let endpoint;
+      if (source === 'transactions') {
+        endpoint = `/organizations/${currentUser.id}/transactions`;
+      } else if (source === 'donations') {
+        endpoint = `/organizations/${currentUser.id}/donations`;
+      } else if (source === 'combined') {
+        endpoint = `/organizations/${currentUser.id}/financial-activities`;
+      }
+      
+      console.log(`Loading data from ${endpoint}`);
+      const response = await axios.get(endpoint);
+      console.log(`${source} data:`, response.data);
+      
+      // Handle both paginated and non-paginated responses
+      const data = response.data.data ? response.data.data : response.data;
+      
+      if (source === 'transactions') {
+        setTransactions(data);
+        // Calculate total donations from transactions
+        const total = data.reduce((sum, transaction) => sum + parseFloat(transaction.amount || 0), 0);
+        setTotalDonations(total);
+      } else if (source === 'donations') {
+        setDonations(data);
+      }
+      
+      // Always update the combined transactions for display
+      setCombinedTransactions(data);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error(`Error loading ${source} data:`, error);
+      setError(`Failed to load ${source} data`);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      loadDataBySource(currentDataSource);
+    }
+  }, [currentDataSource, currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -93,24 +146,93 @@ export default function OrganizationDashboard() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
+  const formatStatus = (status) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'verified':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    if (!status) return null;
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'verified':
+        return <FaCheckCircle className="mr-1.5 h-2 w-2 text-green-500" />;
+      case 'pending':
+        return <FaClock className="mr-1.5 h-2 w-2 text-yellow-500" />;
+      case 'failed':
+        return <FaExclamationTriangle className="mr-1.5 h-2 w-2 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  
+  const canEditOrganization = () => {
+    return (accountType === 'organization' && currentUser?.id === currentUser?.id) || 
+           (currentUser?.representative_id === currentUser?.ic_number);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Organization Header */}
-          <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
+    <div className="min-h-screen">
+      {/* Header */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+      >
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <FaBuilding className="mr-3 text-indigo-600" />
+            Dashboard
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Welcome back!
+          </p>
+        </div>
+        {canEditOrganization() && (
+                  <Link
+                    to={`/organizations/${id}/edit`}
+                    className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors duration-200"
+                  >
+                    <FaEdit className="mr-2" />
+                    Edit Organization
+                  </Link>
+                )}
+      </motion.div>
+
+      <div className="bg-gray-50 shadow-sm rounded-lg overflow-hidden">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              {organization.logo && (
+              {currentUser.logo && (
                 <img
-                  src={formatImageUrl(organization.logo)}
-                  alt={organization.name}
+                  src={formatImageUrl(currentUser.logo)}
+                  alt={currentUser.name}
                   className="h-20 w-20 rounded-lg object-cover"
                 />
               )}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{organization.name}</h1>
-                <p className="text-gray-500">{organization.category}</p>
-                {organization.is_verified ? (
+                <h1 className="text-2xl font-bold text-gray-900">{currentUser.name}</h1>
+                <p className="text-gray-500">{currentUser.category}</p>
+                {currentUser.is_verified ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     <FaCheckCircle className="mr-1" />
                     Verified Organization
@@ -124,7 +246,74 @@ export default function OrganizationDashboard() {
               </div>
             </div>
           </div>
+      </div>
+      </header>
           
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaHandHoldingUsd className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Total Donations</dt>
+                      <dd className="text-lg font-semibold text-gray-900">${totalDonations.toFixed(2)}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaChartBar className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Active Charities</dt>
+                      <dd className="text-lg font-semibold text-gray-900">{charities.length}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaUsers className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Total Followers</dt>
+                      <dd className="text-lg font-semibold text-gray-900">0</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <FaCertificate className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Completed Projects</dt>
+                      <dd className="text-lg font-semibold text-gray-900">0</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Tabs */}
           <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex space-x-8">
@@ -134,9 +323,9 @@ export default function OrganizationDashboard() {
                   activeTab === 'charity'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaChartBar className="mr-2" />
+                <FaChartBar className="mr-2 h-4 w-4" />
                 Charity
               </button>
               <button
@@ -145,21 +334,21 @@ export default function OrganizationDashboard() {
                   activeTab === 'contact'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaPhone className="mr-2" />
+                <FaPhone className="mr-2 h-4 w-4" />
                 Contact
               </button>
               <button
-                onClick={() => setActiveTab('representative')}
+                onClick={() => setActiveTab('documents')}
                 className={`${
-                  activeTab === 'representative'
+                  activeTab === 'documents'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaUsers className="mr-2" />
-                Representative
+                <FaFileAlt className="mr-2 h-4 w-4" />
+                Documents
               </button>
               <button
                 onClick={() => setActiveTab('transaction')}
@@ -167,9 +356,9 @@ export default function OrganizationDashboard() {
                   activeTab === 'transaction'
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center transition-colors duration-200`}
               >
-                <FaHistory className="mr-2" />
+                <FaHistory className="mr-2 h-4 w-4" />
                 Transaction
               </button>
             </nav>
@@ -277,15 +466,15 @@ export default function OrganizationDashboard() {
                   <div className="mt-4 space-y-4">
                     <div className="flex items-center">
                       <FaPhone className="text-gray-400 mr-2" />
-                      <span className="text-gray-900">{organization.phone_number}</span>
+                      <span className="text-gray-900">{currentUser.phone_number}</span>
                     </div>
                     <div className="flex items-center">
                       <FaEnvelope className="text-gray-400 mr-2" />
-                      <span className="text-gray-900">{organization.gmail}</span>
+                      <span className="text-gray-900">{currentUser.gmail}</span>
                     </div>
                     <div className="flex items-center">
                       <FaMapMarkerAlt className="text-gray-400 mr-2" />
-                      <span className="text-gray-900">{organization.register_address}</span>
+                      <span className="text-gray-900">{currentUser.register_address}</span>
                     </div>
                   </div>
                 </div>
@@ -293,9 +482,9 @@ export default function OrganizationDashboard() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Social Media</h3>
                   <div className="mt-4 space-y-4">
-                    {organization.website && (
+                    {currentUser.website && (
                       <a
-                        href={organization.website}
+                        href={currentUser.website}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
@@ -304,9 +493,9 @@ export default function OrganizationDashboard() {
                         Website
                       </a>
                     )}
-                    {organization.facebook && (
+                    {currentUser.facebook && (
                       <a
-                        href={organization.facebook}
+                        href={currentUser.facebook}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
@@ -315,9 +504,9 @@ export default function OrganizationDashboard() {
                         Facebook
                       </a>
                     )}
-                    {organization.instagram && (
+                    {currentUser.instagram && (
                       <a
-                        href={organization.instagram}
+                        href={currentUser.instagram}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-indigo-600 hover:text-indigo-900"
@@ -332,73 +521,106 @@ export default function OrganizationDashboard() {
             </div>
           )}
 
-          {/* Representative Tab */}
-          {activeTab === 'representative' && (
+          {/* Documents Tab */}
+          {activeTab === 'documents' && (
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <FaUsers className="mr-2" />
-                Representative Information
+                <FaFileAlt className="mr-2" />
+                Documents
               </h2>
-
-              <div className="grid grid-cols-1 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Representative Details</h3>
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Name</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_name}</p>
+              
+              <div className="mb-8">
+                  {currentUser.verified_document ? (
+                    <div className="border border-gray-200 rounded-lg p-4 flex items-center">
+                      <div className="bg-indigo-100 p-3 rounded-lg mr-4">
+                        <FaFileAlt className="text-indigo-600 text-xl" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">Verification Document</h3>
+                        <p className="text-sm text-gray-500">Official verification document</p>
+                      </div>
+                      <a 
+                        href={formatImageUrl(currentUser.verified_document)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        View
+                      </a>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">IC Number</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_ic}</p>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <FaFileAlt className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Verification Document</h3>
+                      <p className="text-gray-600">This organization hasn't uploaded a verification document yet.</p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_phone}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <p className="mt-1 text-sm text-gray-900">{organization.representative_email}</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">IC Pictures</h3>
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Front</label>
-                      {organization.representative_front_ic && (
-                        <img
-                          src={formatImageUrl(organization.representative_front_ic)}
-                          alt="Front IC"
-                          className="mt-2 h-48 w-full object-cover rounded-lg"
-                        />
-                      )}
+              <div>
+                  {currentUser.statutory_declaration ? (
+                    <div className="border border-gray-200 rounded-lg p-4 flex items-center">
+                      <div className="bg-green-100 p-3 rounded-lg mr-4">
+                        <FaFileAlt className="text-green-600 text-xl" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">Statutory Declaration</h3>
+                        <p className="text-sm text-gray-500">Official statutory declaration document</p>
+                      </div>
+                      <a 
+                        href={formatImageUrl(currentUser.statutory_declaration)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        View
+                      </a>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Back</label>
-                      {organization.representative_back_ic && (
-                        <img
-                          src={formatImageUrl(organization.representative_back_ic)}
-                          alt="Back IC"
-                          className="mt-2 h-48 w-full object-cover rounded-lg"
-                        />
-                      )}
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <FaFileAlt className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Statutory Declaration</h3>
+                      <p className="text-gray-600">This organization hasn't uploaded a statutory declaration yet.</p>
                     </div>
-                  </div>
+                  )}
                 </div>
-              </div>
+
             </div>
           )}
-
+          
           {/* Transaction Tab */}
           {activeTab === 'transaction' && (
             <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                <FaHistory className="mr-2" />
-                Transaction History
-              </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                  <FaHistory className="mr-2" />
+                  Financial Transactions
+                </h2>
+                
+                {/* Add filter dropdown */}
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">View:</span>
+                  <select
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    value={currentDataSource}
+                    onChange={(e) => {
+                      setCurrentDataSource(e.target.value);
+                    }}
+                  >
+                    <option value="transactions">Transactions</option>
+                    <option value="donations">Donations</option>
+                    <option value="combined">All</option>
+                  </select>
+                  
+                  <button
+                    onClick={() => loadDataBySource(currentDataSource)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <FaSync className="mr-2" />
+                    Refresh
+                  </button>
+                </div>
+              </div>
 
               {loading ? (
                 <div className="flex justify-center">
@@ -406,11 +628,17 @@ export default function OrganizationDashboard() {
                 </div>
               ) : error ? (
                 <div className="text-center text-red-600">{error}</div>
-              ) : transactions.length === 0 ? (
+              ) : combinedTransactions.length === 0 ? (
                 <div className="text-center py-12">
-                  <FaHistory className="mx-auto h-12 w-12 text-gray-400" />
+                  <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">Transactions will appear here once they occur.</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {currentDataSource === 'donations' 
+                      ? "No donations have been received yet." 
+                      : currentDataSource === 'combined'
+                        ? "No financial activities have been recorded yet."
+                        : "No transactions have been recorded yet."}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -438,7 +666,7 @@ export default function OrganizationDashboard() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex items-center">
                             <FaUsers className="mr-2" />
-                            From
+                            From/To
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -456,58 +684,56 @@ export default function OrganizationDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {transactions.map(transaction => (
-                        <tr key={transaction.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(transaction.created_at)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              transaction.type === 'charity' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {transaction.type === 'charity' ? 'Charity Donation' : 'Task Funding'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ${transaction.amount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {transaction.from_user ? (
-                              <Link to={`/users/${transaction.from_user.id}`} className="text-indigo-600 hover:text-indigo-900">
-                                {transaction.from_user.name}
+                      {combinedTransactions.map(item => {
+                        if (!item) return null; // Skip null or undefined items
+                        
+                        // Determine if this is a donation or transaction
+                        const isDonation = item.source === 'Donation' || item.donor_message;
+                        
+                        return (
+                          <tr key={item.id || item.transaction_hash || Math.random()} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(item.created_at || item.completed_at || new Date())}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                isDonation ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {isDonation ? 'Donation' : (item.type || 'Transaction')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.amount ? `${item.amount} ${item.currency_type || 'ETH'}` : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.user?.name || item.from_user?.name || (item.is_anonymous ? 'Anonymous' : 'Unknown')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                                {getStatusIcon(item.status)}
+                                {formatStatus(item.status)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <Link
+                                to={isDonation ? `/donations/${item.id}` : `/transactions/${item.id}`}
+                                className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
+                              >
+                                <FaEdit className="mr-2" />
+                                View Details
                               </Link>
-                            ) : (
-                              'Anonymous'
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <Link
-                              to={`/transactions/${transaction.id}`}
-                              className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
-                            >
-                              <FaEdit className="mr-2" />
-                              View Details
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
           )}
+          </main>
         </div>
-      </div>
-    </div>
+        </div>
   );
 } 

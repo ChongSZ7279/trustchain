@@ -17,10 +17,10 @@ export default function TaskMediaDisplay({ taskId, proof }) {
     const fetchPictures = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/api/tasks/${taskId}/pictures`);
-        setPictures(response.data || []);
+        const response = await axios.get(`/tasks/${taskId}/pictures`);
+        setPictures(response.data);
       } catch (err) {
-        console.error(`Error fetching pictures for task ${taskId}:`, err);
+        console.error('Error fetching pictures:', err);
         setError('Failed to load pictures');
       } finally {
         setLoading(false);

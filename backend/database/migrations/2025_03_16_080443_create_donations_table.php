@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('donations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('transaction_hash')->unique(); // Blockchain transaction hash
+            $table->string('user_id');
+            $table->string('transaction_hash')->nullable()->unique(); // Made nullable for non-blockchain donations
             $table->decimal('amount', 20, 8); // Support for crypto amounts
             $table->string('currency_type'); // ETH, BTC, etc.
-            $table->string('cause_id');
+            $table->foreignId('cause_id')->constrained('charities')->onDelete('cascade');
             $table->string('status')->default('pending'); // pending, confirmed, verified, completed
             $table->json('smart_contract_data')->nullable(); // Store smart contract details
             $table->text('donor_message')->nullable();
@@ -27,6 +27,8 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable(); // When the task was verified
             $table->timestamp('completed_at')->nullable(); // When the funds were released
             $table->timestamps();
+
+            $table->foreign('user_id')->references('ic_number')->on('users')->onDelete('cascade');
         });
     }
 

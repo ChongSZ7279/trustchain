@@ -1,7 +1,29 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
+import { motion } from 'framer-motion';
+import { 
+  FaArrowLeft, 
+  FaCheckCircle, 
+  FaExclamationCircle,
+  FaExclamationTriangle,
+  FaSync,
+  FaHandHoldingHeart,
+  FaUser,
+  FaBuilding,
+  FaCalendarAlt,
+  FaMoneyBillWave,
+  FaFileAlt,
+  FaExternalLinkAlt,
+  FaCoins,
+  FaChartLine,
+} from 'react-icons/fa';
+import { ethers } from 'ethers';
+import { DonationContractABI } from '../utils/contractABI';
+import { formatImageUrl } from '../utils/helpers';
+import BackButton from './BackToHistory';
 
 export default function DonationDetails() {
   const { id } = useParams();
@@ -12,20 +34,26 @@ export default function DonationDetails() {
   const [proofFiles, setProofFiles] = useState([]);
   const [verificationNotes, setVerificationNotes] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchDonation = async () => {
+    const fetchDonationDetails = async () => {
       try {
-        const response = await axios.get(`/api/donations/${id}`);
+        setLoading(true);
+        const response = await axios.get(`/donations/${id}`);
         setDonation(response.data);
-      } catch (error) {
-        setError(error.response?.data?.message || 'Failed to fetch donation details');
+      } catch (err) {
+        console.error('Error fetching donation details:', err);
+        setError('Failed to fetch donation details');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDonation();
+    fetchDonationDetails();
   }, [id]);
 
   const handleFileChange = (e) => {
@@ -48,14 +76,19 @@ export default function DonationDetails() {
     });
 
     try {
-      const response = await axios.post(`/api/donations/${donation.id}`, formData, {
+      setSubmitting(true);
+      const response = await axios.post(`/donations/${donation.id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setDonation(response.data.donation);
       setProofFiles([]);
       setVerificationNotes('');
-    } catch (error) {
-      setUploadError(error.response?.data?.message || 'Failed to upload proof');
+      toast.success('Verification submitted successfully');
+    } catch (err) {
+      console.error('Error submitting verification:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit verification');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -63,28 +96,116 @@ export default function DonationDetails() {
     if (!window.confirm('Are you sure you want to release the funds?')) return;
 
     try {
-      const response = await axios.post(`/api/donations/${donation.id}`, {
+      setStatusLoading(true);
+      const response = await axios.post(`/donations/${donation.id}`, {
         action: 'complete'
       });
       setDonation(response.data.donation);
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to complete donation');
+      toast.success('Funds released successfully');
+    } catch (err) {
+      console.error('Error releasing funds:', err);
+      toast.error('Failed to release funds');
+    } finally {
+      setStatusLoading(false);
     }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    try {
+      setStatusLoading(true);
+      const response = await axios.post(`/donations/${donation.id}`, {
+        status: newStatus
+      });
+      
+      setDonation(response.data);
+      toast.success(`Donation marked as ${newStatus}`);
+    } catch (err) {
+      console.error('Error updating donation status:', err);
+      toast.error('Failed to update donation status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this donation? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setDeleteLoading(true);
+      await axios.delete(`/donations/${donation.id}`);
+      toast.success('Donation deleted successfully');
+      navigate('/donations');
+    } catch (err) {
+      console.error('Error deleting donation:', err);
+      toast.error('Failed to delete donation');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Update how you connect to the contract using ethers.js v5 or v6
+  const connectToContract = async () => {
+    try {
+      let provider;
+      let signer;
+      
+      // Check ethers version by feature detection
+      if (typeof ethers.BrowserProvider === 'function') {
+        // ethers v6
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+      } else {
+        // ethers v5
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+      }
+      
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+      
+      const contract = new ethers.Contract(
+        contractAddress, 
+        DonationContractABI,
+        signer
+      );
+      return contract;
+    } catch (error) {
+      console.error("Error connecting to contract:", error);
+      return null;
+    }
+  };
+
+  const viewOnBlockExplorer = () => {
+    // Update to use Sepolia block explorer
+    window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <p>{error}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg">
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-xl font-medium text-red-800 mb-2">{error}</h3>
+          <p className="text-gray-600 mb-6">We couldn't load the donation details. Please try again.</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <FaArrowLeft className="mr-2" />
+            Go Back
+          </button>
         </div>
       </div>
     );
@@ -92,9 +213,18 @@ export default function DonationDetails() {
 
   if (!donation) {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-          <p>Donation not found</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg">
+          <FaExclamationCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <h3 className="text-xl font-medium text-gray-800 mb-2">Donation Not Found</h3>
+          <p className="text-gray-600 mb-6">The donation you're looking for doesn't exist or you don't have permission to view it.</p>
+          <button
+            onClick={() => navigate('/donations')}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <FaArrowLeft className="mr-2" />
+            Back to Donations
+          </button>
         </div>
       </div>
     );
@@ -111,103 +241,242 @@ export default function DonationDetails() {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'verified':
-        return 'bg-blue-100 text-blue-800';
       case 'confirmed':
-        return 'bg-purple-100 text-purple-800';
-      default:
+      case 'verified':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'confirmed':
+      case 'verified':
+        return <FaCheckCircle className="text-green-500" />;
+      case 'pending':
+        return <FaExclamationCircle className="text-yellow-500" />;
+      case 'failed':
+        return <FaExclamationCircle className="text-red-500" />;
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="p-6">
-          <div className="flex justify-between items-start">
-            <h2 className="text-2xl font-bold text-gray-800">Donation Details</h2>
-            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(donation.status)}`}>
-              {donation.status.charAt(0).toUpperCase() + donation.status.slice(1)}
-            </span>
-          </div>
+    <div className="min-h-screen bg-gray-100 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <BackButton />
 
-          <div className="mt-6 space-y-4">
-            <div className="flex justify-between border-b pb-4">
-              <span className="text-gray-600">Amount</span>
-              <span className="font-semibold">
-                {donation.amount} {donation.currency_type}
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Donation Details</h2>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                  Donation ID: {donation.id}
+                </p>
+              </div>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(donation.status)}`}>
+                {getStatusIcon(donation.status)}
+                <span className="ml-1">{donation.status.charAt(0).toUpperCase() + donation.status.slice(1)}</span>
               </span>
             </div>
-
-            <div className="flex justify-between border-b pb-4">
-              <span className="text-gray-600">Date</span>
-              <span className="font-semibold">{formatDate(donation.created_at)}</span>
-            </div>
-
-            {donation.donor_message && (
-              <div className="border-b pb-4">
-                <span className="text-gray-600">Message</span>
-                <p className="mt-2 text-gray-800">{donation.donor_message}</p>
-              </div>
-            )}
-
-            <div className="flex justify-between border-b pb-4">
-              <span className="text-gray-600">Donor</span>
-              <span className="font-semibold">
-                {donation.is_anonymous ? 'Anonymous' : donation.user?.name || 'Unknown'}
-              </span>
-            </div>
-
-            {donation.transaction_hash && (
-              <div className="border-b pb-4">
-                <span className="text-gray-600">Blockchain Transaction</span>
-                <div className="mt-2">
-                  <a
-                    href={`https://etherscan.io/tx/${donation.transaction_hash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline break-all"
-                  >
-                    {donation.transaction_hash}
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {donation.smart_contract_data && (
-              <div className="border-b pb-4">
-                <span className="text-gray-600">Smart Contract Details</span>
-                <div className="mt-2 space-y-2 text-sm">
-                  <p>
-                    <span className="font-medium">Contract Address:</span>{' '}
-                    <a
-                      href={`https://etherscan.io/address/${donation.smart_contract_data.contract_address}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline break-all"
-                    >
-                      {donation.smart_contract_data.contract_address}
-                    </a>
-                  </p>
-                  <p>
-                    <span className="font-medium">Block Number:</span>{' '}
-                    {donation.smart_contract_data.block_number}
-                  </p>
-                  <p>
-                    <span className="font-medium">Gas Used:</span>{' '}
-                    {donation.smart_contract_data.gas_used}
-                  </p>
-                  <p>
-                    <span className="font-medium">Timestamp:</span>{' '}
-                    {formatDate(donation.smart_contract_data.timestamp)}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
+
+          <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+              <div className="sm:col-span-1">
+                <dt className="text-sm font-medium text-gray-500">Donation Type</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    Charity Donation
+                  </span>
+                </dd>
+              </div>
+
+              <div className="sm:col-span-1">
+                <dt className="text-sm font-medium text-gray-500">Amount</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  <div className="flex items-center">
+                    <FaCoins className="text-yellow-500 mr-1" />
+                    ${parseFloat(donation.amount).toFixed(2)} {donation.currency_type}
+                  </div>
+                </dd>
+              </div>
+
+              <div className="sm:col-span-1">
+                <dt className="text-sm font-medium text-gray-500">Date</dt>
+                <dd className="mt-1 text-sm text-gray-900">{formatDate(donation.created_at)}</dd>
+              </div>
+
+              <div className="sm:col-span-1">
+                <dt className="text-sm font-medium text-gray-500">Payment Method</dt>
+                <dd className="mt-1 text-sm text-gray-900">{donation.payment_method || 'Credit Card'}</dd>
+              </div>
+
+              <div className="sm:col-span-2">
+                <dt className="text-sm font-medium text-gray-500">From</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {!donation.is_anonymous && donation.user ? (
+                    <div className="flex items-center">
+                      {donation.user.profile_picture && (
+                        <img
+                          src={formatImageUrl(donation.user.profile_picture)}
+                          alt={donation.user.name}
+                          className="h-8 w-8 rounded-full mr-2"
+                        />
+                      )}
+                      <Link to={`/users/${donation.user.id}`} className="text-indigo-600 hover:text-indigo-900">
+                        {donation.user.name}
+                      </Link>
+                    </div>
+                  ) : (
+                    'Anonymous Donor'
+                  )}
+                </dd>
+              </div>
+
+              <div className="sm:col-span-2">
+                <dt className="text-sm font-medium text-gray-500">To</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  <div className="flex items-center">
+                    {donation.charity?.logo && (
+                      <img
+                        src={formatImageUrl(donation.charity.logo)}
+                        alt={donation.charity.name}
+                        className="h-8 w-8 rounded-full mr-2"
+                      />
+                    )}
+                    <Link to={`/charities/${donation.charity_id}`} className="text-indigo-600 hover:text-indigo-900">
+                      {donation.charity?.name}
+                    </Link>
+                  </div>
+                </dd>
+              </div>
+
+              {donation.donor_message && (
+                <div className="sm:col-span-2">
+                  <dt className="text-sm font-medium text-gray-500">Message</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{donation.donor_message}</dd>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Blockchain Verification Section */}
+          {donation.transaction_hash && (
+            <div className="px-4 py-5 sm:px-6">
+              <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
+              <div className="mt-4">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0 h-5 w-5 rounded-full bg-green-500 mr-2"></div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Verified on Blockchain
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
+                      <dd className="mt-1 text-sm text-gray-900 break-all">{donation.transaction_hash}</dd>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <button onClick={viewOnBlockExplorer} className="text-sm text-indigo-600 hover:text-indigo-900">
+                      View on Sepolia Explorer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Impact Section */}
+          {donation.status === 'completed' && (
+            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Your Impact</h3>
+              <div className="mt-4 bg-indigo-50 p-4 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <FaHandHoldingHeart className="h-5 w-5 text-indigo-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-indigo-800">Thank You for Your Donation!</h3>
+                    <div className="mt-2 text-sm text-indigo-700">
+                      <p>Your donation helps provide essential support to those in need.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Task proof section (if applicable) */}
+          {donation.task_proof && donation.task_proof.length > 0 && (
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Task Proof</h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                  Evidence of task completion
+                </p>
+              </div>
+              <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {donation.task_proof.map((proof, index) => (
+                    <div key={index} className="border rounded-lg overflow-hidden">
+                      {proof.type.startsWith('image/') ? (
+                        <img 
+                          src={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`} 
+                          alt={`Proof ${index + 1}`}
+                          className="w-full h-48 object-cover"
+                        />
+                      ) : (
+                        <div className="h-48 flex items-center justify-center bg-gray-100">
+                          <FaFileAlt className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <p className="text-sm font-medium text-gray-900 truncate">{proof.name}</p>
+                        <p className="text-xs text-gray-500">
+                          Uploaded: {new Date(proof.uploaded_at).toLocaleDateString()}
+                        </p>
+                        <a 
+                          href={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          View File
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Verification notes (if applicable) */}
+          {donation.verification_notes && (
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Verification Notes</h3>
+              </div>
+              <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+                <p className="text-sm text-gray-700 whitespace-pre-line">{donation.verification_notes}</p>
+              </div>
+            </div>
+          )}
 
           {donation.status === 'confirmed' && user?.id === donation.charity?.organization_id && (
             <div className="mt-8 border-t pt-6">
@@ -291,7 +560,7 @@ export default function DonationDetails() {
           )}
 
           {donation.status === 'completed' && (
-            <div className="mt-8 border-t pt-6">
+            <div className="mt-8 border-t">
               <div className="bg-green-50 p-4 rounded">
                 <h3 className="text-lg font-semibold text-green-800 mb-2">
                   Donation Completed
@@ -299,35 +568,24 @@ export default function DonationDetails() {
                 <p className="text-green-700">
                   Funds were released on {formatDate(donation.completed_at)}
                 </p>
+                
+                {donation.transfer_transaction_hash && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Transfer Transaction:</span>
+                    </p>
+                    <p className="text-xs break-all mt-1">{donation.transfer_transaction_hash}</p>
+                    <button 
+                      onClick={() => window.open(`https://sepolia.etherscan.io/tx/${donation.transfer_transaction_hash}`, '_blank')}
+                      className="mt-2 text-sm text-indigo-600 hover:text-indigo-900"
+                    >
+                      View Transfer on Sepolia Explorer
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
-
-          <div className="mt-8 flex justify-between">
-            <Link
-              to={`/charities/${donation.cause_id}`}
-              className="text-blue-500 hover:text-blue-600"
-            >
-              ← Back to Charity
-            </Link>
-            {(user?.is_admin || user?.id === donation.user_id) && donation.status === 'pending' && (
-              <button
-                onClick={async () => {
-                  if (window.confirm('Are you sure you want to cancel this donation?')) {
-                    try {
-                      await axios.delete(`/api/donations/${donation.id}`);
-                      window.location.href = `/charities/${donation.cause_id}`;
-                    } catch (error) {
-                      alert(error.response?.data?.message || 'Failed to cancel donation');
-                    }
-                  }
-                }}
-                className="text-red-500 hover:text-red-600"
-              >
-                Cancel Donation
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

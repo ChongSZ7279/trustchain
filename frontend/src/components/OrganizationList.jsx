@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import OrganizationCard from './OrganizationCard';
+import Pagination from './Pagination';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBuilding, 
   FaSearch, 
-  FaFilter,
-  FaMoneyBillWave,
-  FaTimes,
-  FaUndo,
-  FaBars
+  FaFilter, 
+  FaTimes, 
+  FaExclamationTriangle,
+  FaSync
 } from 'react-icons/fa';
 
 export default function OrganizationList() {
@@ -20,12 +21,17 @@ export default function OrganizationList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [fundRange, setFundRange] = useState({ min: 0, max: 100000 });
   const [selectedStatuses, setSelectedStatuses] = useState([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   // Available filter options
   const categoryOptions = [
@@ -44,14 +50,42 @@ export default function OrganizationList() {
 
   useEffect(() => {
     fetchOrganizations();
-  }, []);
+  }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
 
   const fetchOrganizations = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/api/organizations');
-      setOrganizations(response.data);
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: currentPage,
+        per_page: 12
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(category => {
+          params.append('categories[]', category);
+        });
+      }
+      
+      if (selectedStatuses.length > 0) {
+        selectedStatuses.forEach(status => {
+          params.append('statuses[]', status);
+        });
+      }
+      
+      params.append('min_fund', fundRange.min);
+      params.append('max_fund', fundRange.max);
+      
+      const response = await axios.get(`/organizations?${params.toString()}`);
+      setOrganizations(response.data.data);
+      setTotalPages(response.data.last_page);
+      setTotalItems(response.data.total);
     } catch (err) {
       console.error('Error fetching organizations:', err);
       setError(
@@ -64,12 +98,17 @@ export default function OrganizationList() {
     }
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const toggleCategory = (category) => {
     setSelectedCategories(prev => 
       prev.includes(category)
         ? prev.filter(c => c !== category)
         : [...prev, category]
     );
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const toggleStatus = (status) => {
@@ -78,6 +117,7 @@ export default function OrganizationList() {
         ? prev.filter(s => s !== status)
         : [...prev, status]
     );
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const handleFundRangeChange = (e, type) => {
@@ -86,6 +126,7 @@ export default function OrganizationList() {
       ...prev,
       [type]: value
     }));
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const resetFilters = () => {
@@ -93,128 +134,117 @@ export default function OrganizationList() {
     setSelectedCategories([]);
     setFundRange({ min: 0, max: 100000 });
     setSelectedStatuses([]);
+    setCurrentPage(1); // Reset to first page when filters are reset
   };
-
-  const applyFilters = () => {
-    // This function would typically make an API call with filters
-    // For now, we'll just log the filter values
-    console.log('Applied filters:', {
-      search: searchTerm,
-      categories: selectedCategories,
-      fundRange,
-      statuses: selectedStatuses
-    });
-  };
-
-  const filteredOrganizations = organizations.filter(org => {
-    // Search term filter
-    const matchesSearch = searchTerm === '' || 
-      org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         org.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Category filter
-    const matchesCategory = selectedCategories.length === 0 || 
-      selectedCategories.includes(org.category);
-    
-    // Fund range filter (assuming org.target_fund exists)
-    const targetFund = org.target_fund || 0;
-    const matchesFundRange = targetFund >= fundRange.min && targetFund <= fundRange.max;
-    
-    // Status filter
-    const isVerified = org.is_verified;
-    const matchesStatus = selectedStatuses.length === 0 || 
-      (selectedStatuses.includes('verified') && isVerified) ||
-      (selectedStatuses.includes('pending') && !isVerified);
-    
-    return matchesSearch && matchesCategory && matchesFundRange && matchesStatus;
-  });
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-red-800">{error}</h3>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg"
+        >
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-xl font-medium text-red-800 mb-2">{error}</h3>
+          <p className="text-gray-600 mb-6">We couldn't load the organizations. Please try again.</p>
           <button
             onClick={fetchOrganizations}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
           >
+            <FaSync className="mr-2" />
             Try Again
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar */}
-          <aside className="w-64 flex-shrink-0">
-            {/* Sidebar Content Container - Sticky */}
-            <div className="sticky top-4 bg-white rounded-lg shadow-sm">
-              {/* Sidebar Header with Toggle */}
-              <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-lg font-medium text-gray-900 flex items-center">
-                  <FaFilter className="mr-2" />
-                  Filters
-                </h2>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={resetFilters}
-                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-                  >
-                    <FaUndo className="mr-1" />
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-                  >
-                    {isSidebarOpen ? (
-                      <FaTimes className="h-4 w-4 text-gray-600" />
-                    ) : (
-                      <FaBars className="h-4 w-4 text-gray-600" />
-                    )}
-                  </button>
-                </div>
-              </div>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+    >
+      {/* Header */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+      >
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <FaBuilding className="mr-3 text-indigo-600" />
+            Organizations
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Support organizations and make a difference in the community
+          </p>
+        </div>
+      </motion.div>
 
-              {/* Sidebar Content - Collapsible */}
-              <div className={`
-                overflow-hidden transition-all duration-300 ease-in-out
-                ${isSidebarOpen ? 'max-h-[calc(100vh-6rem)] opacity-100' : 'max-h-0 opacity-0'}
-              `}>
-                <div className="p-4 space-y-6 overflow-y-auto">
-                  {/* Search */}
-                  <div>
-                    <label htmlFor="sidebar-search" className="block text-sm font-medium text-gray-700 mb-1">
-                      Search Organizations
-                    </label>
-                    <div className="relative rounded-md shadow-sm">
-                      <input
-                        type="text"
-                        id="sidebar-search"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 pr-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        placeholder="Search by name or description"
-                      />
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <FaSearch className="h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Categories */}
+      {/* Search and Filter Bar */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white rounded-xl shadow-sm mb-8 p-4"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaSearch className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when search changes
+              }}
+              placeholder="Search organizations..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+            >
+              <FaFilter className="mr-2" />
+              Filters {selectedCategories.length > 0 || selectedStatuses.length > 0 ? `(${selectedCategories.length + selectedStatuses.length})` : ''}
+            </button>
+          </div>
+        </div>
+        
+        {/* Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Category Filter */}
                   <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Categories</h3>
                     <div className="space-y-2">
@@ -222,13 +252,12 @@ export default function OrganizationList() {
                         <div key={category} className="flex items-center">
                           <input
                             id={`category-${category}`}
-                            name={`category-${category}`}
                             type="checkbox"
                             checked={selectedCategories.includes(category)}
                             onChange={() => toggleCategory(category)}
                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                           />
-                          <label htmlFor={`category-${category}`} className="ml-2 block text-sm text-gray-700">
+                          <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-700">
                             {category}
                           </label>
                         </div>
@@ -236,61 +265,7 @@ export default function OrganizationList() {
                     </div>
                   </div>
                   
-                  {/* Target Fund Range */}
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                      <FaMoneyBillWave className="mr-2 text-green-600" />
-                      Target Fund Range
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label htmlFor="min-fund" className="block text-xs text-gray-500">
-                          Min: ${fundRange.min}
-                        </label>
-                        <input
-                          type="range"
-                          id="min-fund"
-                          min="0"
-                          max="100000"
-                          step="1000"
-                          value={fundRange.min}
-                          onChange={(e) => handleFundRangeChange(e, 'min')}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer 
-                                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 
-                                [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:rounded-full 
-                                [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:hover:bg-indigo-700 
-                                [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:bg-indigo-600 
-                                [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="max-fund" className="block text-xs text-gray-500">
-                          Max: ${fundRange.max}
-                        </label>
-                        <input
-                          type="range"
-                          id="max-fund"
-                          min="0"
-                          max="100000"
-                          step="1000"
-                          value={fundRange.max}
-                          onChange={(e) => handleFundRangeChange(e, 'max')}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer 
-                              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 
-                              [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:rounded-full 
-                              [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:hover:bg-indigo-700 
-                              [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:bg-indigo-600 
-                              [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md"
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>$0</span>
-                        <span>$100,000</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Status */}
+                  {/* Status Filter */}
                   <div>
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
                     <div className="space-y-2">
@@ -298,57 +273,89 @@ export default function OrganizationList() {
                         <div key={status.value} className="flex items-center">
                           <input
                             id={`status-${status.value}`}
-                            name={`status-${status.value}`}
                             type="checkbox"
                             checked={selectedStatuses.includes(status.value)}
                             onChange={() => toggleStatus(status.value)}
                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                           />
-                          <label htmlFor={`status-${status.value}`} className="ml-2 flex items-center text-sm text-gray-700">
-                            <span>{status.label}</span>
+                          <label htmlFor={`status-${status.value}`} className="ml-2 text-sm text-gray-700">
+                            {status.label}
                           </label>
                         </div>
                       ))}
                     </div>
                   </div>
-
-                  {/* Apply Filters Button */}
+                  
+                </div>
+                
+                <div className="mt-6 flex justify-end space-x-3">
                   <button
-                    onClick={applyFilters}
-                    className="w-full flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onClick={resetFilters}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
-                    <FaFilter className="mr-2" />
-                    Apply Filters
+                    <FaTimes className="mr-2" />
+                    Reset
                   </button>
                 </div>
               </div>
-            </div>
-          </aside>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-          {/* Main Content */}
-          <main className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredOrganizations.length === 0 ? (
-                <div className="col-span-full bg-white shadow-sm rounded-lg">
-                  <div className="text-center py-12">
-                    <FaBuilding className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No organizations found</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
-                        ? 'Try adjusting your search or filter criteria'
-                        : 'Organizations will appear here once they are registered'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                filteredOrganizations.map(org => (
-                  <OrganizationCard key={org.id} organization={org} />
-                ))
-              )}
-            </div>
-          </main>
-        </div>
-      </div>
-    </div>
+      {/* Results Count */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="mb-6"
+      >
+        <h2 className="text-xl font-bold text-gray-900">
+          {totalItems} {totalItems === 1 ? 'Organization' : 'Organizations'} Found
+        </h2>
+      </motion.div>
+
+      {/* Organizations Grid */}
+      {organizations.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {organizations.map(organization => (
+              <OrganizationCard key={organization.id} organization={organization} />
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="col-span-full bg-white shadow-lg rounded-xl p-8"
+        >
+          <div className="text-center py-8">
+            <FaBuilding className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No organizations found</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              {searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0
+                ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                : 'Organizations will appear here once they are created.'}
+            </p>
+            
+            {(searchTerm || selectedCategories.length > 0 || selectedStatuses.length > 0) && (
+              <button
+                onClick={resetFilters}
+                className="mt-6 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              >
+                <FaTimes className="mr-2" />
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
   );
 } 

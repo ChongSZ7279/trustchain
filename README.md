@@ -10,10 +10,179 @@ TrustChain is a transparent charity platform that leverages blockchain technolog
 - **Transaction History**: Complete transparency with all transactions recorded on the blockchain
 - **User Dashboard**: Track your donations and see their impact
 - **Organization Dashboard**: Manage charities and view donation statistics
+- **Milestone Verification**: Verify task milestones
+- **Smart Contract Integration**: Ethereum smart contracts for transparency and accountability
+- **Transparent Fund Allocation**: Funds are allocated transparently
+- **Tax Receipt Generation**: Generate tax receipts for donations
+- **AI-Powered Recommendations**: GeminiAI integration for personalized charity recommendations
+- **Email Notifications**: Gmail integration for sending donation receipts and updates
 
-## Smart Contract Integration
+## Project Structure
 
-The platform uses Ethereum smart contracts to handle donations and task funding. The main contract (`CharityContract.sol`) provides the following functionality:
+The project consists of three main components:
+
+- **Frontend**: React application built with Vite
+- **Backend**: Laravel PHP application
+- **Smart Contracts**: Ethereum smart contracts using Hardhat
+
+## Prerequisites
+
+- Node.js (16+) and npm/yarn
+- PHP 8.1+ and Composer
+- MySQL or SQLite database
+- MetaMask or another Ethereum wallet
+- XAMPP (for local development)
+- Google API credentials (for Gmail and GeminiAI integration)
+
+## Installation
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+   ```bash
+   composer install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+4. Configure your database in the `.env` file:
+   ```
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=charity
+   DB_USERNAME=root
+   DB_PASSWORD=
+   ```
+
+5. Run migrations and seed the database:
+   ```bash
+   php artisan migrate --seed
+   ```
+
+6. Create a storage link:
+   ```bash
+   php artisan storage:link
+   ```
+
+7. Start the Laravel server:
+   ```bash
+   php artisan serve
+   ```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Configure the frontend `.env` file:
+   ```
+   VITE_API_URL=http://localhost:8000
+   VITE_CHARITY_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+   VITE_GEMINI_API_KEY=your_gemini_api_key
+   VITE_GMAIL_CLIENT_ID=your_gmail_client_id
+   VITE_GMAIL_CLIENT_SECRET=your_gmail_client_secret
+   ```
+
+5. Start the development server:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
+
+6. Access the application at `http://localhost:5173`
+
+### Smart Contract Setup
+
+1. Navigate to the smart contract directory:
+   ```bash
+   cd mycontract
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. Compile the contracts:
+   ```bash
+   npm run build
+   # or
+   yarn build
+   ```
+
+4. Deploy to a local network (for development):
+   ```bash
+   npx hardhat node
+   npx hardhat run scripts/deploy.js --network localhost
+   ```
+
+5. For testnet deployment:
+   ```bash
+   npm run deploy -- -k <your-secret-key>
+   # or
+   yarn deploy -k <your-secret-key>
+   ```
+
+## Demo Data Setup
+
+TrustChain comes with a set of demo data to help you explore the platform's features:
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Run the setup command:
+   ```bash
+   php artisan app:setup-demo-data
+   ```
+
+This will:
+- Run database migrations
+- Create a storage link
+- Seed the database with demo users, organizations, charities, tasks, and transactions
+- Generate placeholder images and documents
+
+### Demo Credentials
+
+After setting up the demo data, you can log in with the following credentials:
+
+**User Account:**
+- Email: john.doe@example.com
+- Password: password123
+
+**Organization Account:**
+- Email: tech@trustchain.com
+- Password: password123
+
+## Smart Contract Details
 
 ### Donation Flow
 
@@ -23,7 +192,7 @@ The platform uses Ethereum smart contracts to handle donations and task funding.
 4. The donation details are stored in the platform's database with the transaction hash
 5. The charity can view all donations and their status
 
-### Smart Contract Functions
+### Key Smart Contract Functions
 
 - `donate(uint256 charityId)`: Donate to a specific charity
 - `fundTask(uint256 taskId)`: Fund a specific task within a charity
@@ -31,7 +200,14 @@ The platform uses Ethereum smart contracts to handle donations and task funding.
 - `getCharityBalance(uint256 charityId)`: Check the balance of a charity
 - `getTaskBalance(uint256 taskId)`: Check the balance of a task
 
-### Transaction Transparency
+### Security Features
+
+- **ReentrancyGuard**: Protection against reentrancy attacks
+- **Ownable**: Access control for administrative functions
+- **Pausable**: Ability to pause the contract in case of emergencies
+- **Minimum Donation**: Configurable minimum donation amount to prevent dust attacks
+
+## Transaction Transparency
 
 All transactions are recorded both on the blockchain and in the platform's database, providing:
 
@@ -42,75 +218,42 @@ All transactions are recorded both on the blockchain and in the platform's datab
 - Amount donated
 - Current status of the transaction
 
+## AI and Email Integration
+
+### GeminiAI Recommendations
+
+TrustChain uses Google's GeminiAI to provide personalized charity recommendations based on:
+
+- User's followed charity and organization history
+- Stated preferences and interests
+- Current trending causes
+- Location-based recommendations
+
+To use this feature:
+1. Ensure your `.env` file contains a valid `VITE_GEMINI_API_KEY`
+2. The recommendation system is accessible from the user dashboard
+3. Users can receive personalized charity suggestions based on their profile
+
+### Gmail Integration
+
+The platform integrates with Gmail to send:
+
+- Question or feedback through the contact us section on the homepage
+
+To enable Gmail sending:
+1. Configure the Gmail API credentials in your `.env` file
+2. Users will receive email confirmations after donations
+3. Organizations can send updates to donors through the platform
+
 ## Technical Stack
 
-- **Frontend**: React.js with Tailwind CSS
+- **Frontend**: React.js with Vite and Tailwind CSS
 - **Backend**: Laravel PHP framework
 - **Blockchain**: Ethereum (Solidity smart contracts)
-- **Web3 Integration**: Web3.js for blockchain interaction
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js and npm
-- MetaMask browser extension
-- Ethereum testnet account with test ETH (for development)
-
-### Installation
-
-1. Clone the repository
-   ```
-   git clone https://github.com/yourusername/trustchain.git
-   cd trustchain
-   ```
-
-2. Install frontend dependencies
-   ```
-   cd frontend
-   npm install
-   ```
-
-3. Set up environment variables
-   ```
-   cp .env.example .env
-   ```
-   
-   Update the `.env` file with your Ethereum contract address:
-   ```
-   REACT_APP_CHARITY_CONTRACT_ADDRESS=0xYourContractAddress
-   ```
-
-4. Start the development server
-   ```
-   npm start
-   ```
-
-### Deploying the Smart Contract
-
-1. Install Truffle
-   ```
-   npm install -g truffle
-   ```
-
-2. Compile the contract
-   ```
-   truffle compile
-   ```
-
-3. Deploy to a testnet (e.g., Goerli)
-   ```
-   truffle migrate --network goerli
-   ```
-
-4. Update the contract address in your `.env` file
-
-## Security Considerations
-
-- The smart contract has been designed with security best practices
-- Only the contract owner can withdraw task funds
-- All functions include proper validation and error handling
-- The contract uses the latest Solidity version (0.8.0+) which includes overflow protection
+- **Web3 Integration**: ethers.js for blockchain interaction
+- **Smart Contract Development**: Hardhat and thirdweb
+- **AI Integration**: Google GeminiAI API
+- **Email Service**: Gmail API
 
 ## License
 

@@ -17,9 +17,78 @@ class TransactionController extends Controller
      */
     public function index()
     {
-        $transactions = Transaction::with(['user', 'charity', 'task'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // Debug logging
+        \Log::info('Transaction index request received', [
+            'user' => Auth::user() ? [
+                'id' => Auth::id(),
+                'ic_number' => Auth::user()->ic_number,
+                'type' => get_class(Auth::user())
+            ] : null,
+            'request' => request()->all()
+        ]);
+
+        // Check if user is authenticated
+        if (!Auth::check()) {
+            \Log::warning('Unauthenticated user trying to access transactions');
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $query = Transaction::with(['user', 'charity', 'task']);
+
+        // Apply search filter if provided
+        if (request()->has('search')) {
+            $searchTerm = request('search');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('id', 'like', "%{$searchTerm}%")
+                  ->orWhere('transaction_hash', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('charity', function($q) use ($searchTerm) {
+                      $q->where('name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('user', function($q) use ($searchTerm) {
+                      $q->where('name', 'like', "%{$searchTerm}%");
+                  });
+            });
+            \Log::info('Applied search filter:', ['search_term' => $searchTerm]);
+        }
+
+        // Apply status filter if provided
+        if (request()->has('status')) {
+            $query->where('status', request('status'));
+            \Log::info('Applied status filter:', ['status' => request('status')]);
+        }
+
+        // Apply date range filter if provided
+        if (request()->has('dateRange')) {
+            $dateRange = request('dateRange');
+            if (!empty($dateRange['start'])) {
+                $query->whereDate('created_at', '>=', $dateRange['start']);
+            }
+            if (!empty($dateRange['end'])) {
+                $query->whereDate('created_at', '<=', $dateRange['end']);
+            }
+        }
+
+        // Apply amount range filter if provided
+        if (request()->has('amountRange')) {
+            $amountRange = request('amountRange');
+            if (!empty($amountRange['min'])) {
+                $query->where('amount', '>=', $amountRange['min']);
+            }
+            if (!empty($amountRange['max'])) {
+                $query->where('amount', '<=', $amountRange['max']);
+            }
+        }
+
+        // Get paginated results
+        $transactions = $query->latest()->paginate(request('per_page', 10));
+        
+        \Log::info('Transaction query results:', [
+            'total' => $transactions->total(),
+            'current_page' => $transactions->currentPage(),
+            'per_page' => $transactions->perPage(),
+            'last_page' => $transactions->lastPage(),
+            'has_data' => $transactions->isNotEmpty()
+        ]);
 
         return response()->json($transactions);
     }
@@ -124,13 +193,16 @@ class TransactionController extends Controller
      */
     public function getCharityTransactions($charityId)
     {
-        $charity = Charity::findOrFail($charityId);
+        // Add logging to debug
+        \Log::info("Fetching transactions for charity: $charityId");
         
-        $transactions = Transaction::with(['user', 'task'])
-            ->where('charity_id', $charityId)
+        $transactions = Transaction::where('charity_id', $charityId)
+            ->with(['user']) // Include any needed relationships
             ->orderBy('created_at', 'desc')
             ->get();
-            
+        
+        \Log::info("Found " . $transactions->count() . " transactions");
+        
         return response()->json($transactions);
     }
 

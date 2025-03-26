@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { formatImageUrl } from '../utils/helpers';
+import { motion, AnimatePresence } from 'framer-motion';
+import BackButton from './BackToHistory';
 import { 
   FaBuilding,
   FaChartBar,
@@ -23,33 +25,49 @@ import {
   FaWallet,
   FaArrowLeft,
   FaPlus,
-  FaThumbsUp
+  FaThumbsUp,
+  FaInfoCircle,
+  FaCalendarAlt,
+  FaHandHoldingHeart,
+  FaShare,
+  FaBookmark,
+  FaFileContract
 } from 'react-icons/fa';
+import CharityCard from './CharityCard';
 
 export default function OrganizationDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, organization } = useAuth();
+  const { currentUser, accountType } = useAuth();
   const [orgData, setOrgData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('charities');
+  const [activeTab, setActiveTab] = useState('information');
   const [charities, setCharities] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const [charityFilters, setCharityFilters] = useState({});
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
+
+  // Add new loading states
+  const [imageLoading, setImageLoading] = useState({
+    logo: true,
+    cover: true
+  });
 
   useEffect(() => {
     fetchOrganizationDetails();
+    
+    // Scroll to top on component mount
+    window.scrollTo(0, 0);
   }, [id]);
 
   const fetchOrganizationDetails = async () => {
     try {
       setLoading(true);
       const [orgResponse, charitiesResponse] = await Promise.all([
-        axios.get(`/api/organizations/${id}`),
-        axios.get(`/api/organizations/${id}/charities`)
+        axios.get(`/organizations/${id}`),
+        axios.get(`/organizations/${id}/charities`)
       ]);
       setOrgData(orgResponse.data);
       setCharities(charitiesResponse.data);
@@ -66,14 +84,14 @@ export default function OrganizationDetails() {
   };
 
   const toggleFollow = async () => {
-    if (!user) {
-      navigate('/login');
+    if (!currentUser) {
+      navigate('/login', { state: { from: `/organizations/${id}` } });
       return;
     }
 
     try {
       setIsFollowLoading(true);
-      const response = await axios.post(`/api/organizations/${id}/follow`);
+      const response = await axios.post(`/organizations/${id}/follow`);
       setIsFollowing(response.data.is_following);
       setFollowerCount(response.data.follower_count);
     } catch (error) {
@@ -83,493 +101,497 @@ export default function OrganizationDetails() {
     }
   };
 
-  const canEditOrganization = () => {
-    return organization?.id === orgData?.id || orgData?.representative_id === user?.ic_number;
+  const handleShare = () => {
+    // Copy current URL to clipboard
+    navigator.clipboard.writeText(window.location.href);
+    setShowShareTooltip(true);
+    setTimeout(() => setShowShareTooltip(false), 2000);
   };
+
+  const canEditOrganization = () => {
+    return (accountType === 'organization' && orgData?.id === currentUser?.id) || 
+           (orgData?.representative_id === currentUser?.ic_number);
+  };
+
+  // Add a helper function to correctly format image paths
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    
+    // Check if the path already includes the base URL
+    if (path.startsWith('http')) {
+      return path;
+    }
+    
+    // Otherwise, construct the full URL - using import.meta.env for Vite
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/storage/${path}`;
+  };
+
+  // Debug image paths
+  useEffect(() => {
+    if (orgData) {
+      console.log('Logo path:', orgData.logo);
+      console.log('Cover path:', orgData.cover_image_path);
+      console.log('Full logo URL:', getImageUrl(orgData.logo));
+      console.log('Full cover URL:', getImageUrl(orgData.cover_image_path));
+      console.log('Organization data:', orgData);
+    }
+  }, [orgData]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (error || !orgData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-red-800">{error || 'Organization not found'}</h3>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="min-h-screen flex items-center justify-center bg-gray-50"
+      >
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md mx-4">
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-xl font-medium text-gray-900 mb-2">{error || 'Organization not found'}</h3>
+          <p className="text-gray-600 mb-6">We couldn't find the organization you're looking for. Please try again later.</p>
           <button
             onClick={() => navigate('/organizations')}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200"
           >
+            <FaArrowLeft className="mr-2" />
             Back to Organizations
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen"
+    >
+      {/* Navigation Bar */}
+      <BackButton />
 
-      {/* Hero Section with Cover Image */}
-      <div className="relative h-96">
-        {/* Cover Image */}
-        <div className="absolute inset-0">
-          <img
-            src={formatImageUrl(orgData.cover_image_path) || 'https://via.placeholder.com/1920x400'}
-            alt={`${orgData.name} cover`}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-        </div>
-
-        {/* Breadcrumb */}
-        <nav className="px-6 py-3 absolute top-0 left-0">
-          <div className="max-w-7xl mx-auto flex items-center text-gray-500">
-            <Link to="/organizations" className="hover:text-gray-700 flex items-center">
-              <FaArrowLeft className="mr-2" />
-              Back
-            </Link>
-          </div>
-        </nav>
-        {/* Organization Info Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <div className="max-w-7xl mx-auto flex items-end space-x-6">
-            {/* Logo */}
-            <img
-              src={formatImageUrl(orgData.logo) || 'https://via.placeholder.com/128'}
-              alt={orgData.name}
-              className="h-32 w-32 rounded-lg object-cover border-4 border-white shadow-lg"
-            />
-            
-            {/* Name and Category */}
-            <div className="flex-1 mb-2">
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-800">
-                  {orgData.category}
-                </span>
-                {orgData.is_verified ? (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                    <FaCheckCircle className="mr-1" />
-                    Verified
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                    <FaExclamationTriangle className="mr-1" />
-                    Pending
-                  </span>
-                )}
-              </div>
-              <h1 className="text-3xl font-bold text-white">{orgData.name}</h1>
-            </div>
-
-            {/* Follow Button */}
-            <button
-              onClick={toggleFollow}
-              disabled={isFollowLoading}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                isFollowing
-                  ? 'bg-white text-indigo-600 hover:bg-gray-100'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-              }`}
-            >
-              <FaThumbsUp className={`inline-block mr-2 ${isFollowLoading ? 'opacity-50' : ''}`} />
-              {isFollowing ? 'Following' : 'Follow'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Card */}
-      <div className="max-w-7xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="grid grid-cols-3 gap-8 text-center">
-            <div className="border-r border-gray-200">
-              <div className="text-3xl font-bold text-indigo-600">{followerCount}</div>
-              <div className="text-sm text-gray-500">Followers</div>
-            </div>
-            <div className="border-r border-gray-200">
-              <div className="text-3xl font-bold text-indigo-600">{charities.length}</div>
-              <div className="text-sm text-gray-500">Charities</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-indigo-600">
-                ${charities.reduce((sum, charity) => sum + (Number(charity?.fund_received) || 0), 0).toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-500">Total Funds Raised</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Tabs */}
-      <div className="max-w-7xl mx-auto mt-10 mb-10 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          {/* Tab Navigation */}
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex">
-              <button
-                onClick={() => setActiveTab('info')}
-                className={`${
-                  activeTab === 'info'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center inline-flex items-center justify-center`}
-              >
-                <FaAddressCard className="mr-2" />
-                Other Information
-              </button>
-              <button
-                onClick={() => setActiveTab('charities')}
-                className={`${
-                  activeTab === 'charities'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center inline-flex items-center justify-center`}
-              >
-                <FaChartBar className="mr-2" />
-                Charities
-              </button>
-              <button
-                onClick={() => setActiveTab('documentation')}
-                className={`${
-                  activeTab === 'documentation'
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                } flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center inline-flex items-center justify-center`}
-              >
-                <FaFileAlt className="mr-2" />
-                Documentation
-              </button>
-            </nav>
-          </div>
-
-          {/* Tab Content */}
+      {/* Organization Profile Card */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-white rounded-xl shadow-sm overflow-hidden"
+        >
           <div className="p-6">
-            {/* Other Information Tab */}
-            {activeTab === 'info' && (
-              <div className="space-y-8">
-                {/* Description & Objectives */}
-                <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">About</h2>
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">Description</h3>
-                    <p className="text-gray-600 mb-4">{orgData.description}</p>
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">Objectives</h3>
-                    <p className="text-gray-600">{orgData.objectives}</p>
-                  </div>
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              {/* Logo */}
+              <div className="relative flex-shrink-0">
+                <div className={`h-24 w-24 md:h-28 md:w-28 border-2 border-blue-100 rounded-lg overflow-hidden transition-opacity duration-300 ${imageLoading.logo ? 'animate-pulse bg-gray-200' : ''}`}>
+                  <img
+                    src={getImageUrl(orgData.logo) || 'https://via.placeholder.com/128'}
+                    alt={orgData.name}
+                    className="h-full w-full object-cover"
+                    onLoad={() => setImageLoading(prev => ({ ...prev, logo: false }))}
+                    onError={(e) => {
+                      console.error('Error loading logo image:', e);
+                      e.target.src = 'https://via.placeholder.com/128';
+                    }}
+                  />
                 </div>
-
-                {/* Representative Info */}
-                <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">Representative</h2>
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                      <div className="sm:col-span-1">
-                        <dt className="text-sm font-medium text-gray-500">Representative Name</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{orgData.name}</dd>
-                      </div>
-                      <div className="sm:col-span-1">
-                        <dt className="text-sm font-medium text-gray-500">Representative ID</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{orgData.representative_id}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-
-                {/* Contact Info */}
-                <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h2>
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                      <div className="sm:col-span-1">
-                        <dt className="text-sm font-medium text-gray-500 flex items-center">
-                          <FaPhone className="mr-2" />
-                          Phone Number
-                        </dt>
-                        <dd className="mt-1 text-sm text-gray-900">{orgData.phone_number}</dd>
-                      </div>
-                      <div className="sm:col-span-1">
-                        <dt className="text-sm font-medium text-gray-500 flex items-center">
-                          <FaEnvelope className="mr-2" />
-                          Email
-                        </dt>
-                        <dd className="mt-1 text-sm text-gray-900">{orgData.gmail}</dd>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <dt className="text-sm font-medium text-gray-500 flex items-center">
-                          <FaMapMarkerAlt className="mr-2" />
-                          Registration Address
-                        </dt>
-                        <dd className="mt-1 text-sm text-gray-900">{orgData.register_address}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-
-                {/* Social Media */}
-                {(orgData.website || orgData.facebook || orgData.instagram) && (
-                  <div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Social Media</h2>
-                    <div className="bg-gray-50 rounded-lg p-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {orgData.website && (
-                          <a
-                            href={orgData.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-indigo-600 hover:text-indigo-900"
-                          >
-                            <FaGlobe className="mr-2" />
-                            <span className="text-sm">Website</span>
-                          </a>
-                        )}
-                        {orgData.facebook && (
-                          <a
-                            href={orgData.facebook}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-indigo-600 hover:text-indigo-900"
-                          >
-                            <FaFacebook className="mr-2" />
-                            <span className="text-sm">Facebook</span>
-                          </a>
-                        )}
-                        {orgData.instagram && (
-                          <a
-                            href={orgData.instagram}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-indigo-600 hover:text-indigo-900"
-                          >
-                            <FaInstagram className="mr-2" />
-                            <span className="text-sm">Instagram</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
 
-            {/* Charities Tab */}
-            {activeTab === 'charities' && (
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-medium text-gray-900">Charities</h2>
-                  {canEditOrganization() && (
-                    <button
-                      onClick={() => navigate(`/organizations/${id}/charities/create`)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      <FaPlus className="mr-2" />
-                      Create Charity
-                    </button>
+              {/* Organization Info */}
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="px-3 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-800">
+                    {orgData.category || 'CATEGORY'}
+                    </span>
+                    {orgData.is_verified ? (
+                    <span className="px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                      <FaCheckCircle className="inline-block mr-1" />
+                      VERIFIED
+                      </span>
+                    ) : (
+                    <span className="px-3 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <FaExclamationTriangle className="inline-block mr-1" />
+                      PENDING
+                      </span>
+                    )}
+                  </div>
+
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{orgData.name.toUpperCase()}</h1>
+
+                <div className="flex items-center text-gray-600 text-sm">
+                    <FaMapMarkerAlt className="mr-2 text-gray-500" />
+                  <span>{orgData.register_address || 'No address provided'}</span>
+                  </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-4 md:mt-0">
+                <button
+                  onClick={toggleFollow}
+                  disabled={isFollowLoading}
+                  className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-200 ${
+                    isFollowing
+                      ? 'bg-gray-100 text-indigo-600 hover:bg-gray-200 border border-indigo-600'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  <FaThumbsUp className={`inline-block mr-2 ${isFollowLoading ? 'opacity-50' : ''}`} />
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={handleShare}
+                    className="px-4 py-2 rounded-md font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <FaShare className="inline-block mr-2" />
+                    Share
+                  </button>
+                  {showShareTooltip && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-gray-800 text-white text-xs py-1 px-2 rounded z-10">
+                      Link copied to clipboard!
+                    </div>
                   )}
                 </div>
 
-                {/* Filters */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Name Filter */}
-                    <div>
-                      <label htmlFor="name-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        id="name-filter"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        placeholder="Search by name"
-                        value={charityFilters?.name || ''}
-                        onChange={(e) => setCharityFilters(prev => ({ ...prev, name: e.target.value }))}
-                      />
-                    </div>
+                {canEditOrganization() && (
+                  <Link
+                    to={`/organizations/${id}/edit`}
+                    className="px-4 py-2 rounded-md font-medium text-sm bg-green-600 border border-gray-300 text-white hover:bg-green-700 transition-all duration-200 text-center"
+                  >
+                    <FaEdit className="inline-block mr-2" />
+                    Edit
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
-                    {/* Category Filter */}
-                    <div>
-                      <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Category
-                      </label>
-                      <select
-                        id="category-filter"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        value={charityFilters?.category || ''}
-                        onChange={(e) => setCharityFilters(prev => ({ ...prev, category: e.target.value }))}
-                      >
-                        <option value="">All Categories</option>
-                        <option value="Education">Education</option>
-                        <option value="Healthcare">Healthcare</option>
-                        <option value="Environment">Environment</option>
-                        <option value="Poverty">Poverty</option>
-                        <option value="Disaster">Disaster</option>
-                      </select>
-                    </div>
+      {/* Cover Image with Description */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl shadow-sm overflow-hidden"
+        >
+          <div className="relative h-64 rounded-xl overflow-hidden">
+            {/* Cover Image with Loading State */}
+            <div className={`absolute inset-0 bg-gray-200 ${imageLoading.cover ? 'animate-pulse' : ''}`}></div>
+            {orgData.cover_image_path ? (
+              <div 
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ 
+                  backgroundImage: `url(${getImageUrl(orgData.cover_image_path)})`,
+                  zIndex: 1 
+                }}
+              ></div>
+            ) : (
+              <div className="absolute inset-0 bg-gray-300 flex items-center justify-center" style={{ zIndex: 1 }}>
+                <p className="text-gray-500">No cover image available</p>
+              </div>
+            )}
+            {/* Text Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent flex items-center" style={{ zIndex: 2 }}>
+              <div className="p-6 text-white max-w-lg">
+                <div className="prose prose-invert max-w-none">
+                  <p className="text-gray-200">
+                    {orgData.objectives || orgData.description?.substring(0, 200) + (orgData.description?.length > 200 ? '...' : '') || 'No description provided.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
-                    {/* Status Filter */}
-                    <div>
-                      <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Status
-                      </label>
-                      <select
-                        id="status-filter"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        value={charityFilters?.status || ''}
-                        onChange={(e) => setCharityFilters(prev => ({ ...prev, status: e.target.value }))}
-                      >
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="pending">Pending</option>
-                      </select>
-                    </div>
+      {/* Tabs Navigation */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="flex justify-between border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('information')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'information'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Information
+          </button>
+          <button
+            onClick={() => setActiveTab('charities')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'charities'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Charities
+          </button>
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`py-4 px-6 font-medium text-sm ${
+              activeTab === 'documents'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Documents
+          </button>
+        </div>
+      </div>
 
-                    {/* Fund Range Filter */}
+      {/* Tab Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <AnimatePresence mode="wait">
+          {activeTab === 'information' && (
+            <motion.div
+              key="information"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden mt-4"
+            >
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Organization Information</h2>
+                
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Description & Objectives</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="mb-4">
+                      <span className="text-sm font-medium text-gray-500 block mb-1">Description</span>
+                      <p className="text-gray-900">{orgData.description || 'No description provided.'}</p>
+                    </div>
                     <div>
-                      <label htmlFor="fund-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Target Fund
-                      </label>
-                      <select
-                        id="fund-filter"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        value={charityFilters?.fundRange || ''}
-                        onChange={(e) => setCharityFilters(prev => ({ ...prev, fundRange: e.target.value }))}
-                      >
-                        <option value="">Any Amount</option>
-                        <option value="0-1000">Under $1,000</option>
-                        <option value="1000-5000">$1,000 - $5,000</option>
-                        <option value="5000-10000">$5,000 - $10,000</option>
-                        <option value="10000+">Over $10,000</option>
-                      </select>
+                      <span className="text-sm font-medium text-gray-500 block mb-1">Objectives</span>
+                      <p className="text-gray-900">{orgData.objectives || 'No objectives provided.'}</p>
                     </div>
                   </div>
                 </div>
 
-                {charities.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FaChartBar className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No charities</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      This organization hasn't created any charities yet.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {charities.map(charity => (
-                      <div key={charity.id} className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center p-4">
-                          {/* Image Column */}
-                          <div className="w-48 h-32 flex-shrink-0">
-                            <img
-                              src={formatImageUrl(charity.picture_path) || 'https://via.placeholder.com/192x128'}
-                              alt={charity.name}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Contact Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <div className="space-y-4">
+                        <div className="flex items-start">
+                          <FaPhone className="text-gray-500 mt-1 mr-3" />
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block">Phone</span>
+                            <span className="text-gray-900">{orgData.phone_number || 'Not provided'}</span>
                           </div>
-
-                          {/* Details Column */}
-                          <div className="flex-1 px-6">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h3 className="text-lg font-medium text-gray-900">{charity.name}</h3>
-                              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {charity.category}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-500 line-clamp-2 mb-3">{charity.description}</p>
-                            <div className="flex items-center space-x-2">
-                              <div className="flex-1">
-                                <div className="flex justify-between text-sm mb-1">
-                                  <span className="text-gray-500">Progress</span>
-                                  <span className="text-gray-900 font-medium">
-                                    ${(Number(charity?.fund_received) || 0).toLocaleString()} / ${(Number(charity?.fund_targeted) || 0).toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-indigo-600 h-2 rounded-full"
-                                    style={{
-                                      width: `${Math.min(
-                                        ((Number(charity?.fund_received) || 0) / (Number(charity?.fund_targeted) || 1)) * 100,
-                                        100
-                                      )}%`
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
+                        </div>
+                        <div className="flex items-start">
+                          <FaEnvelope className="text-gray-500 mt-1 mr-3" />
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block">Email</span>
+                            <span className="text-gray-900">{orgData.gmail || 'Not provided'}</span>
                           </div>
-
-                          {/* Actions Column */}
-                          <div className="flex flex-col space-y-2 ml-4">
-                            <button
-                              onClick={() => navigate(`/charities/${charity.id}/donate`)}
-                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                            >
-                              Donate
-                            </button>
-                            <Link
-                              to={`/charities/${charity.id}`}
-                              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                            >
-                              View Details
-                            </Link>
+                        </div>
+                        <div className="flex items-start">
+                          <FaMapMarkerAlt className="text-gray-500 mt-1 mr-3" />
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block">Address</span>
+                            <span className="text-gray-900">{orgData.register_address || 'Not provided'}</span>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                    <div>
+                      <div className="space-y-4">
+                        <div className="flex items-start">
+                          <FaGlobe className="text-gray-500 mt-1 mr-3" />
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block">Website</span>
+                            {orgData.website ? (
+                              <a href={orgData.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                                {orgData.website}
+                              </a>
+                            ) : (
+                              <span className="text-gray-900">Not provided</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-start">
+                          <FaFacebook className="text-gray-500 mt-1 mr-3" />
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block">Facebook</span>
+                            {orgData.facebook ? (
+                              <a href={orgData.facebook} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                                {orgData.facebook}
+                              </a>
+                            ) : (
+                              <span className="text-gray-900">Not provided</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-start">
+                          <FaInstagram className="text-gray-500 mt-1 mr-3" />
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block">Instagram</span>
+                            {orgData.instagram ? (
+                              <a href={orgData.instagram} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                                {orgData.instagram}
+                              </a>
+                            ) : (
+                              <span className="text-gray-900">Not provided</span>
+                            )}
+                          </div>
+                        </div>
+                        {orgData.others && (
+                          <div className="flex items-start">
+                            <FaLink className="text-gray-500 mt-1 mr-3" />
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 block">Other Links</span>
+                              <span className="text-gray-900">{orgData.others}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
 
-            {/* Documentation Tab */}
-            {activeTab === 'documentation' && (
-              <div>
-                <h2 className="text-lg font-medium text-gray-900 mb-6">Documentation</h2>
-                <div className="space-y-4">
-                  {/* Statutory Declaration */}
-                  <div className="flex items-center">
-                    <FaFileAlt className="text-gray-400 mr-3" />
-                    {orgData.statutory_declaration ? (
-                      <a
-                        href={formatImageUrl(orgData.statutory_declaration)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900 hover:underline"
-                      >
-                        Statutory Declaration Document
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">Statutory Declaration Document (Not Available)</span>
-                    )}
-                  </div>
-
-                  {/* Verified Document */}
-                  <div className="flex items-center">
-                    <FaFileAlt className="text-gray-400 mr-3" />
-                    {orgData.verified_document ? (
-                      <a
-                        href={formatImageUrl(orgData.verified_document)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900 hover:underline"
-                      >
-                        Organization Verification Document
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">Organization Verification Document (Not Available)</span>
-                    )}
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Account Information</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-500 block">Created At</span>
+                        <span className="text-gray-900">
+                          {orgData.created_at ? new Date(orgData.created_at).toLocaleString() : 'Not available'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-500 block">Last Updated</span>
+                        <span className="text-gray-900">
+                          {orgData.updated_at ? new Date(orgData.updated_at).toLocaleString() : 'Not available'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'charities' && (
+            <motion.div
+              key="charities"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mt-4"
+            >
+              {charities.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {charities.map(charity => (
+                    <CharityCard key={charity.id} charity={charity} />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-sm p-8 text-center mt-4">
+                  <FaInfoCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Charities Found</h3>
+                  <p className="text-gray-600">This organization hasn't added any charities yet.</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === 'documents' && (
+            <motion.div
+              key="documents"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden mt-4"
+            >
+              <div className="p-6">
+                <div className="mb-8">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <FaFileContract className="text-indigo-500 mr-3" />
+                    Verification Document
+                  </h2>
+                  
+                  {orgData.verified_document ? (
+                    <div className="border border-gray-200 rounded-lg p-4 flex items-center">
+                      <div className="bg-indigo-100 p-3 rounded-lg mr-4">
+                        <FaFileAlt className="text-indigo-600 text-xl" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">Verification Document</h3>
+                        <p className="text-sm text-gray-500">Official verification document</p>
+                      </div>
+                      <a 
+                        href={getImageUrl(orgData.verified_document)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <FaFileAlt className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Verification Document</h3>
+                      <p className="text-gray-600">This organization hasn't uploaded a verification document yet.</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <FaFileContract className="text-indigo-500 mr-3" />
+                    Statutory Declaration
+            </h2>
+                  
+                  {orgData.statutory_declaration ? (
+                    <div className="border border-gray-200 rounded-lg p-4 flex items-center">
+                      <div className="bg-green-100 p-3 rounded-lg mr-4">
+                        <FaFileAlt className="text-green-600 text-xl" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">Statutory Declaration</h3>
+                        <p className="text-sm text-gray-500">Official statutory declaration document</p>
+                      </div>
+                      <a 
+                        href={getImageUrl(orgData.statutory_declaration)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <FaFileAlt className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Statutory Declaration</h3>
+                      <p className="text-gray-600">This organization hasn't uploaded a statutory declaration yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
-} 
+}

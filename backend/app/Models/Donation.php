@@ -50,6 +50,11 @@ class Donation extends Model
         return $this->belongsTo(Charity::class, 'cause_id');
     }
 
+    public function impactMetrics()
+    {
+        return $this->hasOne(DonationImpactMetric::class);
+    }
+
     // Scopes
     public function scopePending($query)
     {

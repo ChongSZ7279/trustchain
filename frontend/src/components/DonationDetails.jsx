@@ -24,8 +24,17 @@ import { ethers } from 'ethers';
 import { DonationContractABI } from '../utils/contractABI';
 import { formatImageUrl } from '../utils/helpers';
 import BackButton from './BackToHistory';
+import ErrorBoundary from './ErrorBoundary';
 
-export default function DonationDetails() {
+export default function DonationDetailsWrapper() {
+  return (
+    <ErrorBoundary>
+      <DonationDetails />
+    </ErrorBoundary>
+  );
+}
+
+function DonationDetails() {
   const { id } = useParams();
   const { user } = useAuth();
   const [donation, setDonation] = useState(null);
@@ -177,8 +186,11 @@ export default function DonationDetails() {
   };
 
   const viewOnBlockExplorer = () => {
-    // Update to use Sepolia block explorer
-    window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
+    if (donation?.transaction_hash) {
+      window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
+    } else {
+      toast.error('Transaction hash not available');
+    }
   };
 
   if (loading) {
@@ -231,16 +243,25 @@ export default function DonationDetails() {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'N/A';
+    
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
   };
 
   const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch (status.toLowerCase()) {
       case 'completed':
       case 'confirmed':
@@ -256,6 +277,8 @@ export default function DonationDetails() {
   };
 
   const getStatusIcon = (status) => {
+    if (!status) return null;
+    
     switch (status.toLowerCase()) {
       case 'completed':
       case 'confirmed':
@@ -281,13 +304,21 @@ export default function DonationDetails() {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Donation Details</h2>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                  Donation ID: {donation.id}
+                  Donation ID: {donation?.id || 'N/A'}
                 </p>
               </div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(donation.status)}`}>
-                {getStatusIcon(donation.status)}
-                <span className="ml-1">{donation.status.charAt(0).toUpperCase() + donation.status.slice(1)}</span>
-              </span>
+              {donation?.status ? (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(donation.status)}`}>
+                  {getStatusIcon(donation.status)}
+                  <span className="ml-1">
+                    {donation.status.charAt(0).toUpperCase() + donation.status.slice(1)}
+                  </span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                  Unknown
+                </span>
+              )}
             </div>
           </div>
 
@@ -307,14 +338,16 @@ export default function DonationDetails() {
                 <dd className="mt-1 text-sm text-gray-900">
                   <div className="flex items-center">
                     <FaCoins className="text-yellow-500 mr-1" />
-                    ${parseFloat(donation.amount).toFixed(2)} {donation.currency_type}
+                    ${donation?.amount ? parseFloat(donation.amount).toFixed(2) : '0.00'} {donation?.currency_type || 'USD'}
                   </div>
                 </dd>
               </div>
 
               <div className="sm:col-span-1">
                 <dt className="text-sm font-medium text-gray-500">Date</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatDate(donation.created_at)}</dd>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {donation?.created_at ? formatDate(donation.created_at) : 'N/A'}
+                </dd>
               </div>
 
               <div className="sm:col-span-1">
@@ -325,17 +358,17 @@ export default function DonationDetails() {
               <div className="sm:col-span-2">
                 <dt className="text-sm font-medium text-gray-500">From</dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  {!donation.is_anonymous && donation.user ? (
+                  {!donation?.is_anonymous && donation?.user ? (
                     <div className="flex items-center">
-                      {donation.user.profile_picture && (
+                      {donation.user?.profile_picture && (
                         <img
                           src={formatImageUrl(donation.user.profile_picture)}
-                          alt={donation.user.name}
+                          alt={donation.user?.name || 'User'}
                           className="h-8 w-8 rounded-full mr-2"
                         />
                       )}
-                      <Link to={`/users/${donation.user.id}`} className="text-indigo-600 hover:text-indigo-900">
-                        {donation.user.name}
+                      <Link to={`/users/${donation.user?.id || ''}`} className="text-indigo-600 hover:text-indigo-900">
+                        {donation.user?.name || 'User'}
                       </Link>
                     </div>
                   ) : (
@@ -348,16 +381,20 @@ export default function DonationDetails() {
                 <dt className="text-sm font-medium text-gray-500">To</dt>
                 <dd className="mt-1 text-sm text-gray-900">
                   <div className="flex items-center">
-                    {donation.charity?.logo && (
+                    {donation?.charity?.logo && (
                       <img
                         src={formatImageUrl(donation.charity.logo)}
-                        alt={donation.charity.name}
+                        alt={donation.charity?.name || 'Charity'}
                         className="h-8 w-8 rounded-full mr-2"
                       />
                     )}
-                    <Link to={`/charities/${donation.charity_id}`} className="text-indigo-600 hover:text-indigo-900">
-                      {donation.charity?.name}
-                    </Link>
+                    {donation?.charity_id ? (
+                      <Link to={`/charities/${donation.charity_id}`} className="text-indigo-600 hover:text-indigo-900">
+                        {donation.charity?.name || 'Charity'}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-500">No charity information available</span>
+                    )}
                   </div>
                 </dd>
               </div>
@@ -422,7 +459,7 @@ export default function DonationDetails() {
           )}
 
           {/* Task proof section (if applicable) */}
-          {donation.task_proof && donation.task_proof.length > 0 && (
+          {donation?.task_proof && Array.isArray(donation.task_proof) && donation.task_proof.length > 0 && (
             <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
               <div className="px-4 py-5 sm:px-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Task Proof</h3>
@@ -434,9 +471,9 @@ export default function DonationDetails() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {donation.task_proof.map((proof, index) => (
                     <div key={index} className="border rounded-lg overflow-hidden">
-                      {proof.type.startsWith('image/') ? (
+                      {proof?.type && proof.type.startsWith('image/') ? (
                         <img 
-                          src={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`} 
+                          src={`${process.env.REACT_APP_API_URL}/storage/${proof?.path || ''}`} 
                           alt={`Proof ${index + 1}`}
                           className="w-full h-48 object-cover"
                         />
@@ -446,12 +483,12 @@ export default function DonationDetails() {
                         </div>
                       )}
                       <div className="p-4">
-                        <p className="text-sm font-medium text-gray-900 truncate">{proof.name}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{proof?.name || `File ${index + 1}`}</p>
                         <p className="text-xs text-gray-500">
-                          Uploaded: {new Date(proof.uploaded_at).toLocaleDateString()}
+                          Uploaded: {proof?.uploaded_at ? new Date(proof.uploaded_at).toLocaleDateString() : 'N/A'}
                         </p>
                         <a 
-                          href={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`}
+                          href={`${process.env.REACT_APP_API_URL}/storage/${proof?.path || ''}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-2 inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -467,7 +504,7 @@ export default function DonationDetails() {
           )}
 
           {/* Verification notes (if applicable) */}
-          {donation.verification_notes && (
+          {donation?.verification_notes && (
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Verification Notes</h3>
@@ -478,7 +515,7 @@ export default function DonationDetails() {
             </div>
           )}
 
-          {donation.status === 'confirmed' && user?.id === donation.charity?.organization_id && (
+          {donation?.status === 'confirmed' && user?.id === donation?.charity?.organization_id && (
             <div className="mt-8 border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Upload Task Proof</h3>
               <form onSubmit={handleVerificationSubmit} className="space-y-4">
@@ -510,42 +547,47 @@ export default function DonationDetails() {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+                  disabled={submitting}
+                  className={`w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  Submit Verification
+                  {submitting ? 'Submitting...' : 'Submit Verification'}
                 </button>
               </form>
             </div>
           )}
 
-          {donation.status === 'verified' && donation.task_proof && (
+          {donation?.status === 'verified' && donation?.task_proof && Array.isArray(donation.task_proof) && (
             <div className="mt-8 border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Task Verification</h3>
               <div className="space-y-4">
-                <div>
-                  <span className="text-gray-600">Verification Notes:</span>
-                  <p className="mt-1">{donation.verification_notes}</p>
-                </div>
+                {donation?.verification_notes && (
+                  <div>
+                    <span className="text-gray-600">Verification Notes:</span>
+                    <p className="mt-1">{donation.verification_notes}</p>
+                  </div>
+                )}
                 <div>
                   <span className="text-gray-600">Proof Files:</span>
                   <div className="mt-2 grid grid-cols-2 gap-4">
                     {donation.task_proof.map((proof, index) => (
                       <a
                         key={index}
-                        href={`/storage/${proof.path}`}
+                        href={`/storage/${proof?.path || ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:underline"
                       >
-                        {proof.name}
+                        {proof?.name || `File ${index + 1}`}
                       </a>
                     ))}
                   </div>
                 </div>
-                <div>
-                  <span className="text-gray-600">Verified At:</span>
-                  <p className="mt-1">{formatDate(donation.verified_at)}</p>
-                </div>
+                {donation?.verified_at && (
+                  <div>
+                    <span className="text-gray-600">Verified At:</span>
+                    <p className="mt-1">{formatDate(donation.verified_at)}</p>
+                  </div>
+                )}
               </div>
 
               {user?.is_admin && (
@@ -559,17 +601,17 @@ export default function DonationDetails() {
             </div>
           )}
 
-          {donation.status === 'completed' && (
+          {donation?.status === 'completed' && (
             <div className="mt-8 border-t">
               <div className="bg-green-50 p-4 rounded">
                 <h3 className="text-lg font-semibold text-green-800 mb-2">
                   Donation Completed
                 </h3>
                 <p className="text-green-700">
-                  Funds were released on {formatDate(donation.completed_at)}
+                  Funds were released on {donation?.completed_at ? formatDate(donation.completed_at) : 'N/A'}
                 </p>
                 
-                {donation.transfer_transaction_hash && (
+                {donation?.transfer_transaction_hash && (
                   <div className="mt-4">
                     <p className="text-sm text-gray-700">
                       <span className="font-semibold">Transfer Transaction:</span>

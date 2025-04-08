@@ -19,6 +19,7 @@ use App\Http\Controllers\FixTaskController;
 use App\Http\Controllers\FinancialActivityController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\BlockchainController;
+use App\Http\Controllers\DonationImpactController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -88,8 +89,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{userId}/transactions', [TransactionController::class, 'getUserTransactions']);
 
     // Donation routes
-    Route::apiResource('donations', DonationController::class);
-    Route::get('/charities/{charity}/donations', [DonationController::class, 'getCharityDonations']);
+    Route::prefix('donations')->group(function () {
+        Route::get('/', [DonationController::class, 'index']);
+        Route::post('/', [DonationController::class, 'store']);
+        Route::get('/{id}', [DonationController::class, 'show']);
+        Route::put('/{id}', [DonationController::class, 'update']);
+        Route::delete('/{id}', [DonationController::class, 'destroy']);
+        
+        // Impact metrics routes
+        Route::get('/{donationId}/impact', [DonationImpactController::class, 'show']);
+        Route::post('/{donationId}/impact', [DonationImpactController::class, 'store']);
+        Route::put('/{donationId}/impact', [DonationImpactController::class, 'update']);
+    });
 
     // Combined financial activities routes
     Route::get('/financial-activities', [FinancialActivityController::class, 'index']);

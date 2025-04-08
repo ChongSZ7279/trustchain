@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { formatImageUrl, getFileType } from '../utils/helpers';
+import { formatImageUrl, getFileType, setupGlobalImageErrorHandler } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import DonationForm from './DonationForm';
 import BackButton from './BackToHistory';
@@ -43,7 +43,9 @@ import {
   FaFilePdf,
   FaFileWord,
   FaEye,
-  FaSync
+  FaSync,
+  FaCoins,
+  FaChartLine
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import Web3 from 'web3';
@@ -53,6 +55,8 @@ import TransactionHistory from './TransactionHistory';
 import { useBlockchain } from '../context/BlockchainContext';
 import BlockchainVerificationBadge from './BlockchainVerificationBadge';
 import WalletConnectButton from './WalletConnectButton';
+import { verifyTransaction } from '../utils/blockchainUtils';
+import { getCharityDonations } from '../services/donationService';
 
 // Add this helper function at the top of the file, after imports
 const getFileIcon = (fileType) => {
@@ -60,6 +64,16 @@ const getFileIcon = (fileType) => {
   if (fileType?.includes('word') || fileType?.includes('doc')) return <FaFileWord className="text-blue-500 text-xl" />;
   if (fileType?.includes('image')) return <FaImages className="text-green-500 text-xl" />;
   return <FaFileAlt className="text-gray-500 text-xl" />;
+};
+
+const formatCurrency = (amount) => {
+  if (!amount) return '0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
 };
 
 // Add this helper function at the top of your file
@@ -99,6 +113,64 @@ const getStatusIcon = (status) => {
     default:
       return null;
   }
+};
+
+// Add this helper function at the top of your file
+const FundingProgress = ({ current, target, donorCount, endDate, className = "" }) => {
+  const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+  const statusColor = progress >= 100 ? 'green' : progress >= 75 ? 'blue' : 'indigo';
+  
+  try {
+    return (
+      <div className={`funding-progress ${className}`}>
+        <div className="flex justify-between items-center text-sm mb-2">
+          <div className="flex items-center space-x-2">
+            <FaChartLine className={`text-${statusColor}-600`} />
+            <span className="font-medium text-gray-700">
+              {progress.toFixed(1)}% Funded
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaCoins className="text-yellow-600" />
+            <span className="font-medium text-gray-900">
+              {formatCurrency(current)} / {formatCurrency(target)}
+            </span>
+          </div>
+        </div>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full bg-${statusColor}-600 transition-all duration-500 ease-in-out`}
+            style={{ width: `${progress}%` }}
+          >
+            <div className="h-full w-full animate-pulse bg-white opacity-20"></div>
+          </div>
+        </div>
+        <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+          <div className="flex items-center space-x-1">
+            <FaUsers className="text-gray-400" />
+            <span>{donorCount || 0} Donors</span>
+          </div>
+          <span>{getRemainingDays(endDate)} days left</span>
+        </div>
+      </div>
+    );
+  } catch (error) {
+    console.error('Error in FundingProgress:', error);
+    return (
+      <div className="p-4 bg-red-50 rounded-lg">
+        <p className="text-red-600 text-sm">Error displaying funding progress</p>
+      </div>
+    );
+  }
+};
+
+// Add this helper function
+const getRemainingDays = (endDate) => {
+  if (!endDate) return 0;
+  const end = new Date(endDate);
+  const now = new Date();
+  const diff = end - now;
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 };
 
 export default function CharityDetails() {
@@ -406,10 +478,6 @@ export default function CharityDetails() {
     navigate(`/charities/${id}/donate?amount=${amount}`);
   };
 
-  const formatCurrency = (amount) => {
-    return typeof amount === 'number' ? amount.toLocaleString() : '0';
-  };
-
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -428,25 +496,48 @@ export default function CharityDetails() {
     return `${days} days left`;
   };
 
-  const handleDonation = async (amount, transactionHash) => {
+  const handleDonation = async (amount, transactionHash, isBlockchain) => {
     try {
       setDonationLoading(true);
       
-      // If we have a transaction hash, it means the blockchain transaction was successful
       if (transactionHash) {
-        // You can optionally record this in your backend
-        const response = await axios.post(`/charities/${id}/donations`, {
-          amount: amount,
-          transaction_hash: transactionHash,
-          blockchain_verified: true
-        });
-        
-        // Update UI
-        toast.success('Donation successful! Transaction has been recorded on the blockchain.');
+        toast.success(
+          isBlockchain 
+            ? 'Donation successful! Transaction has been recorded on the blockchain.' 
+            : 'Donation successful! Thank you for your contribution.'
+        );
         setShowDonationModal(false);
         
+        // Add console logs to debug
+        console.log("Donation successful, refreshing data...");
+        
         // Refresh charity data
-        fetchCharityData();
+        await fetchCharityData();
+        
+        // Explicitly fetch donations again
+        try {
+          const donationsResponse = await axios.get(`http://localhost:8000/api/charities/${id}/donations`);
+          console.log("Fetched donations:", donationsResponse.data);
+          // Handle paginated response
+          setDonations(donationsResponse.data.data || donationsResponse.data);
+        } catch (donationError) {
+          console.error("Error fetching donations:", donationError);
+        }
+        
+        // Also refresh blockchain donations if the function is available
+        try {
+          if (typeof getCharityDonations === 'function') {
+            const blockchainDonations = await getCharityDonations(id);
+            console.log("Fetched blockchain donations:", blockchainDonations);
+            setBlockchainDonations(blockchainDonations);
+          } else {
+            console.warn("getCharityDonations is not a function");
+          }
+        } catch (blockchainError) {
+          console.error("Error fetching blockchain donations:", blockchainError);
+        }
+      } else {
+        toast.error('Donation process was incomplete. Please try again.');
       }
     } catch (error) {
       console.error('Error processing donation:', error);
@@ -491,9 +582,20 @@ export default function CharityDetails() {
         is_blockchain: true
       }));
       
-      // Combine and sort by date (newest first)
-      const combined = [...transactions, ...formattedBlockchainDonations]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Get unique transactions by transaction_hash to avoid duplicates
+      const uniqueTransactions = [...transactions];
+      
+      // Only add blockchain transactions that aren't already in the database
+      formattedBlockchainDonations.forEach(blockchainTx => {
+        if (!uniqueTransactions.some(tx => tx.transaction_hash === blockchainTx.transaction_hash)) {
+          uniqueTransactions.push(blockchainTx);
+        }
+      });
+      
+      // Sort by date (newest first)
+      const combined = uniqueTransactions.sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      );
       
       console.log("Combined transactions:", combined);
       setTransactionsList(combined);
@@ -528,6 +630,33 @@ export default function CharityDetails() {
     return [...formattedTransactions, ...formattedDonations, ...formattedBlockchainDonations]
       .sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
   }, [transactions, donations, blockchainDonations]);
+
+  // Add this at the beginning of your component
+  useEffect(() => {
+    // Set up global image error handling
+    setupGlobalImageErrorHandler();
+  }, []);
+
+  // Add this function to your component
+  const verifyBlockchainTransaction = async (transactionHash) => {
+    try {
+      const result = await verifyTransaction(transactionHash);
+      
+      if (result.verified) {
+        toast.success('Transaction verified on blockchain!');
+        console.log('Transaction details:', result.details);
+        
+        // You could display these details in a modal or tooltip
+        setVerificationDetails(result.details);
+        setShowVerificationModal(true);
+      } else {
+        toast.error(`Verification failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error during verification:', error);
+      toast.error('Could not verify transaction');
+    }
+  };
 
   if (loading) {
     return (
@@ -595,7 +724,7 @@ export default function CharityDetails() {
                       onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
                       onError={(e) => {
                         console.error('Error loading charity image:', e);
-                        e.target.src = 'https://via.placeholder.com/128';
+                        e.target.src = 'https://placehold.co/128';
                       }}
                     />
                   ) : (
@@ -628,21 +757,14 @@ export default function CharityDetails() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">{charity?.name.toUpperCase()}</h1>
 
                 {/* Fund Progress */}
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-500">
-                      {calculateProgress()}% Complete
-                    </span>
-                    <span className="font-medium text-gray-900">
-                      ${formatCurrency(charity.fund_received)} / ${formatCurrency(charity.fund_targeted)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
-                      style={{ width: `${calculateProgress()}%` }}
-                    ></div>
-                  </div>
+                <div className="mt-6">
+                  <FundingProgress 
+                    current={charity?.fund_received || 0}
+                    target={charity?.fund_targeted || 0}
+                    donorCount={charity?.donor_count}
+                    endDate={charity?.end_date}
+                    className="mb-4"
+                  />
                 </div>
               </div>
 
@@ -965,34 +1087,11 @@ export default function CharityDetails() {
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
                                           console.error('Error loading task picture:', e);
-                                          e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                                          e.target.src = 'https://placehold.co/400x300?text=Image+Not+Found';
                                         }}
                                       />
                                     </div>
                                   ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Funding Progress */}
-                            {task.fund_targeted > 0 && (
-                              <div className="mt-4">
-                                <div className="flex justify-between text-sm mb-2">
-                                  <span className="text-gray-500">Funding Progress</span>
-                                  <span className="font-medium text-blue-600">
-                                    ${formatCurrency(task.current_amount)} / ${formatCurrency(task.fund_targeted)}
-                                  </span>
-                                </div>
-                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
-                                    style={{
-                                      width: `${Math.min(
-                                        (task.current_amount / task.fund_targeted) * 100,
-                                        100
-                                      )}%`,
-                                    }}
-                                  ></div>
                                 </div>
                               </div>
                             )}
@@ -1027,6 +1126,27 @@ export default function CharityDetails() {
                                 </div>
                               </div>
                             )}
+                            
+                            {/* Funding Progress */}
+                            {task.fund_targeted > 0 && (
+                              <div className="mt-4">
+                                <FundingProgress 
+                                  current={task.current_amount || 0}
+                                  target={task.fund_targeted || 0}
+                                  donorCount={task.donor_count}
+                                  endDate={task.end_date}
+                                  className="border border-gray-100 rounded-lg p-4"
+                                />
+                                {task.status === 'completed' && (
+                                  <div className="mt-2 flex items-center justify-center text-green-600 text-sm">
+                                    <FaCheckCircle className="mr-1" />
+                                    Funding goal achieved!
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            
                           </div>
                         </div>
                       </motion.div>
@@ -1136,7 +1256,66 @@ export default function CharityDetails() {
                 
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Blockchain Donations</h3>
-                  <TransactionHistory donations={blockchainDonations} />
+                  {blockchainDonations.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Transaction Hash
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Donor
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Amount (ETH)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {blockchainDonations.map((donation, index) => (
+                            <tr key={donation.transactionHash || index} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {donation.timestamp ? new Date(donation.timestamp).toLocaleString() : 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                <a 
+                                  href={`https://etherscan.io/tx/${donation.transactionHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  {donation.transactionHash.substring(0, 10)}...
+                                </a>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <a 
+                                  href={`https://etherscan.io/address/${donation.donor}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  {donation.donor.substring(0, 6)}...{donation.donor.substring(donation.donor.length - 4)}
+                                </a>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {donation.amount}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FaInfoCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Blockchain Donations Yet</h3>
+                      <p className="text-gray-600">This charity hasn't received any blockchain donations yet.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1153,14 +1332,10 @@ export default function CharityDetails() {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-900">All Transactions</h3>
-                  <BlockchainVerificationBadge 
-                    verified={charity?.blockchain_id ? true : false} 
-                    blockchainId={charity?.blockchain_id}
-                  />
                 </div>
                 
                 {/* Add this filter dropdown */}
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 mb-4">
                   <span className="text-sm text-gray-600">View:</span>
                   <select
                     className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -1171,7 +1346,7 @@ export default function CharityDetails() {
                   >
                     <option value="transactions">Transactions</option>
                     <option value="donations">Donations</option>
-                    <option value="combined">Combined</option>
+                    <option value="combined">All</option>
                   </select>
                 </div>
                 
@@ -1288,9 +1463,9 @@ export default function CharityDetails() {
             className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl"
           >
             <DonationForm 
+              charityId={id}
               onDonate={handleDonation} 
               loading={donationLoading} 
-              isWalletConnected={!!blockchainAccount}
             />
           </motion.div>
         </motion.div>

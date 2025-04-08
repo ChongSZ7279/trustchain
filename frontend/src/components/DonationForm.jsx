@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { FaTimes, FaWallet, FaExclamationTriangle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { initWeb3, donateToCharity, isWalletConnected } from '../utils/contractInteraction';
+import { processDonation } from '../services/donationService';
+import { testDonationAPI } from '../utils/testDonation';
 
 const DonationForm = ({ charityId, onDonate, loading = false }) => {
+  console.log("DonationForm received charityId:", charityId);
+  
   const navigate = useNavigate();
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
@@ -22,6 +26,21 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     };
     
     checkWalletConnection();
+  }, []);
+  
+  useEffect(() => {
+    const handleImageErrors = () => {
+      const images = document.querySelectorAll('img');
+      images.forEach(img => {
+        img.onerror = function() {
+          console.log('Image failed to load, using fallback');
+          this.src = '/fallback-image.png';
+          this.onerror = null;
+        };
+      });
+    };
+    
+    handleImageErrors();
   }, []);
   
   const connectWallet = async () => {
@@ -46,23 +65,81 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       return;
     }
     
+    console.log("Processing donation for charity ID:", charityId);
+    
     try {
       setProcessingDonation(true);
-      const result = await donateToCharity(charityId, parseFloat(amount), message);
+      
+      // Use the combined processDonation function with the correct charityId
+      const result = await processDonation(charityId, parseFloat(amount), message);
       console.log('Donation result:', result);
       
-      if (onDonate) {
-        onDonate(parseFloat(amount), result.transactionHash);
+      if (!result.success) {
+        throw new Error(result.error || 'Unknown error occurred');
       }
       
+      // Add detailed logging about the donation result
+      console.log('Donation details:', {
+        charityId,
+        amount: parseFloat(amount),
+        transactionHash: result.transactionHash,
+        isBlockchain: result.isBlockchain,
+        databaseId: result.donationId || 'Not provided',
+        savedToDatabase: !result.databaseError,
+        databaseError: result.databaseError
+      });
+      
+      // Call the onDonate callback with the result
+      if (onDonate) {
+        onDonate(parseFloat(amount), result.transactionHash, result.isBlockchain, result.donationId);
+      }
+      
+      // Reset form
       setAmount('');
       setMessage('');
       setAgreeTerms(false);
+      
+      // Show more detailed success message based on the actual response structure
+      if (result.isBlockchain && result.databaseError) {
+        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nWarning: May not have been saved to database`);
+      } else if (result.isBlockchain) {
+        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nSaved to database with ID: ${result.donationId || 'Unknown'}`);
+      } else if (result.donationId) {
+        alert(`Donation successful! Saved to database with ID: ${result.donationId}`);
+      } else {
+        alert('Donation processed, but status unclear. Please check your dashboard for confirmation.');
+      }
+      
+      // Only redirect if we have a donation ID
+      if (result.donationId) {
+        navigate(`/donations/${result.donationId}`);
+      }
     } catch (error) {
       console.error('Error processing donation:', error);
-      alert('Error processing donation. Please try again.');
+      alert(`Error processing donation: ${error.message}. Please check console for details.`);
     } finally {
       setProcessingDonation(false);
+    }
+  };
+  
+  const handleImageError = (e) => {
+    e.target.src = "/fallback-image.png"; // Use a local fallback image
+    // Or just hide the image
+    // e.target.style.display = 'none';
+  };
+  
+  const testDonation = async () => {
+    try {
+      console.log("Testing donation API...");
+      const result = await testDonationAPI(charityId);
+      if (result.success) {
+        alert("Test donation successful! Check console for details.");
+      } else {
+        alert(`Test donation failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error in test donation:", error);
+      alert("Test donation error. Check console for details.");
     }
   };
   
@@ -186,6 +263,14 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             All transactions are transparent and can be verified on the blockchain.
           </p>
         </div>
+        
+        <button 
+          type="button"
+          onClick={testDonation}
+          className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+        >
+          Test API Connection
+        </button>
       </form>
     </div>
   );

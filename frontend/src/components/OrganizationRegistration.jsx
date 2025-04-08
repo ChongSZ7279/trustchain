@@ -342,12 +342,8 @@ export default function OrganizationRegistration() {
                   <option value="Education">Education</option>
                   <option value="Healthcare">Healthcare</option>
                   <option value="Environment">Environment</option>
-                  <option value="Poverty Relief">Poverty Relief</option>
-                  <option value="Animal Welfare">Animal Welfare</option>
+                  <option value="Youth Development">Youth Development</option>
                   <option value="Disaster Relief">Disaster Relief</option>
-                  <option value="Human Rights">Human Rights</option>
-                  <option value="Arts & Culture">Arts & Culture</option>
-                  <option value="Community Development">Community Development</option>
                   <option value="Other">Other</option>
                 </select>
                 {formErrors.category && (

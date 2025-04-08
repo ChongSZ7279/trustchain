@@ -39,13 +39,25 @@ import {
   FaFileInvoice,
   FaDownload,
   FaClock,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaShoppingBag,
+  FaUtensils,
+  FaEllipsisH,
+  FaCocktail,
+  FaTicketAlt,
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
 import AIGenerator from "./Recommendation";
 import { toast } from 'react-hot-toast';
 import html2pdf from 'html2pdf.js';
+
+// Import additional images
+import BronzeImg from '../assets/image/Bronze.png';
+import SilverImg from '../assets/image/Silver.png';
+import GoldImg from '../assets/image/Gold.png';
+import ZeusImg from '../assets/image/coffe-4951985_1280.jpg';
+import TealiveImg from '../assets/image/tea-750850_1280.jpg';
 
 export default function UserDashboard() {
   const { currentUser, logout } = useAuth();
@@ -69,6 +81,9 @@ export default function UserDashboard() {
   const [donations, setDonations] = useState([]);
   const [combinedTransactions, setCombinedTransactions] = useState([]);
   const [currentDataSource, setCurrentDataSource] = useState('transactions');
+  const [claimedVouchers, setClaimedVouchers] = useState([]);
+  const [voucherFilter, setVoucherFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
   
   // Define available frames based on REWARD_TIERS from rewardSystem.js
   const availableFrames = [
@@ -167,6 +182,9 @@ export default function UserDashboard() {
           setFollowedCharities([]);
         }
         
+        // Calculate achievements based on all available data
+        calculateUserAchievements();
+        
       } catch (err) {
         console.error('Error in fetchUserData:', err);
         setError('Failed to load user data');
@@ -190,20 +208,29 @@ export default function UserDashboard() {
     try {
       console.log(`Downloading invoice for donation ${donationId}`);
       
-      // Get the HTML content
-      const response = await axios.get(`/donations/${donationId}/invoice-html`);
-      const { html, filename } = response.data;
+      // Get the PDF directly instead of HTML
+      const response = await axios.get(`/api/donations/${donationId}/invoice`, {
+        responseType: 'blob', // Important: Set responseType to blob
+      });
       
-      // Generate PDF on the client side
-      const opt = {
-        margin: 1,
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
+      // Create a blob from the PDF data
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       
-      html2pdf().set(opt).from(html).save();
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${donationId}.pdf`; // Set the download filename
+      
+      // Append link to body, click it, and remove it
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the URL
+      window.URL.revokeObjectURL(url);
       
       toast.success('Invoice downloaded successfully');
     } catch (error) {
@@ -297,7 +324,38 @@ export default function UserDashboard() {
     return `/${path}`;
   };
 
-  // Add a function to load data based on the current data source
+  // Add a function to calculate the total donation amount from all sources
+  const calculateTotalFromAllSources = () => {
+    let total = 0;
+    
+    // Add amounts from transactions
+    transactions.forEach(transaction => {
+      if (transaction && transaction.amount) {
+        total += parseFloat(transaction.amount) || 0;
+      }
+    });
+    
+    // Add amounts from donations
+    donations.forEach(donation => {
+      if (donation && donation.amount) {
+        total += parseFloat(donation.amount) || 0;
+      }
+    });
+    
+    // Add amounts from combined transactions if they're not already counted
+    if (currentDataSource === 'combined') {
+      combinedTransactions.forEach(item => {
+        if (item && item.amount) {
+          total += parseFloat(item.amount) || 0;
+        }
+      });
+    }
+    
+    console.log('Calculated total donation amount:', total);
+    return total;
+  };
+
+  // Update the loadDataBySource function to use the new calculation
   const loadDataBySource = async (source) => {
     if (!currentUser) return;
     
@@ -323,28 +381,27 @@ export default function UserDashboard() {
       
       if (source === 'transactions') {
         setTransactions(data);
-        
-        // Calculate total donation amount
-        const total = calculateTotalDonationAmount(data);
-        setTotalDonationAmount(parseFloat(total) || 0);
-        
-        // Calculate reward tier
-        const tier = calculateRewardTier(total);
-        setRewardTier(tier);
-        
-        // Calculate progress to next tier
-        const progress = calculateNextTierProgress(total);
-        setNextTierProgress(progress);
-        
-        // Get achievements
-        const userAchievements = getAchievements(data);
-        setAchievements(userAchievements);
       } else if (source === 'donations') {
         setDonations(data);
       }
       
       // Always update the combined transactions for display
       setCombinedTransactions(data);
+      
+      // Calculate total donation amount from all sources
+      const totalAmount = calculateTotalFromAllSources();
+      setTotalDonationAmount(totalAmount);
+      
+      // Calculate reward tier based on the total
+      const tier = calculateRewardTier(totalAmount);
+      setRewardTier(tier);
+      
+      // Calculate progress to next tier
+      const progress = calculateNextTierProgress(totalAmount);
+      setNextTierProgress(progress);
+      
+      // Calculate achievements after loading data
+      calculateUserAchievements();
       
       setLoading(false);
     } catch (error) {
@@ -353,6 +410,22 @@ export default function UserDashboard() {
       setLoading(false);
     }
   };
+
+  // Add a useEffect to update the total donation amount when any data changes
+  useEffect(() => {
+    if (currentUser) {
+      const totalAmount = calculateTotalFromAllSources();
+      console.log('Updating total donation amount:', totalAmount);
+      setTotalDonationAmount(totalAmount);
+      
+      // Update reward tier and progress
+      const tier = calculateRewardTier(totalAmount);
+      setRewardTier(tier);
+      
+      const progress = calculateNextTierProgress(totalAmount);
+      setNextTierProgress(progress);
+    }
+  }, [transactions, donations, combinedTransactions, currentDataSource]);
 
   // Add these helper functions
   const formatStatus = (status) => {
@@ -390,6 +463,160 @@ export default function UserDashboard() {
       default:
         return null;
     }
+  };
+
+  // Add a new function to calculate achievements based on all data
+  const calculateUserAchievements = () => {
+    // Create a comprehensive list of achievements
+    const userAchievements = [];
+    
+    // Debug logging
+    console.log('Calculating achievements with:');
+    console.log('Transactions:', transactions);
+    console.log('Donations:', donations);
+    console.log('Combined transactions:', combinedTransactions);
+    
+    // First donation achievement
+    if (transactions.length > 0 || donations.length > 0 || combinedTransactions.length > 0) {
+      console.log('Adding first donation achievement');
+      userAchievements.push({ 
+        id: 'first_donation', 
+        name: 'First Steps', 
+        description: 'Make your first donation' 
+      });
+    }
+    
+    // Count unique charities donated to
+    const uniqueCharityIds = new Set();
+    
+    // Add charity IDs from transactions
+    transactions.forEach(transaction => {
+      if (transaction.charity_id) {
+        uniqueCharityIds.add(transaction.charity_id);
+      }
+    });
+    
+    // Add charity IDs from donations
+    donations.forEach(donation => {
+      if (donation.charity_id) {
+        uniqueCharityIds.add(donation.charity_id);
+      }
+    });
+    
+    // Add charity IDs from combined transactions
+    combinedTransactions.forEach(item => {
+      if (item && item.charity_id) {
+        uniqueCharityIds.add(item.charity_id);
+      }
+    });
+    
+    const uniqueCharityCount = uniqueCharityIds.size;
+    console.log('Unique charity count:', uniqueCharityCount);
+    console.log('Unique charity IDs:', Array.from(uniqueCharityIds));
+    
+    // Donate to 3 different charities
+    if (uniqueCharityCount >= 3) {
+      console.log('Adding 3 charities achievement');
+      userAchievements.push({ 
+        id: 'donate_3_charities', 
+        name: 'Generous Heart', 
+        description: 'Donate to 3 different charities' 
+      });
+    }
+    
+    // Donate to 10 different charities
+    if (uniqueCharityCount >= 10) {
+      console.log('Adding 10 charities achievement');
+      userAchievements.push({ 
+        id: 'donate_10_charities', 
+        name: 'Community Pillar', 
+        description: 'Donate to 10 different charities' 
+      });
+    }
+    
+    // Complete profile achievement
+    if (currentUser?.profile_picture) {
+      userAchievements.push({ 
+        id: 'complete_profile', 
+        name: 'Identity', 
+        description: 'Complete your profile information' 
+      });
+    }
+    
+    // Following achievements
+    if (followedOrganizations.length >= 5) {
+      userAchievements.push({ 
+        id: 'follow_5_orgs', 
+        name: 'Connected', 
+        description: 'Follow 5 organizations' 
+      });
+    }
+    
+    if (followedCharities.length >= 5) {
+      userAchievements.push({ 
+        id: 'follow_5_charities', 
+        name: 'Charity Supporter', 
+        description: 'Follow 5 charities' 
+      });
+    }
+    
+    console.log('Final achievements:', userAchievements);
+    
+    // Update the achievements state
+    setAchievements(userAchievements);
+  };
+
+  // Add this useEffect to recalculate achievements when relevant data changes
+  useEffect(() => {
+    if (currentUser) {
+      console.log('Data changed, recalculating achievements');
+      calculateUserAchievements();
+    }
+  }, [transactions, donations, combinedTransactions, followedOrganizations, followedCharities, currentUser]);
+
+  // Add this function to handle voucher claims
+  const handleClaimVoucher = async (voucherId, tierName) => {
+    try {
+      // In a real app, you would make an API call to claim the voucher
+      // For now, we'll just simulate it
+      toast.promise(
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+        {
+          loading: 'Claiming voucher...',
+          success: () => {
+            // Add the voucher to claimed vouchers
+            setClaimedVouchers([...claimedVouchers, { id: voucherId, tier: tierName, claimedAt: new Date() }]);
+            return `Successfully claimed ${tierName} tier voucher!`;
+          },
+          error: 'Failed to claim voucher. Please try again.',
+        }
+      );
+    } catch (error) {
+      console.error('Error claiming voucher:', error);
+      toast.error('Failed to claim voucher. Please try again.');
+    }
+  };
+  
+  // Add this function to check if a voucher is claimable
+  const isVoucherClaimable = (tierName) => {
+    // Check if the user's tier is high enough to claim this voucher
+    const tierLevels = {
+      'Bronze': 1,
+      'Silver': 2,
+      'Gold': 3,
+      'Platinum': 4,
+      'Diamond': 5
+    };
+    
+    const userTierLevel = tierLevels[rewardTier?.name] || 0;
+    const requiredTierLevel = tierLevels[tierName] || 999;
+    
+    return userTierLevel >= requiredTierLevel;
+  };
+  
+  // Add this function to check if a voucher is already claimed
+  const isVoucherClaimed = (voucherId) => {
+    return claimedVouchers.some(voucher => voucher.id === voucherId);
   };
 
   return (
@@ -869,6 +1096,109 @@ export default function UserDashboard() {
                   </ul>
                 </div>
               </div>
+
+              {/* New Voucher Claim Section - Improved UI */}
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                  <FaTicketAlt className="mr-2 text-indigo-600" />
+                  Your Reward Vouchers
+                </h3>
+                
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  {/* Header with title and description */}
+                  <div className="p-5 bg-gradient-to-r from-indigo-50 to-blue-50 border-b">
+                    <h4 className="text-lg font-medium text-gray-900">Exclusive Rewards for Your Generosity</h4>
+                    <p className="text-sm text-gray-600 mt-1">Unlock special offers as you reach higher donation tiers</p>
+                  </div>
+                  
+                  {/* Filter Buttons - Styled as circles with icons */}
+                  <div className="p-6 flex justify-center space-x-8 bg-white">
+                    <button 
+                      onClick={() => setVoucherFilter('all')}
+                      className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-blue-100 text-blue-700 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <FaEllipsisH className="text-xl mb-1" />
+                      <span className="text-xs font-medium">All</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setVoucherFilter('shopping')}
+                      className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-blue-100 text-blue-700 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <FaShoppingBag className="text-xl mb-1" />
+                      <span className="text-xs font-medium">Shopping</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setVoucherFilter('food')}
+                      className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-blue-100 text-blue-700 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <FaCocktail className="text-xl mb-1" />
+                      <span className="text-xs font-medium">Food & Beverage</span>
+                    </button>
+                  </div>
+                  
+                  {/* Voucher Cards - Styled as horizontal cards in a grid */}
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Zeus Voucher */}
+                    <div className="rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg transform hover:-translate-y-1">
+                      <div className="p-5 bg-blue-50 flex items-center">
+                        <div className="flex-none">
+                          <img src={ZeusImg} alt="Zeus" className="h-16 w-16 rounded-lg object-cover" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-blue-800">Buy 1 Free 1 Voucher</p>
+                          <p className="text-xs text-blue-600">*Terms & Conditions apply</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Tealive Voucher 1 */}
+                    <div className="rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg transform hover:-translate-y-1">
+                      <div className="p-5 bg-blue-50 flex items-center">
+                        <div className="flex-none">
+                          <img src={TealiveImg} alt="Tealive" className="h-16 w-16 rounded-lg object-cover" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-blue-800">Buy 1 Free 1 Voucher</p>
+                          <p className="text-xs text-blue-600">*Terms & Conditions apply</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Tealive Voucher 2 - Locked */}
+                    <div className="rounded-xl overflow-hidden shadow-md bg-gray-300 relative">
+                      <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+                      <div className="p-5 flex items-center relative">
+                        <div className="flex-none">
+                          <img src={TealiveImg} alt="Tealive" className="h-16 w-16 rounded-lg object-cover filter grayscale" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-gray-700">Buy 1 Free 1 Voucher</p>
+                          <p className="text-sm text-gray-600 flex items-center justify-end gap-2">
+                            <FaLock className="text-gray-500" /> Unlocked at Silver Tier
+                          </p>
+                        </div>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-gray-400 to-gray-500"></div>
+                    </div>
+                    
+                    {/* Tealive Voucher 3 */}
+                    <div className="rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg transform hover:-translate-y-1">
+                      <div className="p-5 bg-blue-50 flex items-center">
+                        <div className="flex-none">
+                          <img src={TealiveImg} alt="Tealive" className="h-16 w-16 rounded-lg object-cover" />
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xl font-medium text-blue-800">Buy 1 Free 1 Voucher</p>
+                          <p className="text-xs text-blue-600">*Terms & Conditions apply</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1012,37 +1342,12 @@ export default function UserDashboard() {
 
               {recommendedCharity ? (
                 <div className="grid grid-cols-1 gap-6">
-                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
+                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={false} />
                 </div>
               ) : (
                 <p className="text-gray-600">No recommendations available.</p>
               )}
             </div>
-            {/* <div>
-              <br></br>
-              <br></br>
-              <h3 className="text-md font-medium text-gray-700 mb-4 border-b pb-2">Recommended Charities</h3>
-              <AIGenerator userHistory={["Work in a childcare center"]}/>
-              {recommendedCharity ? (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  <CharityCard key={recommendedCharity.id} charity={{ ...recommendedCharity, is_following: false }} inDashboard={true} />
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-lg">
-                  <FaHeart className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-                  <h3 className="text-md font-medium text-gray-900 mb-2">No recommended charities</h3>
-                  <p className="text-gray-600 mb-4">We couldn't generate a recommendation for you.</p>
-                  <Link
-                    to="/charities"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <FaHandHoldingUsd className="mr-2" />
-                    Browse Charities
-                  </Link>
-                </div>
-              )}
-            </div> */}
-
 
           </div>
 
@@ -1155,12 +1460,12 @@ export default function UserDashboard() {
                             {item.amount ? `$${item.amount}` : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                            <span className={`px-2 items-center inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
                               {getStatusIcon(item.status)}
                               {formatStatus(item.status)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 items-center whitespace-nowrap text-sm text-gray-500">
                             {isDonation ? (
                               <Link to={`/donations/${item.id}`} className="text-indigo-600 hover:text-indigo-900">
                                 View Donation
@@ -1181,18 +1486,11 @@ export default function UserDashboard() {
                             {isDonation && item.status === 'completed' && (
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => downloadInvoice(item.id)}
-                                  className="text-indigo-600 hover:text-indigo-900 flex items-center"
-                                  title="Download Invoice"
-                                >
-                                  <FaDownload className="mr-1" />
-                                </button>
-                                <button
                                   onClick={() => viewInvoice(item.id)}
                                   className="text-indigo-600 hover:text-indigo-900 flex items-center"
                                   title="View Invoice"
                                 >
-                                  <FaFileInvoice className="mr-1" />
+                                  View Invoice
                                 </button>
                               </div>
                             )}

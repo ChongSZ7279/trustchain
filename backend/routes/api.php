@@ -388,4 +388,7 @@ Route::post('/contact', [ContactController::class, 'submit']);
 
 // Add these routes
 Route::get('/blockchain/donation-count', [BlockchainController::class, 'getDonationCount']);
-Route::post('/blockchain/verify-transaction', [BlockchainController::class, 'verifyTransaction']); 
+Route::post('/blockchain/verify-transaction', [BlockchainController::class, 'verifyTransaction']);
+
+// Add this route to your API routes
+Route::post('/blockchain-donations', [DonationController::class, 'storeBlockchainDonation'])->middleware('auth:sanctum'); 

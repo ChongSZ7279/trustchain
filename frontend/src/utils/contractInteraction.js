@@ -63,22 +63,86 @@ export const donate = async (amount, message = '') => {
 
 // Donate to a specific charity
 export const donateToCharity = async (charityId, amount, message = '') => {
-  if (!contract || !account) {
-    await initWeb3();
-  }
-  
   try {
+    if (!window.ethereum) {
+      throw new Error('No Ethereum wallet detected. Please install MetaMask.');
+    }
+    
+    // Initialize Web3 if not already done
+    const { contract: contractInstance } = await initWeb3();
+    
+    // Get the current account
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const account = accounts[0];
+    
+    if (!account) {
+      throw new Error('No account found. Please connect your wallet.');
+    }
+    
+    // Convert amount to wei (1 ETH = 10^18 wei)
+    const web3 = new Web3(window.ethereum);
     const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
     
-    const result = await contract.methods.donateToCharity(charityId, message).send({
-      from: account,
-      value: amountInWei
-    });
+    // Use the contract instance from initWeb3
+    if (!contractInstance) {
+      throw new Error('Contract not initialized. Please try again.');
+    }
     
-    return result;
+    console.log("Contract methods:", Object.keys(contractInstance.methods));
+    
+    // Check if the donate method exists and log its parameters
+    if (contractInstance.methods.donate) {
+      console.log("Calling donate with charityId:", charityId);
+      
+      // Make the donation - try different parameter formats based on the contract
+      let result;
+      
+      try {
+        // Try calling with just the value parameter (no explicit charityId)
+        result = await contractInstance.methods.donate().send({
+          from: account,
+          value: amountInWei,
+          gas: 300000
+        });
+      } catch (error) {
+        console.error("First donation attempt failed:", error);
+        
+        try {
+          // Try calling with the charityId as a string
+          result = await contractInstance.methods.donate(charityId.toString()).send({
+            from: account,
+            value: amountInWei,
+            gas: 300000
+          });
+        } catch (error2) {
+          console.error("Second donation attempt failed:", error2);
+          
+          // Try with message parameter if the contract expects it
+          result = await contractInstance.methods.donate(message).send({
+            from: account,
+            value: amountInWei,
+            gas: 300000
+          });
+        }
+      }
+      
+      console.log('Donation successful:', result);
+      return {
+        success: true,
+        transactionHash: result.transactionHash,
+        amount: amount
+      };
+    } else {
+      throw new Error('The donate method does not exist on the contract');
+    }
   } catch (error) {
-    console.error("Error making charity donation:", error);
-    throw error;
+    console.error('Error in donateToCharity:', error);
+    // Return a structured error object
+    return {
+      success: false,
+      error: error.message || 'Unknown error occurred',
+      errorObject: error
+    };
   }
 };
 
@@ -203,4 +267,14 @@ export const setupAccountChangeListener = (callback) => {
       callback(account);
     });
   }
+};
+
+// Add this function to your contractInteraction.js file
+export const getContractInstance = () => {
+  if (!contract) {
+    console.warn('Contract not initialized. Attempting to initialize Web3...');
+    // Return null and let the caller handle initialization
+    return null;
+  }
+  return contract;
 }; 

@@ -240,7 +240,8 @@ export default function OrganizationEdit() {
         setOrganization(response.data);
       }
 
-      navigate('/organizations');
+      // Use history.back() instead of navigating to a specific route
+      window.history.back();
     } catch (err) {
       console.error('Update error:', err);
       if (err.response?.data?.errors) {
@@ -336,14 +337,21 @@ export default function OrganizationEdit() {
 
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Category</label>
-                    <input
-                      type="text"
+                    <select
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
-                    />
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Education">Education</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Environment">Environment</option>
+                      <option value="Youth Development">Youth Development</option>
+                      <option value="Disaster Relief">Disaster Relief</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
 
                   <div className="md:col-span-2 space-y-2">
@@ -683,7 +691,7 @@ export default function OrganizationEdit() {
               >
                 <button
                   type="button"
-                  onClick={() => navigate('/organizations')}
+                  onClick={() => window.history.back()}
                   className="inline-flex items-center px-6 py-3 border-2 border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 >
                   <FaTimes className="mr-2" />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaBuilding, FaGlobe, FaPhone, FaFacebook, FaInstagram, FaWallet, FaIdCard, FaFileAlt, FaArrowRight, FaTimes, FaEye } from 'react-icons/fa';
+import { FaBuilding, FaGlobe, FaPhone, FaFacebook, FaInstagram, FaWallet, FaIdCard, FaFileAlt, FaArrowRight, FaTimes, FaEye, FaInfoCircle } from 'react-icons/fa';
 import axios from 'axios';
 
 // Add this component for document preview modal
@@ -263,6 +263,28 @@ export default function OrganizationRegistration() {
       <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
         <FaBuilding className="mr-2 text-indigo-600" /> Organization Registration
       </h2>
+      
+      {/* Add verification notice */}
+      <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <FaInfoCircle className="h-5 w-5 text-blue-400" />
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-blue-800">Verification Process</h3>
+            <div className="mt-2 text-sm text-blue-700">
+              <p>Your organization registration will be subject to verification by the Registrar of Societies (ROS), the authority responsible for charitable organizations in Malaysia. The verification process includes:</p>
+              <ul className="mt-2 list-disc list-inside">
+                <li>Review of submitted documents</li>
+                <li>Background check of the organization</li>
+                <li>Assessment of organization's objectives and activities</li>
+                <li>Verification of representative's credentials</li>
+              </ul>
+              <p className="mt-2">Please ensure all submitted documents are authentic and up-to-date. The verification process may take up to 14 working days.</p>
+            </div>
+          </div>
+        </div>
+      </div>
       
       {formErrors.general && (
         <div className="mb-6 rounded-md bg-red-50 p-4">

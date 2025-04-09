@@ -31,6 +31,7 @@ import ApiTest from './components/ApiTest';
 import Invoice from './components/Invoice';
 import BlockchainTester from './components/BlockchainTester';
 import SponsorshipPartners from './components/SponsorshipPartners';
+import BlockchainBasics from './pages/BlockchainBasics';
 
 const router = createBrowserRouter([
   {
@@ -94,6 +95,14 @@ const router = createBrowserRouter([
         handle: {
           title: "API Connection Test",
           subtitle: "Test the connection to the backend API"
+        }
+      },
+      {
+        path: '/blockchain-basics',
+        element: <BlockchainBasics />,
+        handle: {
+          title: "Blockchain Basics",
+          subtitle: "Learn the basics of blockchain technology"
         }
       }
     ]

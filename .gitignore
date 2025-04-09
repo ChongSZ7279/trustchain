@@ -5,5 +5,3 @@
 .env.test.local
 .env.production.local
 frontend/.env
-backend/.env
-mycontract/.env

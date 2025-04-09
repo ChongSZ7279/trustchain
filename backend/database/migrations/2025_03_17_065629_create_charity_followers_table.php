@@ -13,18 +13,15 @@ return new class extends Migration
     {
         Schema::create('charity_followers', function (Blueprint $table) {
             $table->id();
-            $table->string('user_ic');
-            $table->foreignId('charity_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('charity_id');
+            $table->string('user_ic'); // User IC number as foreign key
             $table->timestamps();
-
-            // Add a unique constraint to prevent duplicate follows
-            $table->unique(['user_ic', 'charity_id']);
             
-            // Add foreign key constraint for user_ic
-            $table->foreign('user_ic')
-                ->references('ic_number')
-                ->on('users')
-                ->onDelete('cascade');
+            // Add foreign key constraints
+            $table->foreign('charity_id')->references('id')->on('charities')->onDelete('cascade');
+            
+            // Create a unique constraint to prevent duplicate follows
+            $table->unique(['charity_id', 'user_ic']);
         });
     }
 
@@ -35,4 +32,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('charity_followers');
     }
-}; 
+};

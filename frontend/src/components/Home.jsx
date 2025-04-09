@@ -177,6 +177,130 @@ const Home = () => {
         setCurrentTestimonialIndex(index);
     };
 
+    // Add state for contact form
+    const [contactForm, setContactForm] = useState({
+        name: '',
+        email: '',
+        subject: '',
+        message: ''
+    });
+    
+    // Add state for form submission status
+    const [formStatus, setFormStatus] = useState({
+        isSubmitting: false,
+        isSubmitted: false,
+        error: null
+    });
+    
+    // Handle contact form input changes
+    const handleContactInputChange = (e) => {
+        const { id, value } = e.target;
+        setContactForm(prev => ({
+            ...prev,
+            [id]: value
+        }));
+    };
+    
+    // Handle contact form submission
+    const handleContactSubmit = async (e) => {
+        e.preventDefault();
+        
+        // Basic validation
+        if (!contactForm.name || !contactForm.email || !contactForm.message) {
+            setFormStatus({
+                isSubmitting: false,
+                isSubmitted: false,
+                error: 'Please fill in all required fields'
+            });
+            return;
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contactForm.email)) {
+            setFormStatus({
+                isSubmitting: false,
+                isSubmitted: false,
+                error: 'Please enter a valid email address'
+            });
+            return;
+        }
+        
+        try {
+            setFormStatus({
+                isSubmitting: true,
+                isSubmitted: false,
+                error: null
+            });
+            
+            // Use the correct backend URL - adjust this to match your backend URL
+            const backendUrl = 'http://localhost:8000'; // Change this to your actual backend URL
+            
+            // Make an actual API request to send the email
+            const response = await fetch(`${backendUrl}/api/contact`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-App-Key': 'mgdy ctks dmlj ypyc',
+                    'Accept': 'application/json'
+                },
+                mode: 'cors',
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    name: contactForm.name,
+                    email: contactForm.email,
+                    subject: contactForm.subject || 'Contact Form Submission',
+                    message: contactForm.message
+                })
+            });
+            
+            // Handle non-JSON responses
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                data = { message: text || 'Unknown error occurred' };
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to send message');
+            }
+            
+            // Reset form and show success message
+            setContactForm({
+                name: '',
+                email: '',
+                subject: '',
+                message: ''
+            });
+            
+            setFormStatus({
+                isSubmitting: false,
+                isSubmitted: true,
+                error: null
+            });
+            
+            // Reset success message after 5 seconds
+            setTimeout(() => {
+                setFormStatus(prev => ({
+                    ...prev,
+                    isSubmitted: false
+                }));
+            }, 5000);
+            
+        } catch (error) {
+            console.error('Error submitting contact form:', error);
+            setFormStatus({
+                isSubmitting: false,
+                isSubmitted: false,
+                error: error.message || 'Failed to send message. Please try again later.'
+            });
+        }
+    };
+
     return (
         <div className="overflow-hidden">
             {/* Hero Section with Swiping Image Carousel - White Background */}
@@ -238,24 +362,25 @@ const Home = () => {
             <div id="about" className="bg-indigo-50 min-h-screen py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Heading with zoom-up animation */}
-                    <div className="relative py-10 overflow-hidden" ref={aboutHeadingRef}>
-                        <div 
-                            className={`text-center transition-all duration-1000 ease-out
-                                ${visibleHeadings.about ? 'opacity-100' : 'opacity-0'}
-                            `}
-                            style={{ 
-                                transform: `scale(${headingScales.about}) translateY(${headingPositions.about}px)`,
-                                transformOrigin: 'center bottom'
-                            }}
+                    <motion.div 
+                        initial={{ y: 100, opacity: 0, scale: 0.5 }}
+                        whileInView={{ y: 0, opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ 
+                            duration: 1,
+                            ease: [0.6, 0.01, -0.05, 0.95],
+                            opacity: { duration: 0.6 },
+                            scale: { duration: 0.8 }
+                        }}
+                        className="text-center relative py-10 overflow-hidden"
+                        ref={aboutHeadingRef}
+                    >
+                        <motion.h2
+                            className="text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 tracking-tight"
                         >
-                            <div className="relative inline-block">
-                                <h2 className="text-3xl text-indigo-600 font-bold tracking-wide uppercase">
-                                    About Us
-                                </h2>
-                                <div className="absolute -bottom-2 left-0 w-full h-1 bg-indigo-600"></div>
-                            </div>
-                        </div>
-                    </div>
+                            About Us
+                        </motion.h2>
+                    </motion.div>
                     
                     <div className="mt-8">
                         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2">
@@ -311,28 +436,29 @@ const Home = () => {
             <div className="bg-white min-h-screen py-16 flex items-center">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                     {/* Heading with zoom-up animation */}
-                    <div className="relative py-10 overflow-hidden" ref={testimonialsHeadingRef}>
-                        <div 
-                            className={`text-center transition-all duration-1000 ease-out
-                                ${visibleHeadings.testimonials ? 'opacity-100' : 'opacity-0'}
-                            `}
-                            style={{ 
-                                transform: `scale(${headingScales.testimonials}) translateY(${headingPositions.testimonials}px)`,
-                                transformOrigin: 'center bottom'
-                            }}
+                    <motion.div 
+                        initial={{ y: 100, opacity: 0, scale: 0.5 }}
+                        whileInView={{ y: 0, opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ 
+                            duration: 1,
+                            ease: [0.6, 0.01, -0.05, 0.95],
+                            opacity: { duration: 0.6 },
+                            scale: { duration: 0.8 }
+                        }}
+                        className="text-center relative py-6 overflow-hidden"
+                        ref={testimonialsHeadingRef}
+                    >
+                        <motion.h2
+                            className="text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 tracking-tight"
                         >
-                            <div className="relative inline-block">
-                                <h2 className="text-3xl text-indigo-600 font-bold tracking-wide uppercase">
-                                    Testimonials
-                                </h2>
-                                <div className="absolute -bottom-2 left-0 w-full h-1 bg-indigo-600"></div>
-                            </div>
-                        </div>
-                    </div>
+                            Testimonials
+                        </motion.h2>
+                    </motion.div>
                     
-                    <div className="mt-8">
+                    <div className="mt-4">
                         {/* Improved Testimonial Carousel */}
-                        <div className="relative h-[500px] overflow-hidden">
+                        <div className="relative h-[400px] overflow-hidden">
                             <div className="flex justify-center items-center h-full">
                                 {testimonials.map((testimonial, index) => {
                                     // Calculate position: -1 for left, 0 for center, 1 for right
@@ -435,23 +561,22 @@ const Home = () => {
             {/* Contact Section - Indigo-50 Background */}
             <div id="contact" className="bg-indigo-50 min-h-screen py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Heading Animation */}
+                    {/* Contact Section Heading */}
                     <motion.div 
-                        initial={{ scale: 0.5, opacity: 0, y: 50 }} // Start small & lower position
-                        animate={{ scale: [0.5, 1.5, 1], opacity: [0, 1, 1], y: [50, 0, 0] }}
-                        transition={{ duration: 1.8, ease: "easeOut", times: [0, 0.5, 1] }} // Zoom, hold, then shrink
+                        initial={{ y: 100, opacity: 0, scale: 0.5 }}
+                        whileInView={{ y: 0, opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ 
+                            duration: 1,
+                            ease: [0.6, 0.01, -0.05, 0.95],
+                            opacity: { duration: 0.6 },
+                            scale: { duration: 0.8 }
+                        }}
                         className="text-center relative overflow-hidden"
+                        ref={contactHeadingRef}
                     >
                         <motion.h2
-                            initial={{ backgroundSize: "100% 0%", opacity: 1 }} // No gradient initially
-                            animate={{ backgroundSize: "100% 100%", opacity: 1 }} // Slowly reveal gradient
-                            transition={{ duration: 1.5, ease: "easeInOut", delay: 0.8 }} // Delayed color reveal
-                            className="text-4xl font-bold uppercase bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
-                            style={{
-                                backgroundRepeat: "no-repeat",
-                                backgroundPosition: "bottom",
-                                backgroundSize: "100% 0%",
-                            }}
+                            className="text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 tracking-tight"
                         >
                             Contact Us
                         </motion.h2>
@@ -460,27 +585,64 @@ const Home = () => {
                     <div className="mt-8 flex flex-col md:flex-row gap-8 items-stretch">
                         {/* Contact Form - 50% Width */}
                         <div className="w-full md:w-1/2 flex flex-col">
-                            <form className="space-y-6 flex-1">
-                                    <div>
-                                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                                            Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            id="name"
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        placeholder="TrustChain"
-                                        />
+                            <form className="space-y-6 flex-1" onSubmit={handleContactSubmit}>
+                                {/* Form status messages */}
+                                {formStatus.error && (
+                                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                                        <div className="flex">
+                                            <div className="flex-shrink-0">
+                                                <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm text-red-700">{formStatus.error}</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                            Email
-                                        </label>
-                                        <input
-                                            type="email"
-                                            id="email"
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        placeholder="info@trustchain.org"
+                                )}
+                                
+                                {formStatus.isSubmitted && (
+                                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                                        <div className="flex">
+                                            <div className="flex-shrink-0">
+                                                <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm text-green-700">Thank you! Your message has been sent successfully.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div>
+                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                        Name <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="name"
+                                        value={contactForm.name}
+                                        onChange={handleContactInputChange}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        placeholder="Your name"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                        Email <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        id="email"
+                                        value={contactForm.email}
+                                        onChange={handleContactInputChange}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        placeholder="your.email@example.com"
+                                        required
                                     />
                                 </div>
                                 <div>
@@ -490,40 +652,86 @@ const Home = () => {
                                     <input
                                         type="text"
                                         id="subject"
+                                        value={contactForm.subject}
+                                        onChange={handleContactInputChange}
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="How can we help you?"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                                            Message
-                                        </label>
-                                        <textarea
-                                            id="message"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="message" className="block text-sm font-medium text-gray-700">
+                                        Message <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        id="message"
                                         rows={6}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={contactForm.message}
+                                        onChange={handleContactInputChange}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="We would love to hear from you"
-                                        ></textarea>
-                                    </div>
-                                    <div>
-                                        <button
-                                            type="submit"
-                                        className="w-full flex justify-center py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition-transform hover:scale-105"
-                                        >
-                                            Send Message
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
+                                        required
+                                    ></textarea>
+                                </div>
+                                <div>
+                                    <button
+                                        type="submit"
+                                        disabled={formStatus.isSubmitting}
+                                        className={`w-full flex justify-center py-3 px-6 border border-transparent rounded-md shadow-sm text-base font-medium text-white ${
+                                            formStatus.isSubmitting 
+                                                ? 'bg-indigo-400 cursor-not-allowed' 
+                                                : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition-transform hover:scale-105'
+                                        }`}
+                                    >
+                                        {formStatus.isSubmitting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Sending...
+                                            </>
+                                        ) : 'Send Message'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
 
                         {/* Google Map - 50% Width & Full Height */}
-                        <div className="w-full md:w-1/2 flex-1 rounded-lg overflow-hidden shadow-lg">
-                            <iframe 
-                                className="w-full h-full"
-                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3168.626248348173!2d-122.08424968469265!3d37.42199957982537!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808fba0281720e07%3A0x80d49c4a7aabb6e1!2sGoogleplex!5e0!3m2!1sen!2sus!4v1641767402635!5m2!1sen!2sus" 
+                        <div className="w-full md:w-1/2 flex-1 rounded-lg overflow-hidden shadow-lg relative">
+                            {/* World Map with Custom Pins */}
+                            <iframe
+                                className="w-full h-full min-h-[600px]"
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d26245469.5648655!2d-95.712891!3d37.09024!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzfCsDA1JzI0LjkiTiA5NcKwNDInMTIuMyJX!5e0!3m2!1sen!2sus!4v1616093740079!5m2!1sen!2sus"
                                 allowFullScreen="" 
-                                loading="lazy" 
+                                loading="lazy"
                             ></iframe>
+
+                            {/* Location Markers */}
+                            <div className="absolute top-4 right-4 bg-white p-4 rounded-lg shadow-md z-10">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Our Global Presence</h3>
+                                <ul className="space-y-2">
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-indigo-600 mr-2"></div>
+                                        <span className="text-sm text-gray-600">United States - HQ</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+                                        <span className="text-sm text-gray-600">United Kingdom</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-pink-500 mr-2"></div>
+                                        <span className="text-sm text-gray-600">Singapore</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-indigo-400 mr-2"></div>
+                                        <span className="text-sm text-gray-600">Kenya</span>
+                                    </li>
+                                    <li className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-purple-400 mr-2"></div>
+                                        <span className="text-sm text-gray-600">Brazil</span>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,74 +1,96 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { FaUser, FaIdCard, FaPhone, FaWallet, FaCamera, FaArrowRight } from 'react-icons/fa';
+import axios from 'axios';
 
 export default function UserRegistration() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { registerUser, loading, error } = useAuth();
+  
+  // Get email and password from location state if available
+  const initialEmail = location.state?.email || '';
+  const initialPassword = location.state?.password || '';
+  
   const [formData, setFormData] = useState({
-    ic_number: '',
     name: '',
-    password: '',
-    password_confirmation: '',
+    ic_number: '',
     phone_number: '',
-    gmail: '',
     wallet_address: '',
-    acceptedTerms: false
-  });
-  const [files, setFiles] = useState({
+    email: initialEmail,
+    gmail: initialEmail,
+    password: initialPassword,
+    password_confirmation: initialPassword,
     profile_picture: null,
     front_ic_picture: null,
     back_ic_picture: null
   });
+  
   const [formErrors, setFormErrors] = useState({});
+  const [previewUrls, setPreviewUrls] = useState({
+    profile_picture: null,
+    front_ic_picture: null,
+    back_ic_picture: null
+  });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    
+    if (files) {
+      setFormData(prev => ({ ...prev, [name]: files[0] }));
+      
+      // Create preview URL for the image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrls(prev => ({ ...prev, [name]: reader.result }));
+      };
+      reader.readAsDataURL(files[0]);
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  const handleFileChange = (e) => {
-    const { name, files: uploadedFiles } = e.target;
-    if (uploadedFiles.length > 0) {
-      setFiles(prev => ({ ...prev, [name]: uploadedFiles[0] }));
-      if (formErrors[name]) {
-        setFormErrors(prev => ({ ...prev, [name]: '' }));
-      }
-    }
-  };
-
   const validateForm = () => {
     const errors = {};
+    if (!formData.name) errors.name = 'Full name is required';
     if (!formData.ic_number) errors.ic_number = 'IC number is required';
-    if (!formData.name) errors.name = 'Name is required';
-    if (!formData.password) errors.password = 'Password is required';
-    if (formData.password.length < 8) errors.password = 'Password must be at least 8 characters';
-    if (formData.password !== formData.password_confirmation) {
-      errors.password_confirmation = 'Passwords do not match';
-    }
     if (!formData.phone_number) errors.phone_number = 'Phone number is required';
-    if (!formData.gmail) errors.gmail = 'Gmail is required';
-    if (!formData.gmail.endsWith('@gmail.com')) {
-      errors.gmail = 'Please enter a valid Gmail address';
-    }
-
-    if (!files.front_ic_picture) errors.front_ic_picture = 'Front IC picture is required';
-    if (!files.back_ic_picture) errors.back_ic_picture = 'Back IC picture is required';
-
+    if (!formData.front_ic_picture) errors.front_ic_picture = 'Front IC picture is required';
+    if (!formData.back_ic_picture) errors.back_ic_picture = 'Back IC picture is required';
     return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.acceptedTerms) {
-      setError('You must accept the Terms and Conditions to register');
-      return;
+    // Test file upload directly
+    if (formData.front_ic_picture) {
+      console.log('Testing direct file upload with front IC picture');
+      const testFormData = new FormData();
+      testFormData.append('test_file', formData.front_ic_picture);
+      
+      try {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/test-upload`, 
+          testFormData, 
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Accept': 'application/json'
+            }
+          }
+        );
+        console.log('Test upload response:', response.data);
+      } catch (err) {
+        console.error('Test upload error:', err);
+      }
     }
-
+    
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
@@ -76,331 +98,328 @@ export default function UserRegistration() {
     }
 
     try {
-      const registrationData = {
-        ...formData,
-        ...files
-      };
-      await registerUser(registrationData);
-      navigate('/user/dashboard');
+      console.log('Preparing user registration with data:', formData);
+      
+      // Create a FormData object for file uploads
+      const formDataObj = new FormData();
+      
+      // Add text fields
+      formDataObj.append('name', formData.name);
+      formDataObj.append('gmail', formData.gmail || formData.email);
+      formDataObj.append('email', formData.gmail || formData.email);
+      formDataObj.append('password', formData.password);
+      formDataObj.append('password_confirmation', formData.password_confirmation);
+      formDataObj.append('ic_number', formData.ic_number);
+      formDataObj.append('phone_number', formData.phone_number);
+      
+      if (formData.wallet_address) {
+        formDataObj.append('wallet_address', formData.wallet_address);
+      }
+      
+      formDataObj.append('type', 'user');
+      
+      // Add files - these are already File objects from the file input
+      if (formData.profile_picture) {
+        console.log('Adding profile picture:', formData.profile_picture);
+        formDataObj.append('profile_picture', formData.profile_picture, formData.profile_picture.name);
+      }
+      
+      if (formData.front_ic_picture) {
+        console.log('Adding front IC picture:', formData.front_ic_picture);
+        formDataObj.append('front_ic_picture', formData.front_ic_picture, formData.front_ic_picture.name);
+      }
+      
+      if (formData.back_ic_picture) {
+        console.log('Adding back IC picture:', formData.back_ic_picture);
+        formDataObj.append('back_ic_picture', formData.back_ic_picture, formData.back_ic_picture.name);
+      }
+      
+      console.log('Submitting user registration with FormData');
+      
+      // Log the FormData contents for debugging
+      console.log('FormData contents before submission:');
+      for (let pair of formDataObj.entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name + ' (File object)' : pair[1]));
+      }
+      
+      try {
+        // Use axios directly instead of the registerUser function
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/register/user`,
+          formDataObj,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Accept': 'application/json'
+            }
+          }
+        );
+        console.log('User registration successful:', response.data);
+        
+        // Store token in localStorage
+        localStorage.setItem('token', response.data.token);
+        
+        // Navigate to dashboard instead of login
+        navigate('/user/dashboard');
+      } catch (err) {
+        console.error('Registration error:', err);
+        
+        if (err.response) {
+          console.log('Error response status:', err.response.status);
+          console.log('Error response data:', err.response.data);
+          
+          if (err.response.status === 422 && err.response.data.errors) {
+            console.log('Validation errors:', err.response.data.errors);
+            
+            // Set specific field errors
+            const backendErrors = err.response.data.errors;
+            const formattedErrors = {};
+            
+            // Format backend errors for the form
+            Object.keys(backendErrors).forEach(field => {
+              formattedErrors[field] = Array.isArray(backendErrors[field]) 
+                ? backendErrors[field][0] 
+                : backendErrors[field];
+            });
+            
+            setFormErrors(formattedErrors);
+          } else if (err.response.data.message) {
+            setFormErrors({ general: err.response.data.message });
+          } else {
+            setFormErrors({ general: 'Registration failed. Please try again.' });
+          }
+        } else if (err.request) {
+          // The request was made but no response was received
+          console.log('No response received:', err.request);
+          setFormErrors({ general: 'No response received from server. Please check your connection.' });
+        } else {
+          // Something happened in setting up the request
+          console.log('Error setting up request:', err.message);
+          setFormErrors({ general: 'Error setting up request: ' + err.message });
+        }
+      }
     } catch (err) {
+      console.error('Registration error:', err);
       if (err.response?.data?.errors) {
         setFormErrors(err.response.data.errors);
+      } else if (err.response?.data?.message) {
+        setFormErrors({ general: err.response.data.message });
+      } else {
+        setFormErrors({ general: 'Registration failed. Please try again.' });
       }
     }
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-8 divide-y divide-gray-200">
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">{error}</h3>
-              </div>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+        <FaUser className="mr-2 text-indigo-600" /> User Registration
+      </h2>
+      
+      {formErrors.general && (
+        <div className="mb-6 rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                {formErrors.general}
+              </h3>
             </div>
           </div>
-        )}
-
-        <div className="space-y-6 pt-8">
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            {/* IC Number */}
-            <div className="sm:col-span-2">
-              <label htmlFor="ic_number" className="block text-sm font-medium text-gray-700">
-                IC Number
-              </label>
-              <div className="mt-1">
-                <input
-                  type="text"
-                  name="ic_number"
-                  id="ic_number"
-                  value={formData.ic_number}
-                  onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                />
-                {formErrors.ic_number && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.ic_number}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Name */}
-            <div className="sm:col-span-2">
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Column - Basic Information */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-700 border-b pb-2">Basic Information</h3>
+            
+            <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Full Name
+                Full Name <span className="text-red-600">*</span>
               </label>
               <div className="mt-1">
                 <input
-                  type="text"
-                  name="name"
                   id="name"
+                  name="name"
+                  type="text"
+                  required
                   value={formData.name}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 {formErrors.name && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.name}</p>
+                  <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                 )}
               </div>
             </div>
-
-            {/* Gmail */}
-            <div className="sm:col-span-2">
-              <label htmlFor="gmail" className="block text-sm font-medium text-gray-700">
-                Gmail
+            
+            <div>
+              <label htmlFor="ic_number" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaIdCard className="mr-1" /> IC Number <span className="text-red-600">*</span>
               </label>
               <div className="mt-1">
                 <input
-                  type="email"
-                  name="gmail"
-                  id="gmail"
-                  value={formData.gmail}
+                  id="ic_number"
+                  name="ic_number"
+                  type="text"
+                  required
+                  value={formData.ic_number}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
-                {formErrors.gmail && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.gmail}</p>
+                {formErrors.ic_number && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.ic_number}</p>
                 )}
               </div>
             </div>
-
-            {/* Phone Number */}
-            <div className="sm:col-span-2">
-              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">
-                Phone Number
+            
+            <div>
+              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaPhone className="mr-1" /> Phone Number <span className="text-red-600">*</span>
               </label>
               <div className="mt-1">
                 <input
-                  type="tel"
-                  name="phone_number"
                   id="phone_number"
+                  name="phone_number"
+                  type="text"
+                  required
                   value={formData.phone_number}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 {formErrors.phone_number && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.phone_number}</p>
+                  <p className="mt-1 text-sm text-red-600">{formErrors.phone_number}</p>
                 )}
               </div>
             </div>
-
-            {/* Wallet Address */}
-            <div className="sm:col-span-2">
-              <label htmlFor="wallet_address" className="block text-sm font-medium text-gray-700">
-                Wallet Address
+            
+            <div>
+              <label htmlFor="wallet_address" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaWallet className="mr-1" /> Wallet Address
               </label>
               <div className="mt-1">
                 <input
-                  type="text"
-                  name="wallet_address"
                   id="wallet_address"
+                  name="wallet_address"
+                  type="text"
                   value={formData.wallet_address}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 {formErrors.wallet_address && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.wallet_address}</p>
+                  <p className="mt-1 text-sm text-red-600">{formErrors.wallet_address}</p>
                 )}
               </div>
+            </div>
+          </div>
+          
+          {/* Right Column - Document Uploads */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-700 border-b pb-2">Document Uploads</h3>
+            
+            <div>
+              <label htmlFor="profile_picture" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaCamera className="mr-1" /> Profile Picture
+              </label>
+              <div className="mt-1 flex items-center space-x-4">
+                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                  <span className="block px-4 py-2 border border-gray-300 rounded-md shadow-sm">
+                    {formData.profile_picture ? 'Change Picture' : 'Upload Picture'}
+                  </span>
+                  <input
+                    id="profile_picture"
+                    name="profile_picture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                </label>
+                {previewUrls.profile_picture && (
+                  <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100">
+                    <img src={previewUrls.profile_picture} alt="Profile preview" className="h-full w-full object-cover" />
+                  </div>
+                )}
+              </div>
+              {formErrors.profile_picture && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.profile_picture}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="front_ic_picture" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaIdCard className="mr-1" /> Front IC Picture <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1 flex items-center space-x-4">
+                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                  <span className="block px-4 py-2 border border-gray-300 rounded-md shadow-sm">
+                    {formData.front_ic_picture ? 'Change Picture' : 'Upload Picture'}
+                  </span>
+                  <input
+                    id="front_ic_picture"
+                    name="front_ic_picture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                    required
+                    className="sr-only"
+                  />
+                </label>
+                {previewUrls.front_ic_picture && (
+                  <div className="h-16 w-24 overflow-hidden bg-gray-100">
+                    <img src={previewUrls.front_ic_picture} alt="Front IC preview" className="h-full w-full object-cover" />
+                  </div>
+                )}
+              </div>
+              {formErrors.front_ic_picture && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.front_ic_picture}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="back_ic_picture" className="block text-sm font-medium text-gray-700 flex items-center">
+                <FaIdCard className="mr-1" /> Back IC Picture <span className="text-red-600">*</span>
+              </label>
+              <div className="mt-1 flex items-center space-x-4">
+                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                  <span className="block px-4 py-2 border border-gray-300 rounded-md shadow-sm">
+                    {formData.back_ic_picture ? 'Change Picture' : 'Upload Picture'}
+                  </span>
+                  <input
+                    id="back_ic_picture"
+                    name="back_ic_picture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                    required
+                    className="sr-only"
+                  />
+                </label>
+                {previewUrls.back_ic_picture && (
+                  <div className="h-16 w-24 overflow-hidden bg-gray-100">
+                    <img src={previewUrls.back_ic_picture} alt="Back IC preview" className="h-full w-full object-cover" />
+                  </div>
+                )}
+              </div>
+              {formErrors.back_ic_picture && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.back_ic_picture}</p>
+              )}
             </div>
           </div>
         </div>
-
-        <div className="space-y-6 pt-8">
-          <div>
-            <h3 className="text-lg font-medium leading-6 text-gray-900">Security</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Set a strong password to secure your account
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  type="password"
-                  name="password"
-                  id="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                />
-                {formErrors.password && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.password}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Password Confirmation */}
-            <div>
-              <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <div className="mt-1">
-                <input
-                  type="password"
-                  name="password_confirmation"
-                  id="password_confirmation"
-                  value={formData.password_confirmation}
-                  onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                />
-                {formErrors.password_confirmation && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.password_confirmation}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6 pt-8">
-          <div>
-            <h3 className="text-lg font-medium leading-6 text-gray-900">Identity Verification</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Please provide clear photos of your identification card
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            {/* Profile Picture */}
-            <div className="sm:col-span-2">
-              <label htmlFor="profile_picture" className="block text-sm font-medium text-gray-700">
-                Profile Picture (Optional)
-              </label>
-              <div className="mt-1">
-                <input
-                  type="file"
-                  name="profile_picture"
-                  id="profile_picture"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                />
-                {formErrors.profile_picture && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.profile_picture}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Front IC Picture */}
-            <div>
-              <label htmlFor="front_ic_picture" className="block text-sm font-medium text-gray-700">
-                Front IC Picture
-              </label>
-              <div className="mt-1">
-                <input
-                  type="file"
-                  name="front_ic_picture"
-                  id="front_ic_picture"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                />
-                {formErrors.front_ic_picture && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.front_ic_picture}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Back IC Picture */}
-            <div>
-              <label htmlFor="back_ic_picture" className="block text-sm font-medium text-gray-700">
-                Back IC Picture
-              </label>
-              <div className="mt-1">
-                <input
-                  type="file"
-                  name="back_ic_picture"
-                  id="back_ic_picture"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                />
-                {formErrors.back_ic_picture && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.back_ic_picture}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-4 mt-6">
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
-              <input
-                id="terms"
-                name="terms"
-                type="checkbox"
-                checked={formData.acceptedTerms}
-                onChange={(e) => setFormData({ ...formData, acceptedTerms: e.target.checked })}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
-            <div className="ml-3">
-              <label htmlFor="terms" className="text-sm text-gray-600">
-                I agree to the{' '}
-                <Link to="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
-                  Terms and Conditions
-                </Link>
-                {' '}and{' '}
-                <Link to="/terms#privacy" className="text-blue-600 hover:text-blue-800 font-medium">
-                  Privacy Policy
-                </Link>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-8">
-          <div className="flex flex-col space-y-4">
-            <div className="flex justify-end">
-              <Link
-                to="/login"
-                className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Already have an account or want to register as an organization?</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Link
-                to="/login"
-                className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register/organization"
-                className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-              >
-                Register as Organization
-              </Link>
-            </div>
-          </div>
+        
+        <div className="mt-8">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            {loading ? 'Creating Account...' : 'Complete Registration'} 
+            {!loading && <FaArrowRight className="ml-2" />}
+          </button>
         </div>
       </form>
-    </>
+    </div>
   );
 } 

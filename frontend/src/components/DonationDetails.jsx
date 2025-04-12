@@ -19,11 +19,15 @@ import {
   FaExternalLinkAlt,
   FaCoins,
   FaChartLine,
+  FaEthereum,
+  FaCreditCard,
 } from 'react-icons/fa';
 import { ethers } from 'ethers';
 import { DonationContractABI } from '../utils/contractABI';
 import { formatImageUrl } from '../utils/helpers';
 import BackButton from './BackToHistory';
+import { SCROLL_CONFIG } from '../utils/scrollConfig';
+import { getDonationDetails } from '../services/donationService';
 
 export default function DonationDetails() {
   const { id } = useParams();
@@ -40,20 +44,18 @@ export default function DonationDetails() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchDonationDetails = async () => {
+    const fetchDonation = async () => {
       try {
-        setLoading(true);
-        const response = await axios.get(`/donations/${id}`);
-        setDonation(response.data);
+        const data = await getDonationDetails(id);
+        setDonation(data);
+        setLoading(false);
       } catch (err) {
-        console.error('Error fetching donation details:', err);
-        setError('Failed to fetch donation details');
-      } finally {
+        setError(err.message);
         setLoading(false);
       }
     };
 
-    fetchDonationDetails();
+    fetchDonation();
   }, [id]);
 
   const handleFileChange = (e) => {
@@ -179,6 +181,10 @@ export default function DonationDetails() {
   const viewOnBlockExplorer = () => {
     // Update to use Sepolia block explorer
     window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
+  };
+
+  const getBlockExplorerLink = (hash) => {
+    return `${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${hash}`;
   };
 
   if (loading) {
@@ -319,7 +325,19 @@ export default function DonationDetails() {
 
               <div className="sm:col-span-1">
                 <dt className="text-sm font-medium text-gray-500">Payment Method</dt>
-                <dd className="mt-1 text-sm text-gray-900">{donation.payment_method || 'Credit Card'}</dd>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {donation.payment_method === 'blockchain' ? (
+                    <>
+                      <FaEthereum className="mr-1 text-indigo-600" />
+                      Blockchain
+                    </>
+                  ) : (
+                    <>
+                      <FaCreditCard className="mr-1 text-gray-600" />
+                      Credit Card
+                    </>
+                  )}
+                </dd>
               </div>
 
               <div className="sm:col-span-2">
@@ -372,28 +390,56 @@ export default function DonationDetails() {
           </div>
 
           {/* Blockchain Verification Section */}
-          {donation.transaction_hash && (
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
-              <div className="mt-4">
-                <div className="flex items-center mb-4">
-                  <div className="flex-shrink-0 h-5 w-5 rounded-full bg-green-500 mr-2"></div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Verified on Blockchain
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
-                      <dd className="mt-1 text-sm text-gray-900 break-all">{donation.transaction_hash}</dd>
-                    </div>
+          {donation.payment_method === 'blockchain' && donation.transaction_hash && (
+            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Blockchain Verification</h3>
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Transaction Hash</h4>
+                    <a
+                      href={getBlockExplorerLink(donation.transaction_hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 flex items-center text-blue-600 hover:text-blue-800 break-all"
+                    >
+                      {donation.transaction_hash}
+                      <FaExternalLinkAlt className="ml-2 flex-shrink-0" />
+                    </a>
                   </div>
-                  
-                  <div className="mt-4">
-                    <button onClick={viewOnBlockExplorer} className="text-sm text-indigo-600 hover:text-indigo-900">
-                      View on Sepolia Explorer
+
+                  {donation.smart_contract_data && (
+                    <>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">From Address</h4>
+                        <p className="mt-1 text-sm text-gray-900 break-all">
+                          {JSON.parse(donation.smart_contract_data).from}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">To Address (Contract)</h4>
+                        <p className="mt-1 text-sm text-gray-900 break-all">
+                          {JSON.parse(donation.smart_contract_data).to}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Block Number</h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {JSON.parse(donation.smart_contract_data).blockNumber}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => window.open(getBlockExplorerLink(donation.transaction_hash), '_blank')}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      View on Scroll Explorer
+                      <FaExternalLinkAlt className="ml-2" />
                     </button>
                   </div>
                 </div>
@@ -730,13 +776,17 @@ export default function DonationDetails() {
                     <p className="text-sm text-gray-700">
                       <span className="font-semibold">Transfer Transaction:</span>
                     </p>
-                    <p className="text-xs break-all mt-1">{donation.transfer_transaction_hash}</p>
-                    <button 
-                      onClick={() => window.open(`https://sepolia.etherscan.io/tx/${donation.transfer_transaction_hash}`, '_blank')}
-                      className="mt-2 text-sm text-indigo-600 hover:text-indigo-900"
-                    >
-                      View Transfer on Sepolia Explorer
-                    </button>
+                    <p className="text-xs break-all mt-1">
+                      <a
+                        href={`${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${donation.transfer_transaction_hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center text-blue-600 hover:text-blue-800"
+                      >
+                        {donation.transfer_transaction_hash.slice(0, 6)}...{donation.transfer_transaction_hash.slice(-4)}
+                        <FaExternalLinkAlt className="ml-2" />
+                      </a>
+                    </p>
                   </div>
                 )}
               </div>

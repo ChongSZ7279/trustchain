@@ -74,101 +74,101 @@ export const connectWallet = async () => {
 };
 
 // Process donation through both blockchain and MySQL
-export const processDonation = async (charityId, amount, message = '') => {
+export const processDonation = async (charityId, amount, message) => {
+  console.log('Starting donation process...', { charityId, amount, message });
+  
   try {
-    // Check if charityId is valid
-    if (!charityId) {
-      console.error("Missing charity ID in processDonation");
-      return { success: false, error: "Missing charity ID" };
-    }
-    
-    console.log(`Processing donation: ${amount} ETH to charity ${charityId}`);
-    
-    // First attempt blockchain donation
+    // Try blockchain donation first
+    console.log('Attempting blockchain donation...');
     const blockchainResult = await donateToCharity(charityId, amount, message);
-    console.log("Blockchain donation result:", blockchainResult);
+    console.log('Blockchain donation result:', blockchainResult);
     
-    if (blockchainResult.success) {
-      // If blockchain donation succeeds, record it in MySQL using the new endpoint
+    if (blockchainResult.success && blockchainResult.transactionHash) {
+      console.log('Blockchain transaction successful, recording in database...');
       try {
-        console.log("Recording blockchain donation in database for charity ID:", charityId);
-        
-        // Use the new blockchain-donations endpoint
-        const token = localStorage.getItem('token');
-        const apiResponse = await axios({
-          method: 'post',
-          url: `${API_BASE_URL}/blockchain-donations`,  // Make sure this uses your API_BASE_URL
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          data: {
-            charity_id: charityId,
-            amount: amount,
-            transaction_hash: blockchainResult.transactionHash,
-            message: message || ''
-          }
+        // Convert BigInt values to strings before JSON stringification
+        const smartContractData = {
+          from: blockchainResult.from,
+          to: blockchainResult.to,
+          blockNumber: blockchainResult.blockNumber?.toString(),
+          gasUsed: blockchainResult.gasUsed?.toString(),
+          status: blockchainResult.status,
+          events: blockchainResult.events
+        };
+
+        // Use the dedicated endpoint for blockchain donations
+        const response = await api.post(`/blockchain-donations`, {
+          charity_id: charityId,
+          amount: amount,
+          message: message,
+          payment_method: 'blockchain',
+          transaction_hash: blockchainResult.transactionHash,
+          currency_type: 'ETH',
+          smart_contract_data: JSON.stringify(smartContractData)
         });
         
-        console.log("Database response:", apiResponse.data);
+        console.log('Database record created:', response.data);
         
         return {
           success: true,
-          data: apiResponse.data,
-          transactionHash: blockchainResult.transactionHash,
-          isBlockchain: true
-        };
-      } catch (apiError) {
-        console.error('Error recording blockchain donation in database:', apiError);
-        console.log("API error response:", apiError.response?.data);
-        
-        // Still return success since blockchain transaction worked
-        return {
-          success: true,
-          transactionHash: blockchainResult.transactionHash,
           isBlockchain: true,
-          databaseError: true
+          transactionHash: blockchainResult.transactionHash,
+          donationId: response.data.donation.id,
+          blockchainData: blockchainResult
+        };
+      } catch (dbError) {
+        console.error('Failed to record blockchain donation in database:', dbError);
+        console.error('Database error details:', dbError.response?.data);
+        // Even if database recording fails, return blockchain transaction info
+        return {
+          success: true,
+          isBlockchain: true,
+          transactionHash: blockchainResult.transactionHash,
+          databaseError: true,
+          blockchainData: blockchainResult,
+          error: dbError.response?.data?.message || dbError.message
         };
       }
-    } else {
-      // If blockchain fails, try regular API donation
-      console.log("Blockchain donation failed, trying API fallback...");
-      return await processDonationViaAPI(charityId, amount, message);
     }
   } catch (error) {
-    console.error('Donation processing error:', error);
-    return { success: false, error: error.message || 'Error processing donation' };
+    console.error('Blockchain donation failed:', error);
+    // If it's a user rejection, throw the error
+    if (error.message.includes('User denied') || error.message.includes('user rejected')) {
+      throw error;
+    }
+    // Otherwise, try API fallback
+    console.log('Falling back to API donation due to:', error.message);
   }
-};
 
-// Fallback API-only donation method
-export const processDonationViaAPI = async (charityId, amount, message = '') => {
+  // Fallback to API donation
+  console.log('Processing API donation...');
   try {
-    const response = await axios.post(`http://localhost:8000/api/charities/${charityId}/donations`, {
-      amount,
-      message,
-      blockchain_verified: false
+    const response = await api.post(`/donations`, {
+      charity_id: charityId,
+      amount: amount,
+      message: message,
+      payment_method: 'api',
+      currency_type: 'MYR'
     });
+    
+    console.log('API donation response:', response.data);
     
     return {
       success: true,
-      data: response.data,
-      transactionHash: response.data.donation?.id || `api-${Date.now()}`,
-      isBlockchain: false
+      isBlockchain: false,
+      donationId: response.data.donation.id
     };
   } catch (error) {
-    console.error('API donation error:', error);
-    return {
-      success: false,
-      error: error.response?.data?.message || 'Failed to process donation via API'
-    };
+    console.error('API donation failed:', error);
+    console.error('API error details:', error.response?.data);
+    throw new Error(error.response?.data?.message || 'Failed to process donation');
   }
 };
 
 // Get all donations for a charity
 export const getCharityDonations = async (charityId) => {
   try {
-    const response = await axios.get(`http://localhost:8000/api/charities/${charityId}/donations`);
+    const response = await api.get(`/charities/${charityId}/donations`);
     return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching donations:', error);
@@ -179,19 +179,33 @@ export const getCharityDonations = async (charityId) => {
 // When recording the blockchain donation, make sure you're sending the right data
 const recordBlockchainDonation = async (charityId, amount, transactionHash, message = '') => {
   try {
-    const response = await api.post('/api/blockchain-donations', {
-      charity_id: charityId,
-      amount: amount,
-      transaction_hash: transactionHash,
-      message: message
+    console.log("Recording blockchain donation using dedicated endpoint");
+    const token = localStorage.getItem('token');
+    
+    const response = await axios({
+      method: 'post',
+      url: `${API_BASE_URL}/blockchain-donations`,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      data: {
+        charity_id: charityId,
+        amount: amount,
+        transaction_hash: transactionHash,
+        message: message
+      }
     });
     
+    console.log("Blockchain donation recording response:", response.data);
     return {
       success: true,
+      data: response.data,
       donationId: response.data.donation_id
     };
   } catch (error) {
-    console.error('API error response:', error.response?.data || error);
+    console.error('Blockchain donation recording error:', error);
+    console.log('Error details:', error.response?.data || error.message);
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to record donation in database'
@@ -269,5 +283,18 @@ const initWeb3 = async () => {
   } catch (error) {
     console.error("Error initializing Web3:", error);
     throw error;
+  }
+};
+
+// Get donation details
+export const getDonationDetails = async (donationId) => {
+  try {
+    console.log('Fetching donation details for ID:', donationId);
+    const response = await api.get(`/donations/${donationId}`);
+    console.log('Donation details response:', response.data);
+    return response.data.donation || response.data;
+  } catch (error) {
+    console.error('Error fetching donation details:', error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch donation details');
   }
 }; 

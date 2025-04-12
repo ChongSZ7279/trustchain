@@ -83,23 +83,27 @@ class DonationController extends Controller
                 ] : null
             ]);
 
-            $validated = $request->validate([
+            $validationRules = [
                 'amount' => 'required|numeric|min:0',
+                'message' => 'nullable|string|max:500',
+                'payment_method' => 'required|string|in:api,blockchain',
                 'currency_type' => 'required|string',
-                'cause_id' => 'required|exists:charities,id',
-                'donor_message' => 'nullable|string|max:500',
-                'is_anonymous' => 'boolean',
                 'transaction_hash' => 'nullable|string',
-                'smart_contract_data' => 'nullable|array'
-            ]);
+                'smart_contract_data' => 'nullable|json'
+            ];
+
+            $validated = $request->validate($validationRules);
 
             // Log validated data
             \Log::info('Validated donation data:', $validated);
 
+            // Get charity ID from route parameter
+            $charityId = $request->route('id');
+            
             // Check if charity exists
-            $charity = Charity::find($validated['cause_id']);
+            $charity = Charity::find($charityId);
             if (!$charity) {
-                \Log::error('Charity not found:', ['cause_id' => $validated['cause_id']]);
+                \Log::error('Charity not found:', ['charity_id' => $charityId]);
                 return response()->json(['message' => 'Charity not found'], 404);
             }
 
@@ -110,36 +114,35 @@ class DonationController extends Controller
             // Create transaction first
             $transaction = Transaction::create([
                 'user_ic' => Auth::user()->ic_number,
-                'charity_id' => $validated['cause_id'],
+                'charity_id' => $charityId,
                 'amount' => $validated['amount'],
                 'type' => 'charity',
-                'status' => 'pending',
-                'message' => $validated['donor_message'] ?? null,
-                'anonymous' => $validated['is_anonymous'] ?? false,
+                'status' => $validated['payment_method'] === 'blockchain' ? 'completed' : 'pending',
+                'message' => $validated['message'] ?? null,
                 'transaction_hash' => $validated['transaction_hash'] ?? null
             ]);
 
             // Log transaction creation
             \Log::info('Transaction created:', $transaction->toArray());
 
-            // Create donation record with transaction_id
-            $donation = Donation::create([
+            // Create donation record
+            $donationData = [
                 'user_id' => Auth::user()->ic_number,
-                'transaction_hash' => $validated['transaction_hash'] ?? null,
+                'transaction_id' => $transaction->id,
                 'amount' => $validated['amount'],
+                'cause_id' => $charityId,
+                'status' => $validated['payment_method'] === 'blockchain' ? 'completed' : 'pending',
+                'donor_message' => $validated['message'] ?? null,
+                'payment_method' => $validated['payment_method'],
                 'currency_type' => $validated['currency_type'],
-                'cause_id' => $validated['cause_id'],
-                'status' => 'pending',
-                'donor_message' => $validated['donor_message'] ?? null,
-                'is_anonymous' => $validated['is_anonymous'] ?? false,
+                'transaction_hash' => $validated['transaction_hash'] ?? null,
                 'smart_contract_data' => $validated['smart_contract_data'] ?? null
-            ]);
+            ];
+
+            $donation = Donation::create($donationData);
 
             // Log donation creation
             \Log::info('Donation created:', $donation->toArray());
-
-            // Link the transaction to the donation
-            $transaction->donation()->save($donation);
 
             DB::commit();
 
@@ -158,11 +161,7 @@ class DonationController extends Controller
             DB::rollBack();
             \Log::error('Validation error:', [
                 'errors' => $e->errors(),
-                'data' => $request->all(),
-                'user' => Auth::user() ? [
-                    'id' => Auth::id(),
-                    'ic_number' => Auth::user()->ic_number
-                ] : null
+                'data' => $request->all()
             ]);
             return response()->json([
                 'message' => 'Validation failed',
@@ -170,16 +169,10 @@ class DonationController extends Controller
             ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Donation creation failed:', [
+            \Log::error('Error creating donation:', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $request->all(),
-                'user' => Auth::user() ? [
-                    'id' => Auth::id(),
-                    'ic_number' => Auth::user()->ic_number
-                ] : null
+                'trace' => $e->getTraceAsString()
             ]);
-            
             return response()->json([
                 'message' => 'Failed to create donation',
                 'error' => $e->getMessage()
@@ -578,32 +571,78 @@ class DonationController extends Controller
             $userId = auth()->user()->ic_number;
             \Log::info('User ID for donation', ['user_id' => $userId, 'ic_number' => $userId]);
             
-            // Create the donation with explicit values for all required fields
-            $donation = new Donation();
-            $donation->cause_id = $validated['charity_id'];
-            $donation->amount = $validated['amount'];
-            $donation->transaction_hash = $validated['transaction_hash'];
-            $donation->donor_message = $validated['message'] ?? null;
-            $donation->status = 'completed';
-            $donation->currency_type = 'ETH';
-            $donation->is_anonymous = false;
-            $donation->user_id = $userId; // This should be the ic_number
+            // Start a database transaction
+            DB::beginTransaction();
             
-            // Add created_at and updated_at timestamps manually if needed
-            $now = now();
-            $donation->created_at = $now;
-            $donation->updated_at = $now;
-            
-            $donation->save();
-            
-            \Log::info('Blockchain donation saved', ['donation_id' => $donation->id]);
-            
+            try {
+                // Create transaction record first
+                $transaction = Transaction::create([
+                    'user_ic' => $userId,
+                    'charity_id' => $validated['charity_id'],
+                    'amount' => $validated['amount'],
+                    'type' => 'charity',
+                    'status' => 'completed', // Blockchain transactions are considered complete
+                    'message' => $validated['message'] ?? null,
+                    'anonymous' => false,
+                    'transaction_hash' => $validated['transaction_hash']
+                ]);
+                
+                \Log::info('Transaction record created for blockchain donation', ['transaction_id' => $transaction->id]);
+                
+                // Create the donation with transaction_id
+                $donation = new Donation();
+                $donation->cause_id = $validated['charity_id'];
+                $donation->amount = $validated['amount'];
+                $donation->transaction_hash = $validated['transaction_hash'];
+                $donation->transaction_id = $transaction->id; // Link to transaction record
+                $donation->donor_message = $validated['message'] ?? null;
+                $donation->status = 'completed';
+                $donation->currency_type = 'ETH';
+                $donation->is_anonymous = false;
+                $donation->user_id = $userId;
+                $donation->payment_method = 'blockchain';
+                $donation->save();
+                
+                \Log::info('Blockchain donation saved', ['donation_id' => $donation->id]);
+                
+                // Try to verify the transaction on-chain
+                try {
+                    $this->verifyBlockchainTransaction($validated['transaction_hash']);
+                } catch (\Exception $e) {
+                    \Log::error('Blockchain donation error', [
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                        'request' => $request->all()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'error' => $e->getMessage()
+                    ], 500);
+                }
+            } catch (\Exception $e) {
+                DB::rollBack();
+                \Log::error('Blockchain donation error', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'request' => $request->all()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
                 'donation_id' => $donation->id,
                 'message' => 'Blockchain donation recorded successfully'
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             \Log::error('Blockchain donation error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -623,22 +662,38 @@ class DonationController extends Controller
             // Update to use Sepolia testnet
             $provider = new \Web3\Providers\HttpProvider(
                 new \Web3\RequestManagers\HttpRequestManager(
-                    'https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID', // Replace with your Infura project ID
+                    'https://sepolia.infura.io/v3/' . env('INFURA_PROJECT_ID'),
                     [
                         'timeout' => 30,
                     ]
                 )
             );
             
-            // ... existing code ...
+            $web3 = new \Web3\Web3($provider);
+            $eth = $web3->eth;
             
-            return [
-                'verified' => true,
-                'network' => 'sepolia',
-                // ... existing code ...
-            ];
+            // Get transaction receipt
+            $receipt = null;
+            $eth->getTransactionReceipt($transactionHash, function ($err, $result) use (&$receipt) {
+                if ($err !== null) {
+                    throw $err;
+                }
+                $receipt = $result;
+            });
+            
+            if (!$receipt) {
+                throw new \Exception('Transaction not found or not mined yet');
+            }
+            
+            // Check if transaction was successful
+            if ($receipt->status === '0x0') {
+                throw new \Exception('Transaction failed');
+            }
+            
+            return true;
         } catch (\Exception $e) {
-            // ... existing code ...
+            \Log::error('Error verifying blockchain transaction: ' . $e->getMessage());
+            throw $e;
         }
     }
 
@@ -840,5 +895,54 @@ class DonationController extends Controller
     private function toWei($eth)
     {
         return bcmul($eth, '1000000000000000000');
+    }
+
+    /**
+     * Test endpoint for donations
+     */
+    public function testDonation(Request $request, $id)
+    {
+        try {
+            \Log::info('Test donation request received:', [
+                'data' => $request->all(),
+                'charity_id' => $id
+            ]);
+
+            // Validate the request
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:0.01',
+                'payment_method' => 'required|string',
+                'message' => 'nullable|string'
+            ]);
+
+            // Check if charity exists
+            $charity = \App\Models\Charity::find($id);
+            if (!$charity) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Charity not found'
+                ], 404);
+            }
+
+            // Return success response without actually creating a donation
+            return response()->json([
+                'success' => true,
+                'message' => 'Test donation received successfully',
+                'charity_id' => $id,
+                'amount' => $validated['amount'],
+                'payment_method' => $validated['payment_method']
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Test donation failed:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Test donation failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

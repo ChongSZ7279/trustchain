@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useBlockchain } from '../context/BlockchainContext';
 import { formatImageUrl, getFileType, setupGlobalImageErrorHandler } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import DonationForm from './DonationForm';
@@ -52,7 +53,6 @@ import Web3 from 'web3';
 import CharityContract from '../contracts/CharityContract.json';
 import MilestoneTracker from './MilestoneTracker';
 import TransactionHistory from './TransactionHistory';
-import { useBlockchain } from '../context/BlockchainContext';
 import BlockchainVerificationBadge from './BlockchainVerificationBadge';
 import WalletConnectButton from './WalletConnectButton';
 import { verifyTransaction } from '../utils/blockchainUtils';
@@ -193,8 +193,6 @@ export default function CharityDetails() {
   const [donationAmount, setDonationAmount] = useState('');
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
-  const [web3, setWeb3] = useState(null);
-  const [contract, setContract] = useState(null);
   const [account, setAccount] = useState('');
   const [milestones, setMilestones] = useState([]);
   const [userToken, setUserToken] = useState(localStorage.getItem('token'));
@@ -211,13 +209,16 @@ export default function CharityDetails() {
     name: null
   });
 
+  const blockchainContext = useBlockchain() || {};
   const { 
     account: blockchainAccount, 
-    donateToCharity, 
-    getCharityDonations, 
-    loading: blockchainLoading, 
-    error: blockchainError 
-  } = useBlockchain();
+    isLoading: blockchainLoading, 
+    error: blockchainError,
+    contract,
+    web3,
+    isConnected,
+    connectWallet
+  } = blockchainContext;
   
   const [blockchainDonations, setBlockchainDonations] = useState([]);
   const [donationLoading, setDonationLoading] = useState(false);
@@ -227,6 +228,10 @@ export default function CharityDetails() {
 
   // Add a state for the current data source
   const [currentDataSource, setCurrentDataSource] = useState('transactions');
+
+  // Add a loading state for blockchain donations
+  const [isLoadingBlockchainDonations, setIsLoadingBlockchainDonations] = useState(false);
+  const [blockchainDonationsError, setBlockchainDonationsError] = useState(null);
 
   // Add a function to load data based on the current data source
   const loadDataBySource = async (source) => {
@@ -516,7 +521,7 @@ export default function CharityDetails() {
         
         // Explicitly fetch donations again
         try {
-          const donationsResponse = await axios.get(`http://localhost:8000/api/charities/${id}/donations`);
+          const donationsResponse = await axios.get(`/api/charities/${id}/donations`);
           console.log("Fetched donations:", donationsResponse.data);
           // Handle paginated response
           setDonations(donationsResponse.data.data || donationsResponse.data);
@@ -524,17 +529,25 @@ export default function CharityDetails() {
           console.error("Error fetching donations:", donationError);
         }
         
-        // Also refresh blockchain donations if the function is available
+        // Also refresh blockchain donations if the contract is available
         try {
-          if (typeof getCharityDonations === 'function') {
-            const blockchainDonations = await getCharityDonations(id);
-            console.log("Fetched blockchain donations:", blockchainDonations);
-            setBlockchainDonations(blockchainDonations);
-          } else {
-            console.warn("getCharityDonations is not a function");
+          if (contract && charity?.blockchain_id) {
+            const donations = await contract.methods.getCharityDonations(charity.blockchain_id).call();
+            const formattedDonations = donations.map(donation => ({
+              transactionHash: donation.transactionHash,
+              amount: web3.utils.fromWei(donation.amount, 'ether'),
+              donor: donation.donor,
+              timestamp: new Date(donation.timestamp * 1000).toISOString()
+            }));
+            console.log("Fetched blockchain donations:", formattedDonations);
+            setBlockchainDonations(formattedDonations);
           }
         } catch (blockchainError) {
           console.error("Error fetching blockchain donations:", blockchainError);
+          // Only show error toast if it's not a "Contract not initialized" error
+          if (blockchainError.message !== 'Contract not initialized') {
+            toast.error('Failed to fetch blockchain donations');
+          }
         }
       } else {
         toast.error('Donation process was incomplete. Please try again.');
@@ -547,21 +560,37 @@ export default function CharityDetails() {
     }
   };
 
-  // Add a new useEffect to fetch blockchain donations
+  // Update the useEffect for fetching blockchain donations
   useEffect(() => {
     const fetchBlockchainDonations = async () => {
-      if (!charity?.blockchain_id) return;
-      
+      if (!charity?.blockchain_id || !contract || !web3) {
+        setBlockchainDonations([]);
+        return;
+      }
+
       try {
-        const donations = await getCharityDonations(charity.blockchain_id);
-        setBlockchainDonations(donations);
+        setIsLoadingBlockchainDonations(true);
+        setBlockchainDonationsError(null);
+        
+        const donations = await contract.methods.getCharityDonations(charity.blockchain_id).call();
+        const formattedDonations = donations.map(donation => ({
+          transactionHash: donation.transactionHash,
+          amount: web3.utils.fromWei(donation.amount, 'ether'),
+          donor: donation.donor,
+          timestamp: new Date(donation.timestamp * 1000).toISOString()
+        }));
+        setBlockchainDonations(formattedDonations);
       } catch (error) {
         console.error('Error fetching blockchain donations:', error);
+        setBlockchainDonationsError(error.message);
+        setBlockchainDonations([]);
+      } finally {
+        setIsLoadingBlockchainDonations(false);
       }
     };
     
     fetchBlockchainDonations();
-  }, [charity, getCharityDonations]);
+  }, [charity, contract, web3]);
 
   // Update the useEffect for combining transactions
   useEffect(() => {
@@ -655,6 +684,27 @@ export default function CharityDetails() {
     } catch (error) {
       console.error('Error during verification:', error);
       toast.error('Could not verify transaction');
+    }
+  };
+
+  // Add a function to handle wallet connection with feedback
+  const handleConnectWallet = async () => {
+    try {
+      toast.loading('Connecting to wallet...', { id: 'wallet-connect' });
+      
+      console.log("Attempting wallet connection from CharityDetails");
+      const success = await connectWallet();
+      
+      if (success) {
+        toast.success('Wallet connected successfully!', { id: 'wallet-connect' });
+        console.log("Wallet connected successfully");
+      } else {
+        toast.error('Failed to connect wallet', { id: 'wallet-connect' });
+        console.log("Wallet connection failed");
+      }
+    } catch (error) {
+      console.error("Wallet connection error:", error);
+      toast.error(`Wallet connection error: ${error.message}`, { id: 'wallet-connect' });
     }
   };
 
@@ -1216,7 +1266,36 @@ export default function CharityDetails() {
                 
                 <div className="mb-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Wallet Connection</h3>
-                  {blockchainAccount ? (
+                  {blockchainLoading ? (
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-gray-800">Connecting to wallet...</h4>
+                        </div>
+                      </div>
+                    </div>
+                  ) : blockchainError ? (
+                    <div className="p-4 bg-red-50 rounded-lg">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-red-800">Connection Error</h4>
+                          <p className="mt-1 text-sm text-red-700">{blockchainError}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleConnectWallet}
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  ) : blockchainAccount ? (
                     <div className="p-4 bg-green-50 rounded-lg">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
@@ -1247,16 +1326,38 @@ export default function CharityDetails() {
                           </p>
                         </div>
                       </div>
-                      <div className="mt-4">
-                        <WalletConnectButton />
-                      </div>
+                      <button
+                        onClick={handleConnectWallet}
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Connect Wallet
+                      </button>
                     </div>
                   )}
                 </div>
                 
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Blockchain Donations</h3>
-                  {blockchainDonations.length > 0 ? (
+                  {isLoadingBlockchainDonations ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Loading blockchain donations...</p>
+                    </div>
+                  ) : blockchainDonationsError ? (
+                    <div className="text-center py-8">
+                      <svg className="mx-auto h-12 w-12 text-red-400 mb-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Donations</h3>
+                      <p className="text-gray-600 mb-4">{blockchainDonationsError}</p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  ) : blockchainDonations.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -1288,7 +1389,11 @@ export default function CharityDetails() {
                                   rel="noopener noreferrer"
                                   className="text-indigo-600 hover:text-indigo-900"
                                 >
-                                  {donation.transactionHash.substring(0, 10)}...
+                                  {(() => {
+                                    const id = donation.transactionHash || donation.id;
+                                    if (!id) return 'N/A';
+                                    return typeof id === 'string' ? id.slice(0, 8) : `#${id}`;
+                                  })()}
                                 </a>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1386,7 +1491,11 @@ export default function CharityDetails() {
                                   {formatDate(transaction.created_at || new Date())}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                                  {(transaction.transaction_hash || transaction.id || 'Unknown')?.slice(0, 8)}
+                                  {(() => {
+                                    const id = transaction.transaction_hash || transaction.id;
+                                    if (!id) return 'N/A';
+                                    return typeof id === 'string' ? id.slice(0, 8) : `#${id}`;
+                                  })()}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className="text-sm text-gray-500">

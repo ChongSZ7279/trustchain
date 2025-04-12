@@ -1,4 +1,5 @@
 import axios from 'axios';
+import API_BASE_URL from '../config/api';
 
 // Function to test donation API directly
 export const testDonationAPI = async (charityId) => {
@@ -8,18 +9,18 @@ export const testDonationAPI = async (charityId) => {
     // Get the auth token
     const token = localStorage.getItem('token');
     
-    // Test without auth
+    // Test with auth
     const response = await axios({
       method: 'post',
-      url: `http://localhost:8000/api/blockchain-donations-noauth`,
+      url: `${API_BASE_URL}/charities/${charityId}/donations/test`,
       headers: {
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       data: {
-        charity_id: charityId,
         amount: 0.01,
-        transaction_hash: `test-${Date.now()}`,
-        message: 'Test donation (no auth)'
+        payment_method: 'api',
+        donor_message: 'Test donation'
       }
     });
     

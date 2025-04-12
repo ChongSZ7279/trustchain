@@ -19,6 +19,7 @@ use App\Http\Controllers\FixTaskController;
 use App\Http\Controllers\FinancialActivityController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\BlockchainController;
+use App\Http\Controllers\StripePaymentController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -34,6 +35,7 @@ Route::get('/organizations/{id}', [OrganizationController::class, 'show']);
 Route::get('/charities', [CharityController::class, 'index']);
 Route::get('/charities/{id}', [CharityController::class, 'show']);
 Route::get('/organizations/{id}/charities', [CharityController::class, 'organizationCharities']);
+Route::post('/charities/{id}/donations', [DonationController::class, 'store'])->middleware('auth:sanctum');
 
 // Public task routes
 Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
@@ -88,8 +90,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{userId}/transactions', [TransactionController::class, 'getUserTransactions']);
 
     // Donation routes
-    Route::apiResource('donations', DonationController::class);
-    Route::get('/charities/{charity}/donations', [DonationController::class, 'getCharityDonations']);
+    Route::get('/charities/{id}/donations', [DonationController::class, 'charityDonations']);
+    Route::post('/charities/{id}/donations', [DonationController::class, 'store']);
+    Route::get('/donations/{donation}', [DonationController::class, 'show']);
+    
+    // Other donation-related routes
+    Route::post('/blockchain-donations', [DonationController::class, 'storeBlockchainDonation']);
+    Route::get('/user/donations', [DonationController::class, 'userDonations']);
 
     // Combined financial activities routes
     Route::get('/financial-activities', [FinancialActivityController::class, 'index']);
@@ -106,6 +113,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/donations/{donation}/invoice', [DonationController::class, 'generateInvoice']);
     Route::get('/donations/{donation}/invoice-html', [DonationController::class, 'generateInvoiceHtml']);
 });
+
+// Test route for donations without auth
+Route::post('/charities/{id}/donations/test', [DonationController::class, 'testDonation']);
 
 // Add a test route to check storage configuration
 Route::get('/storage-test', function () {
@@ -390,5 +400,5 @@ Route::post('/contact', [ContactController::class, 'submit']);
 Route::get('/blockchain/donation-count', [BlockchainController::class, 'getDonationCount']);
 Route::post('/blockchain/verify-transaction', [BlockchainController::class, 'verifyTransaction']);
 
-// Add this route to your API routes
-Route::post('/blockchain-donations', [DonationController::class, 'storeBlockchainDonation'])->middleware('auth:sanctum'); 
+// Add Stripe payment routes
+Route::post('/process-card-payment', [StripePaymentController::class, 'processPayment'])->middleware('auth:sanctum'); 

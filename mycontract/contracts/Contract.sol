@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 /**
- * @title Donation Contract
+ * @title Advanced Donation Contract
  * @dev A contract that allows users to make donations and transactions
  */
-contract DonationContract {
+contract AdvancedDonationContract {
     address public owner;
     
     // Structure to store donation information

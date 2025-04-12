@@ -1,42 +1,131 @@
 import Web3 from 'web3';
 import { DonationContractABI, DonationContractAddress } from '../contracts/DonationContractABI';
+import { SCROLL_CONFIG, addScrollNetwork } from './scrollConfig';
 
 let web3;
 let contract;
 let account;
+let contractInstance;
 
 // Initialize Web3 and contract
 export const initWeb3 = async () => {
   if (window.ethereum) {
     try {
+      console.log("initWeb3: Web3 provider detected");
+      
       // Request account access
+      console.log("initWeb3: Requesting account access");
       await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      // Create Web3 instance
+      console.log("initWeb3: Creating Web3 instance");
       web3 = new Web3(window.ethereum);
       
       // Get user account
+      console.log("initWeb3: Getting accounts");
       const accounts = await web3.eth.getAccounts();
       account = accounts[0];
+      console.log("initWeb3: Current account:", account);
+      
+      // Get current chain ID
+      console.log("initWeb3: Getting chain ID");
+      const chainId = await web3.eth.getChainId();
+      console.log("initWeb3: Current chain ID:", chainId);
       
       // Initialize contract with the ABI and address
       const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
-      console.log("Using contract address:", contractAddress);
+      console.log("initWeb3: Using contract address:", contractAddress);
       
       if (!contractAddress) {
+        console.error("initWeb3: Contract address is not defined in environment variables");
         throw new Error("Contract address is not defined in environment variables");
       }
       
+      console.log("initWeb3: Creating contract instance with ABI:", !!DonationContractABI);
       contract = new web3.eth.Contract(
         DonationContractABI,
         contractAddress
       );
       
-      return { web3, contract, account };
+      // Store the contract instance globally
+      console.log("initWeb3: Storing contract instance globally");
+      contractInstance = contract;
+      
+      return { web3, contract, account, chainId };
     } catch (error) {
       console.error("Error initializing Web3:", error);
-      throw error;
+      // Add more descriptive error message
+      let errorMessage = error.message;
+      if (error.code === 4001) {
+        errorMessage = "You rejected the connection request. Please approve the MetaMask connection.";
+      } else if (!window.ethereum.isConnected()) {
+        errorMessage = "MetaMask is not connected to the network. Please check your connection.";
+      }
+      throw new Error(errorMessage);
     }
   } else {
+    console.error("initWeb3: No Ethereum provider detected. Please install MetaMask");
     throw new Error('Please install MetaMask or another Web3 provider');
+  }
+};
+
+// Switch to Scroll network
+export const switchToScroll = async () => {
+  try {
+    console.log('Attempting to switch to Scroll network...');
+    
+    if (!window.ethereum) {
+      throw new Error('MetaMask is not installed. Please install MetaMask to continue.');
+    }
+
+    const chainIdHex = `0x${Number(SCROLL_CONFIG.NETWORK.CHAIN_ID).toString(16)}`;
+    console.log('Target chain ID:', chainIdHex);
+
+    // First try to switch to the network if it already exists
+    try {
+      console.log('Attempting to switch to existing Scroll network...');
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: chainIdHex }],
+      });
+      console.log('Successfully switched to existing Scroll network');
+      return true;
+    } catch (switchError) {
+      console.log('Switch error:', switchError);
+      
+      // This error code indicates that the chain has not been added to MetaMask
+      if (switchError.code === 4902 || 
+          switchError.message.includes('Unrecognized chain ID') || 
+          switchError.message.includes('chain must be added')) {
+        console.log('Scroll network not found, attempting to add it...');
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: chainIdHex,
+              chainName: SCROLL_CONFIG.NETWORK.NAME,
+              nativeCurrency: {
+                name: SCROLL_CONFIG.NETWORK.CURRENCY.NAME,
+                symbol: SCROLL_CONFIG.NETWORK.CURRENCY.SYMBOL,
+                decimals: SCROLL_CONFIG.NETWORK.CURRENCY.DECIMALS
+              },
+              rpcUrls: [SCROLL_CONFIG.NETWORK.RPC_URL],
+              blockExplorerUrls: [SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL]
+            }]
+          });
+          console.log('Successfully added Scroll network');
+          return true;
+        } catch (addError) {
+          console.error('Error adding Scroll network:', addError);
+          throw new Error(`Failed to add Scroll network: ${addError.message}`);
+        }
+      }
+      console.error('Error switching to Scroll network:', switchError);
+      throw new Error(`Failed to switch to Scroll network: ${switchError.message}`);
+    }
+  } catch (error) {
+    console.error('Error in switchToScroll:', error);
+    throw error;
   }
 };
 
@@ -62,87 +151,68 @@ export const donate = async (amount, message = '') => {
 };
 
 // Donate to a specific charity
-export const donateToCharity = async (charityId, amount, message = '') => {
+export const donateToCharity = async (charityId, amount, message) => {
   try {
+    console.log('Starting blockchain donation...', { charityId, amount, message });
+    
+    // Check if wallet is connected
     if (!window.ethereum) {
-      throw new Error('No Ethereum wallet detected. Please install MetaMask.');
+      throw new Error('Please install MetaMask to make a blockchain donation');
     }
-    
-    // Initialize Web3 if not already done
-    const { contract: contractInstance } = await initWeb3();
-    
-    // Get the current account
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+    // Initialize Web3
+    const web3 = new Web3(window.ethereum);
+    const accounts = await web3.eth.getAccounts();
     const account = accounts[0];
     
     if (!account) {
-      throw new Error('No account found. Please connect your wallet.');
+      throw new Error('No account found. Please connect your wallet');
     }
     
-    // Convert amount to wei (1 ETH = 10^18 wei)
-    const web3 = new Web3(window.ethereum);
+    console.log('Connected account:', account);
+
+    // Convert amount to wei
     const amountInWei = web3.utils.toWei(amount.toString(), 'ether');
-    
-    // Use the contract instance from initWeb3
-    if (!contractInstance) {
-      throw new Error('Contract not initialized. Please try again.');
+    console.log('Amount in wei:', amountInWei);
+
+    // Get contract instance
+    const contract = await getContractInstance();
+    if (!contract) {
+      throw new Error('Failed to initialize contract');
     }
     
-    console.log("Contract methods:", Object.keys(contractInstance.methods));
-    
-    // Check if the donate method exists and log its parameters
-    if (contractInstance.methods.donate) {
-      console.log("Calling donate with charityId:", charityId);
-      
-      // Make the donation - try different parameter formats based on the contract
-      let result;
-      
-      try {
-        // Try calling with just the value parameter (no explicit charityId)
-        result = await contractInstance.methods.donate().send({
-          from: account,
-          value: amountInWei,
-          gas: 300000
-        });
-      } catch (error) {
-        console.error("First donation attempt failed:", error);
-        
-        try {
-          // Try calling with the charityId as a string
-          result = await contractInstance.methods.donate(charityId.toString()).send({
-            from: account,
-            value: amountInWei,
-            gas: 300000
-          });
-        } catch (error2) {
-          console.error("Second donation attempt failed:", error2);
-          
-          // Try with message parameter if the contract expects it
-          result = await contractInstance.methods.donate(message).send({
-            from: account,
-            value: amountInWei,
-            gas: 300000
-          });
-        }
-      }
-      
-      console.log('Donation successful:', result);
-      return {
-        success: true,
-        transactionHash: result.transactionHash,
-        amount: amount
-      };
-    } else {
-      throw new Error('The donate method does not exist on the contract');
-    }
+    console.log('Contract methods:', contract.methods);
+
+    // Call donate with the correct parameter order
+    console.log('Calling donate(uint256,string) with params:', {
+      charityId: Number(charityId),
+      message: message || '',
+      value: amountInWei
+    });
+
+    const result = await contract.methods.donate(
+      Number(charityId),
+      message || ''
+    ).send({
+      from: account,
+      value: amountInWei
+    });
+
+    console.log('Transaction successful:', result);
+
+    return {
+      success: true,
+      transactionHash: result.transactionHash,
+      from: result.from,
+      to: result.to,
+      blockNumber: result.blockNumber,
+      gasUsed: result.gasUsed,
+      status: result.status,
+      events: result.events
+    };
   } catch (error) {
     console.error('Error in donateToCharity:', error);
-    // Return a structured error object
-    return {
-      success: false,
-      error: error.message || 'Unknown error occurred',
-      errorObject: error
-    };
+    throw error;
   }
 };
 
@@ -270,11 +340,16 @@ export const setupAccountChangeListener = (callback) => {
 };
 
 // Add this function to your contractInteraction.js file
-export const getContractInstance = () => {
-  if (!contract) {
+export const getContractInstance = async () => {
+  if (!contractInstance) {
     console.warn('Contract not initialized. Attempting to initialize Web3...');
-    // Return null and let the caller handle initialization
-    return null;
+    try {
+      await initWeb3();
+      return contractInstance;
+    } catch (error) {
+      console.error('Failed to initialize contract:', error);
+      return null;
+    }
   }
-  return contract;
+  return contractInstance;
 }; 

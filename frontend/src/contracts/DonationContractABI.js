@@ -14,6 +14,12 @@ export const DonationContractABI = [
         "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "charityId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "amount",
@@ -26,7 +32,7 @@ export const DonationContractABI = [
         "type": "string"
       }
     ],
-    "name": "DonationReceived",
+    "name": "DonationMade",
     "type": "event"
   },
   {
@@ -81,6 +87,11 @@ export const DonationContractABI = [
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "charityId",
+        "type": "uint256"
+      },
       {
         "internalType": "string",
         "name": "message",
@@ -142,8 +153,33 @@ export const DonationContractABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getDonationCount",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "charityId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCharityDonations",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "donor",
+        "type": "address"
+      }
+    ],
+    "name": "getDonorTotalDonations",
     "outputs": [
       {
         "internalType": "uint256",
@@ -290,6 +326,24 @@ export const DonationContractABI = [
       }
     ],
     "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawFunds",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

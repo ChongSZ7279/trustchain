@@ -52,12 +52,22 @@ export const BlockchainProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       
+      console.log("Attempting to connect wallet...");
+      
       const { web3: web3Instance, contract: contractInstance, account: currentAccount } = await initWeb3();
+      
+      console.log("Connection successful:", { 
+        web3: !!web3Instance, 
+        contract: !!contractInstance, 
+        account: currentAccount 
+      });
       
       setWeb3(web3Instance);
       setContract(contractInstance);
       setAccount(currentAccount);
       setIsConnected(!!currentAccount);
+      
+      console.log("State updated with wallet information");
       
       return true;
     } catch (err) {
@@ -69,6 +79,25 @@ export const BlockchainProvider = ({ children }) => {
     }
   };
 
+  const getCharityDonations = async (charityId) => {
+    try {
+      if (!contract) {
+        throw new Error('Contract not initialized');
+      }
+
+      const donations = await contract.methods.getCharityDonations(charityId).call();
+      return donations.map(donation => ({
+        transactionHash: donation.transactionHash,
+        amount: web3.utils.fromWei(donation.amount, 'ether'),
+        donor: donation.donor,
+        timestamp: new Date(donation.timestamp * 1000).toISOString()
+      }));
+    } catch (err) {
+      console.error('Error getting charity donations:', err);
+      throw err;
+    }
+  };
+
   const value = {
     web3,
     contract,
@@ -76,7 +105,8 @@ export const BlockchainProvider = ({ children }) => {
     isConnected,
     isLoading,
     error,
-    connectWallet
+    connectWallet,
+    getCharityDonations
   };
 
   return (

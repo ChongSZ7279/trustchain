@@ -6,6 +6,9 @@ import { processDonation } from '../services/donationService';
 import { testDonationAPI } from '../utils/testDonation';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
 import CardPaymentWrapper from './CardPaymentForm';
+import { sanitizeBigInt } from '../utils/serializationHelper';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext'; // Import your auth context
 
 const DonationForm = ({ charityId, onDonate, loading = false }) => {
   console.log("DonationForm received charityId:", charityId);
@@ -81,58 +84,69 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       return;
     }
     
-    console.log("Processing donation for charity ID:", charityId);
-    
     try {
       setProcessingDonation(true);
       
-      // Use the combined processDonation function with the correct charityId
-      const result = await processDonation(charityId, parseFloat(amount), message);
-      console.log('Donation result:', result);
+      const donationAmount = parseFloat(amount);
+      console.log("Processing donation for charity ID:", charityId, "amount:", donationAmount);
       
-      if (!result.success) {
-        throw new Error(result.error || 'Unknown error occurred');
+      // Ensure charity ID is valid
+      if (!charityId || isNaN(parseInt(charityId))) {
+        throw new Error('Invalid charity ID. Please try refreshing the page.');
       }
       
-      // Add detailed logging about the donation result
-      console.log('Donation details:', {
+      const result = await processDonation(
         charityId,
-        amount: parseFloat(amount),
+        donationAmount,
+        message
+      );
+
+      console.log('Donation result:', result);
+      console.log('Donation details:', {
+        amount: donationAmount,
+        charityId,
         transactionHash: result.transactionHash,
-        isBlockchain: result.isBlockchain,
-        databaseId: result.donationId || 'Not provided',
-        savedToDatabase: !result.databaseError,
-        databaseError: result.databaseError
+        databaseId: result.databaseId || "Not provided",
+        savedToDatabase: result.savedToDatabase || false,
+        databaseError: result.databaseError || false,
+        isBlockchain: true
       });
-      
-      // Call the onDonate callback with the result
-      if (onDonate) {
-        onDonate(parseFloat(amount), result.transactionHash, result.isBlockchain, result.donationId);
-      }
-      
-      // Reset form
-      setAmount('');
-      setMessage('');
-      setAgreeTerms(false);
-      
-      // Show more detailed success message based on the actual response structure
-      if (result.isBlockchain && result.databaseError) {
-        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nWarning: May not have been saved to database`);
-      } else if (result.isBlockchain) {
-        alert(`Donation successful! Transaction hash: ${result.transactionHash}\nSaved to database with ID: ${result.donationId || 'Unknown'}`);
-      } else if (result.donationId) {
-        alert(`Donation successful! Saved to database with ID: ${result.donationId}`);
+
+      if (result.success) {
+        if (result.databaseError) {
+          // Show a warning to user that transaction was successful but not saved to database
+          const errorMessage = result.error || 'Unknown database error';
+          alert(`Donation successful on blockchain! Transaction hash: ${result.transactionHash}\n\nWarning: Could not save to database. Error: ${errorMessage}\n\nYour donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash.`);
+        } else {
+          // Everything went well
+          alert(`Donation successful! Transaction hash: ${result.transactionHash}`);
+        }
+
+        if (onDonate) {
+          onDonate(donationAmount, result.transactionHash, true, result.databaseId);
+        }
+        
+        // Redirect to donation details if ID is available
+        if (result.databaseId) {
+          navigate(`/donations/${result.databaseId}`);
+        }
       } else {
-        alert('Donation processed, but status unclear. Please check your dashboard for confirmation.');
-      }
-      
-      // Only redirect if we have a donation ID
-      if (result.donationId) {
-        navigate(`/donations/${result.donationId}`);
+        throw new Error(result.error || 'Failed to process donation');
       }
     } catch (error) {
       console.error('Error processing donation:', error);
-      alert(`Error processing donation: ${error.message}. Please check console for details.`);
+      
+      // Show a more user-friendly error message
+      const errorMessage = error.message || 'Unknown error occurred';
+      const isBlockchainError = errorMessage.includes('MetaMask') || 
+                               errorMessage.includes('wallet') || 
+                               errorMessage.includes('transaction');
+      
+      if (isBlockchainError) {
+        alert(`Blockchain Error: ${errorMessage}\n\nPlease check your wallet connection and try again.`);
+      } else {
+        alert(`Error: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
+      }
     } finally {
       setProcessingDonation(false);
     }
@@ -162,7 +176,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const handleCardPaymentSuccess = (result) => {
     console.log('Card payment successful:', result);
     if (onDonate) {
-      onDonate(parseFloat(amount), null, false, result.donation.id);
+      onDonate(parseFloat(amount), result.transactionHash, false, result.donation.id);
     }
     navigate(`/donations/${result.donation.id}`);
   };
@@ -268,7 +282,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 id="donationAmount"
                 placeholder="0.1"
                 step="0.01"
-                min="0.01"
+                min="0.0001"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required

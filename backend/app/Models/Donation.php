@@ -16,6 +16,7 @@ class Donation extends Model
         'currency_type',
         'cause_id',
         'status',
+        'payment_method',
         'smart_contract_data',
         'donor_message',
         'is_anonymous',

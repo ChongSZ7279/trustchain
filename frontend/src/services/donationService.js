@@ -3,6 +3,8 @@ import { donateToCharity } from '../utils/contractInteraction';
 import API_BASE_URL from '../config/api';
 import { ethers } from 'ethers';
 import DonationContract from '../contracts/DonationContract.json';
+import { sanitizeBigInt, safeStringify } from '../utils/serializationHelper';
+
 
 // Set up axios with base URL
 const api = axios.create({
@@ -75,93 +77,156 @@ export const connectWallet = async () => {
 
 // Process donation through both blockchain and MySQL
 export const processDonation = async (charityId, amount, message) => {
-  console.log('Starting donation process...', { charityId, amount, message });
-  
   try {
-    // Try blockchain donation first
-    console.log('Attempting blockchain donation...');
+    console.log('Processing donation for charity:', charityId, 'amount:', amount);
+    
+    // Validate inputs before proceeding
+    if (!charityId || isNaN(parseInt(charityId))) {
+      throw new Error('Invalid charity ID');
+    }
+    
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      throw new Error('Invalid donation amount');
+    }
+    
+    // Make the blockchain donation
     const blockchainResult = await donateToCharity(charityId, amount, message);
     console.log('Blockchain donation result:', blockchainResult);
     
-    if (blockchainResult.success && blockchainResult.transactionHash) {
-      console.log('Blockchain transaction successful, recording in database...');
+    // Sanitize the blockchain data to handle BigInt values
+    const sanitizedBlockchainData = sanitizeBigInt(blockchainResult);
+    console.log('Sanitized blockchain data:', sanitizedBlockchainData);
+    
+    try {
+      // Get the current user from localStorage (adjust based on your auth implementation)
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      console.log('Current user data:', user);
+      
+      // Prepare donation data
+      const donationData = {
+        user_id: user?.ic_number || user?.id || 'anonymous', // Fallback to anonymous if no user ID
+        transaction_hash: sanitizedBlockchainData.transactionHash,
+        amount: parseFloat(amount),
+        currency_type: 'ETH',
+        cause_id: parseInt(charityId),
+        status: 'pending',
+        donor_message: message || null,
+        is_anonymous: !user?.ic_number, // Automatically mark as anonymous if no user
+        smart_contract_data: safeStringify(sanitizedBlockchainData)
+      };
+      
+      console.log('Sending donation data to backend:', donationData);
+      
+      // Get the base URL from the API_BASE_URL import or use the default
+      const baseUrl = API_BASE_URL || '';
+      
+      let response;
       try {
-        // Convert BigInt values to strings before JSON stringification
-        const smartContractData = {
-          from: blockchainResult.from,
-          to: blockchainResult.to,
-          blockNumber: blockchainResult.blockNumber?.toString(),
-          gasUsed: blockchainResult.gasUsed?.toString(),
-          status: blockchainResult.status,
-          events: blockchainResult.events
-        };
-
-        // Use the dedicated endpoint for blockchain donations
-        const response = await api.post(`/blockchain-donations`, {
-          charity_id: charityId,
-          amount: amount,
-          message: message,
-          payment_method: 'blockchain',
-          transaction_hash: blockchainResult.transactionHash,
-          currency_type: 'ETH',
-          smart_contract_data: JSON.stringify(smartContractData)
+        // First try the main endpoint
+        console.log(`Trying main donation endpoint: ${baseUrl}/donations`);
+        response = await axios.post(`${baseUrl}/donations`, donationData, {
+          headers: {
+            ...token ? { 'Authorization': `Bearer ${token}` } : {},
+            'Content-Type': 'application/json'
+          }
         });
+      } catch (firstError) {
+        console.warn('First endpoint attempt failed:', firstError.message);
         
-        console.log('Database record created:', response.data);
-        
-        return {
-          success: true,
-          isBlockchain: true,
-          transactionHash: blockchainResult.transactionHash,
-          donationId: response.data.donation.id,
-          blockchainData: blockchainResult
-        };
-      } catch (dbError) {
-        console.error('Failed to record blockchain donation in database:', dbError);
-        console.error('Database error details:', dbError.response?.data);
-        // Even if database recording fails, return blockchain transaction info
-        return {
-          success: true,
-          isBlockchain: true,
-          transactionHash: blockchainResult.transactionHash,
-          databaseError: true,
-          blockchainData: blockchainResult,
-          error: dbError.response?.data?.message || dbError.message
-        };
+        try {
+          // Try alternate endpoint format
+          console.log(`Trying alternate endpoint: ${baseUrl}/api/donations`);
+          response = await axios.post(`${baseUrl}/api/donations`, donationData, {
+            headers: {
+              ...token ? { 'Authorization': `Bearer ${token}` } : {},
+              'Content-Type': 'application/json'
+            }
+          });
+        } catch (secondError) {
+          console.warn('Second endpoint attempt failed:', secondError.message);
+          
+          try {
+            // Try blockchain-specific endpoint
+            console.log(`Trying blockchain endpoint: ${baseUrl}/blockchain-donations-noauth`);
+            const blockchainData = {
+              charity_id: parseInt(charityId),
+              amount: parseFloat(amount),
+              transaction_hash: sanitizedBlockchainData.transactionHash,
+              message: message || ''
+            };
+            
+            console.log('Sending blockchain-specific data:', blockchainData);
+            
+            response = await axios.post(`${baseUrl}/blockchain-donations-noauth`, blockchainData, {
+              headers: {
+                ...token ? { 'Authorization': `Bearer ${token}` } : {},
+                'Content-Type': 'application/json'
+              }
+            });
+          } catch (thirdError) {
+            console.warn('Third endpoint attempt failed:', thirdError.message);
+            console.warn('Error details:', thirdError.response?.data);
+            
+            // Last attempt - use the recordBlockchainDonation function
+            try {
+              console.log('Trying recordBlockchainDonation function as last resort');
+              const recordResult = await recordBlockchainDonation(
+                parseInt(charityId),
+                parseFloat(amount),
+                sanitizedBlockchainData.transactionHash,
+                message
+              );
+              
+              if (recordResult.success) {
+                response = { data: recordResult.data };
+                console.log('recordBlockchainDonation succeeded:', recordResult);
+              } else {
+                console.error('recordBlockchainDonation failed:', recordResult.error);
+                throw new Error(recordResult.error);
+              }
+            } catch (finalError) {
+              console.error('All endpoint attempts failed');
+              throw finalError;
+            }
+          }
+        }
       }
+      
+      console.log('Backend response:', response.data);
+      
+      return {
+        success: true,
+        transactionHash: sanitizedBlockchainData.transactionHash,
+        databaseId: response.data.id || response.data.donation_id,
+        savedToDatabase: true,
+        isBlockchain: true,
+        blockchainData: sanitizedBlockchainData,
+        amount,
+        charityId
+      };
+    } catch (dbError) {
+      console.error('Failed to record blockchain donation in database:', dbError);
+      console.error('Database error details:', dbError.response?.data);
+      
+      // Return partial success - blockchain transaction worked but database save failed
+      return {
+        success: true,
+        transactionHash: sanitizedBlockchainData.transactionHash,
+        databaseError: true,
+        savedToDatabase: false,
+        error: dbError.message || 'Failed to save to database',
+        errorDetails: dbError.response?.data,
+        isBlockchain: true,
+        blockchainData: sanitizedBlockchainData,
+        amount,
+        charityId
+      };
     }
   } catch (error) {
-    console.error('Blockchain donation failed:', error);
-    // If it's a user rejection, throw the error
-    if (error.message.includes('User denied') || error.message.includes('user rejected')) {
-      throw error;
-    }
-    // Otherwise, try API fallback
-    console.log('Falling back to API donation due to:', error.message);
-  }
-
-  // Fallback to API donation
-  console.log('Processing API donation...');
-  try {
-    const response = await api.post(`/donations`, {
-      charity_id: charityId,
-      amount: amount,
-      message: message,
-      payment_method: 'api',
-      currency_type: 'MYR'
-    });
-    
-    console.log('API donation response:', response.data);
-    
-    return {
-      success: true,
-      isBlockchain: false,
-      donationId: response.data.donation.id
-    };
-  } catch (error) {
-    console.error('API donation failed:', error);
-    console.error('API error details:', error.response?.data);
-    throw new Error(error.response?.data?.message || 'Failed to process donation');
+    console.error('Error processing donation:', error);
+    throw error;
   }
 };
 
@@ -171,7 +236,7 @@ export const getCharityDonations = async (charityId) => {
     const response = await api.get(`/charities/${charityId}/donations`);
     return response.data.data || response.data;
   } catch (error) {
-    console.error('Error fetching donations:', error);
+    console.error('Error fetching charity donations:', error);
     throw error;
   }
 };
@@ -182,33 +247,84 @@ const recordBlockchainDonation = async (charityId, amount, transactionHash, mess
     console.log("Recording blockchain donation using dedicated endpoint");
     const token = localStorage.getItem('token');
     
-    const response = await axios({
-      method: 'post',
-      url: `${API_BASE_URL}/blockchain-donations`,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        charity_id: charityId,
-        amount: amount,
-        transaction_hash: transactionHash,
-        message: message
+    // Ensure charity_id is using the correct parameter name and format
+    const donationData = {
+      charity_id: parseInt(charityId),
+      amount: parseFloat(amount),
+      transaction_hash: transactionHash,
+      message: message || '',
+      is_anonymous: true // Explicitly set to true to help with constraints
+    };
+    
+    console.log("Sending blockchain donation data:", donationData);
+    
+    let response;
+    let endpoint = `${API_BASE_URL}/direct-donation`;
+    
+    // Try using the direct donation endpoint first (most reliable)
+    try {
+      console.log(`Attempting direct donation at: ${endpoint}`);
+      response = await axios({
+        method: 'post',
+        url: endpoint,
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json'
+        },
+        data: donationData
+      });
+    } catch (directError) {
+      console.warn('Direct donation attempt failed:', directError.message);
+      console.warn('Error details:', directError.response?.data);
+      
+      // Try the simplified endpoint next
+      try {
+        endpoint = `${API_BASE_URL}/simple-donation`;
+        console.log(`Trying simplified donation endpoint: ${endpoint}`);
+        response = await axios({
+          method: 'post',
+          url: endpoint,
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            'Content-Type': 'application/json'
+          },
+          data: donationData
+        });
+      } catch (simplifiedError) {
+        console.error('Simplified donation endpoint failed:', simplifiedError.message);
+        
+        // Try the regular blockchain donation endpoint as a last resort
+        try {
+          endpoint = `${API_BASE_URL}/blockchain-donations-noauth`;
+          console.log(`Trying regular blockchain endpoint: ${endpoint}`);
+          response = await axios({
+            method: 'post',
+            url: endpoint,
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json'
+            },
+            data: donationData
+          });
+        } catch (blockchainError) {
+          console.error('All donation endpoints failed');
+          throw blockchainError;
+        }
       }
-    });
+    }
     
     console.log("Blockchain donation recording response:", response.data);
     return {
       success: true,
       data: response.data,
-      donationId: response.data.donation_id
+      donationId: response.data.donation_id || response.data.id
     };
   } catch (error) {
     console.error('Blockchain donation recording error:', error);
     console.log('Error details:', error.response?.data || error.message);
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to record donation in database'
+      error: error.response?.data?.error || error.response?.data?.message || 'Failed to record donation in database'
     };
   }
 };

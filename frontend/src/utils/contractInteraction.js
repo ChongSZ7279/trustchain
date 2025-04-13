@@ -200,15 +200,18 @@ export const donateToCharity = async (charityId, amount, message) => {
 
     console.log('Transaction successful:', result);
 
+    // Convert any BigInt values to strings to avoid serialization issues
     return {
       success: true,
       transactionHash: result.transactionHash,
       from: result.from,
       to: result.to,
-      blockNumber: result.blockNumber,
-      gasUsed: result.gasUsed,
+      blockNumber: typeof result.blockNumber === 'bigint' ? result.blockNumber.toString() : result.blockNumber,
+      gasUsed: typeof result.gasUsed === 'bigint' ? result.gasUsed.toString() : result.gasUsed,
       status: result.status,
-      events: result.events
+      events: result.events ? JSON.parse(JSON.stringify(result.events, (key, value) => 
+        typeof value === 'bigint' ? value.toString() : value
+      )) : null
     };
   } catch (error) {
     console.error('Error in donateToCharity:', error);

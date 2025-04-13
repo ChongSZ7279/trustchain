@@ -114,6 +114,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/donations/{donation}/invoice-html', [DonationController::class, 'generateInvoiceHtml']);
 });
 
+// Public endpoints for donations
+Route::post('/donations', [DonationController::class, 'store']);
+
+// Public blockchain donation endpoint for unauthenticated donations
+Route::post('/blockchain-donations-noauth', [DonationController::class, 'storeBlockchainDonationNoAuth']);
+
+// Simplified donation endpoint with minimal constraints
+Route::post('/simple-donation', [DonationController::class, 'storeSimpleDonation']);
+
+// Direct donation endpoint using raw SQL
+Route::post('/direct-donation', [DonationController::class, 'directDonation']);
+
 // Test route for donations without auth
 Route::post('/charities/{id}/donations/test', [DonationController::class, 'testDonation']);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -57,6 +57,7 @@ import BlockchainVerificationBadge from './BlockchainVerificationBadge';
 import WalletConnectButton from './WalletConnectButton';
 import { verifyTransaction } from '../utils/blockchainUtils';
 import { getCharityDonations } from '../services/donationService';
+import API_BASE_URL from '../config/api';
 
 // Add this helper function at the top of the file, after imports
 const getFileIcon = (fileType) => {
@@ -373,9 +374,9 @@ export default function CharityDetails() {
         
         try {
           console.log("Fetching donations for charity ID:", id);
-          const donationsRes = await axios.get(`/charities/${id}/donations`);
+          const donationsRes = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
           console.log("Donations response:", donationsRes.data);
-          setDonations(donationsRes.data);
+          setDonations(donationsRes.data.data || donationsRes.data);
         } catch (err) {
           console.error('Error fetching donations:', err);
           setDonations([]);
@@ -521,7 +522,7 @@ export default function CharityDetails() {
         
         // Explicitly fetch donations again
         try {
-          const donationsResponse = await axios.get(`/api/charities/${id}/donations`);
+          const donationsResponse = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
           console.log("Fetched donations:", donationsResponse.data);
           // Handle paginated response
           setDonations(donationsResponse.data.data || donationsResponse.data);

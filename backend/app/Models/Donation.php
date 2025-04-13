@@ -23,7 +23,11 @@ class Donation extends Model
         'task_proof',
         'verification_notes',
         'verified_at',
-        'completed_at'
+        'completed_at',
+        'payment_intent_id',
+        'fiat_amount',
+        'fiat_currency',
+        'exchange_rate'
     ];
 
     protected $casts = [
@@ -31,6 +35,8 @@ class Donation extends Model
         'task_proof' => 'array',
         'is_anonymous' => 'boolean',
         'amount' => 'decimal:8',
+        'fiat_amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:2',
         'verified_at' => 'datetime',
         'completed_at' => 'datetime'
     ];
@@ -148,6 +154,36 @@ class Donation extends Model
         if ($this->transaction_hash) {
             // Update to use Sepolia block explorer
             return 'https://sepolia.etherscan.io/tx/' . $this->transaction_hash;
+        }
+        return null;
+    }
+
+    // Check if this donation was made with fiat-to-scroll conversion
+    public function isFiatToScroll()
+    {
+        return $this->payment_method === 'fiat_to_scroll';
+    }
+    
+    // Get the original fiat amount information if available
+    public function getFiatAmountAttribute()
+    {
+        if ($this->isFiatToScroll() && $this->attributes['fiat_amount'] && $this->attributes['fiat_currency']) {
+            return number_format($this->attributes['fiat_amount'], 2) . ' ' . strtoupper($this->attributes['fiat_currency']);
+        }
+        return null;
+    }
+    
+    // Get conversion details if this was a fiat-to-scroll donation
+    public function getConversionDetailsAttribute()
+    {
+        if ($this->isFiatToScroll()) {
+            return [
+                'fiat_amount' => $this->attributes['fiat_amount'] ?? null,
+                'fiat_currency' => $this->attributes['fiat_currency'] ?? null,
+                'scroll_amount' => $this->amount,
+                'exchange_rate' => $this->attributes['exchange_rate'] ?? null,
+                'converted_at' => $this->created_at
+            ];
         }
         return null;
     }

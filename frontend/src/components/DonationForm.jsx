@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaWallet, FaExclamationTriangle, FaEthereum, FaCreditCard } from 'react-icons/fa';
+import { FaTimes, FaWallet, FaExclamationTriangle, FaEthereum, FaCreditCard, FaExchangeAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { initWeb3, donateToCharity, isWalletConnected, switchToScroll } from '../utils/contractInteraction';
 import { processDonation } from '../services/donationService';
 import { testDonationAPI } from '../utils/testDonation';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
 import CardPaymentWrapper from './CardPaymentForm';
+import FiatToScrollPaymentWrapper from './FiatToScrollPaymentForm';
+import FiatToScrollExplainer from './FiatToScrollExplainer';
 import { sanitizeBigInt } from '../utils/serializationHelper';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext'; // Import your auth context
+import { toast } from 'react-hot-toast';
 
 const DonationForm = ({ charityId, onDonate, loading = false }) => {
   console.log("DonationForm received charityId:", charityId);
@@ -20,7 +23,8 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [walletConnected, setWalletConnected] = useState(false);
   const [processingDonation, setProcessingDonation] = useState(false);
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain' or 'card'
+  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'card', or 'fiat_to_scroll'
+  const [isAnonymous, setIsAnonymous] = useState(false);
   
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -35,6 +39,14 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     
     checkWalletConnection();
   }, []);
+  
+  // Add navigation debugging
+  useEffect(() => {
+    console.log('Current charity ID:', charityId);
+    return () => {
+      console.log('DonationForm unmounting, last charity ID:', charityId);
+    };
+  }, [charityId]);
   
   useEffect(() => {
     const handleImageErrors = () => {
@@ -186,8 +198,107 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     alert(`Payment failed: ${error.message}`);
   };
 
+  const handleFiatToScrollSuccess = async (result) => {
+    console.log('Fiat to Scroll payment successful:', result);
+    
+    // Extract donation ID from the response, accounting for different response formats
+    let donationId = result.donation?.id || 
+                   (result.donation && typeof result.donation === 'object' ? result.donation.id : null) ||
+                   result.id;
+    
+    // Extract transaction hash from the response
+    const transactionHash = 
+      result.donation?.transaction_hash || 
+      (result.transaction_hash || `fiat-${Date.now()}`);
+    
+    console.log('Extracted donation details:', {
+      donationId,
+      transactionHash,
+      fullResult: result
+    });
+    
+    // If we received a fake ID, try to create a real donation via simple-donation endpoint
+    if (typeof donationId === 'string' && donationId.startsWith('fake_')) {
+      console.log('Detected fake donation ID, attempting to create real donation record');
+      
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        // Call the simple-donation endpoint
+        const response = await axios.post(`${API_BASE_URL}/simple-donation`, {
+          charity_id: charityId,
+          amount: parseFloat(amount),
+          transaction_hash: transactionHash,
+          message: message || '',
+          test_mode: true,
+          is_fiat: true,
+          currency_type: 'SCROLL'
+        });
+        
+        console.log('Simple donation fallback response:', response.data);
+        
+        if (response.data.success) {
+          // Update our donation ID with the real one
+          donationId = response.data.id;
+          console.log('Created real donation record with ID:', donationId);
+        }
+      } catch (err) {
+        console.error('Failed to create real donation record:', err);
+      }
+    }
+    
+    if (onDonate) {
+      onDonate(
+        parseFloat(amount), 
+        transactionHash,
+        true, 
+        donationId
+      );
+    }
+    
+    // For test mode or missing donation ID, show success toast and redirect to charity page
+    if (result.test_mode && (!donationId || typeof donationId === 'string' && donationId.startsWith('fake_'))) {
+      navigate(`/charities/${charityId}`);
+      toast.success('Test donation successful!');
+    } 
+    // For successful donations with ID, navigate to donation details page
+    else if (donationId && (typeof donationId === 'number' || !isNaN(parseInt(donationId)))) {
+      console.log('Navigating to donation details:', `/donations/${donationId}`);
+      navigate(`/donations/${donationId}`);
+      toast.success('Donation successful! Viewing details...');
+    } 
+    // Fallback for any other case
+    else {
+      console.log('Using fallback navigation (no valid ID found)');
+      navigate(`/charities/${charityId}`);
+      toast.success('Donation successful!');
+    }
+  };
+
+  const handleFiatToScrollError = (error) => {
+    console.error('Fiat to Scroll payment error:', error);
+    
+    // Extract more detailed error information
+    let errorDetails = '';
+    if (error.response && error.response.data) {
+      if (typeof error.response.data === 'object') {
+        errorDetails = JSON.stringify(error.response.data, null, 2);
+      } else {
+        errorDetails = error.response.data;
+      }
+    }
+    
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    alert(`Payment failed: ${error.message}\n\nError details: ${errorDetails}`);
+  };
+
   return (
-    <div className="relative bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto">
+    <div className="relative bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto h-[500px] overflow-y-auto">
       {/* Close Button */}
       <button
         onClick={() => navigate(-1)}
@@ -201,7 +312,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       {/* Payment Method Selection */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-900 mb-3">Payment Method</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <button
             onClick={() => setPaymentMethod('blockchain')}
             className={`p-4 border rounded-lg flex items-center justify-center ${
@@ -225,7 +336,20 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           >
             <FaCreditCard className={`mr-2 ${paymentMethod === 'card' ? 'text-indigo-600' : 'text-gray-400'}`} />
             <span className={paymentMethod === 'card' ? 'text-indigo-600' : 'text-gray-700'}>
-              Credit Card
+              Card
+            </span>
+          </button>
+          <button
+            onClick={() => setPaymentMethod('fiat_to_scroll')}
+            className={`p-4 border rounded-lg flex items-center justify-center ${
+              paymentMethod === 'fiat_to_scroll'
+                ? 'border-indigo-500 bg-indigo-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <FaExchangeAlt className={`mr-2 ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <span className={paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-700'}>
+              Fiat to Scroll
             </span>
           </button>
         </div>
@@ -370,7 +494,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </button>
           </form>
         </>
-      ) : (
+      ) : paymentMethod === 'card' ? (
         <div className="space-y-4">
           <div className="mb-4">
             <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
@@ -402,12 +526,98 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               rows="3"
             />
           </div>
+
+          <div className="mb-4">
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  id="isAnonymous"
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="isAnonymous" className="font-medium text-gray-700">
+                  Make my donation anonymous
+                </label>
+              </div>
+            </div>
+          </div>
           
           {amount && parseFloat(amount) > 0 && (
             <CardPaymentWrapper
               amount={parseFloat(amount)}
               onSuccess={handleCardPaymentSuccess}
               onError={handleCardPaymentError}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="mb-4">
+            <FiatToScrollExplainer />
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
+              Amount (USD)
+            </label>
+            <input
+              type="number"
+              id="donationAmount"
+              placeholder="0.00"
+              step="0.01"
+              min="0.10"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-1">
+              Message (Optional)
+            </label>
+            <textarea
+              id="donationMessage"
+              placeholder="Add a message with your donation"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              rows="3"
+            />
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  id="isAnonymousFiat"
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="isAnonymousFiat" className="font-medium text-gray-700">
+                  Make my donation anonymous
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          {amount && parseFloat(amount) > 0 && (
+            <FiatToScrollPaymentWrapper
+              amount={parseFloat(amount)}
+              charityId={charityId}
+              message={message}
+              isAnonymous={isAnonymous}
+              onSuccess={handleFiatToScrollSuccess}
+              onError={handleFiatToScrollError}
             />
           )}
         </div>

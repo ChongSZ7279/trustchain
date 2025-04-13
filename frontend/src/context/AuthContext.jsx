@@ -62,11 +62,16 @@ export function AuthProvider({ children }) {
         
         // Handle 401 Unauthorized errors (token expired or invalid)
         if (error.response.status === 401 && !error.config.url.includes('login')) {
-          console.log('Unauthorized request detected, logging out');
-          // Clear token and user data
-          localStorage.removeItem('token');
-          setCurrentUser(null);
-          setAccountType(null);
+          // Skip logout for endpoints that don't require auth
+          if (!shouldBypassAuthCheck(error.config.url)) {
+            console.log('Unauthorized request detected, logging out');
+            // Clear token and user data
+            localStorage.removeItem('token');
+            setCurrentUser(null);
+            setAccountType(null);
+          } else {
+            console.log('Bypassing auth check for:', error.config.url);
+          }
         }
       }
       return Promise.reject(error);
@@ -443,6 +448,16 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add this function to check if the URL should bypass auth error handling
+  const shouldBypassAuthCheck = (url) => {
+    // List of endpoints that should not trigger logout on 401
+    const bypassEndpoints = [
+      '/scroll-conversion-rates'
+    ];
+    
+    return bypassEndpoints.some(endpoint => url.includes(endpoint));
   };
 
   // Value to be provided to consumers

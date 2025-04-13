@@ -1052,6 +1052,9 @@ class DonationController extends Controller
                 'amount' => 'required|numeric|min:0',
                 'transaction_hash' => 'required|string',
                 'message' => 'nullable|string',
+                'test_mode' => 'boolean',
+                'is_fiat' => 'boolean',
+                'currency_type' => 'nullable|string',
             ]);
             
             if ($validator->fails()) {
@@ -1067,12 +1070,15 @@ class DonationController extends Controller
             }
             
             $validated = $validator->validated();
+            $isTestMode = $request->input('test_mode', false);
+            $isFiat = $request->input('is_fiat', false);
             
             // Check if a donation with this transaction hash already exists
             $existingDonation = Donation::where('transaction_hash', $validated['transaction_hash'])->first();
             if ($existingDonation) {
                 return response()->json([
                     'success' => true,
+                    'id' => $existingDonation->id,
                     'donation_id' => $existingDonation->id,
                     'message' => 'Donation already recorded',
                     'already_exists' => true
@@ -1090,45 +1096,76 @@ class DonationController extends Controller
                 ], 500);
             }
             
-            // Use direct DB insert to bypass model constraints
-            $donationId = DB::table('donations')->insertGetId([
-                'user_id' => $user->ic_number,
-                'cause_id' => $validated['charity_id'],
-                'amount' => $validated['amount'],
-                'transaction_hash' => $validated['transaction_hash'],
-                'donor_message' => $validated['message'] ?? null,
-                'status' => 'pending',
-                'currency_type' => 'ETH',
-                'is_anonymous' => true,
-                'payment_method' => 'blockchain',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Start transaction
+            DB::beginTransaction();
             
-            \Log::info('Simple donation recorded successfully', [
-                'donation_id' => $donationId,
-                'charity_id' => $validated['charity_id'],
-                'amount' => $validated['amount'],
-                'transaction_hash' => $validated['transaction_hash']
-            ]);
-            
-            // Also update the charity's fund data
-            $charity = \App\Models\Charity::find($validated['charity_id']);
-            if ($charity) {
-                $charity->funds_raised = $charity->funds_raised + $validated['amount'];
-                $charity->save();
+            try {
+                // Create a transaction record if it's a fiat donation
+                $transactionId = null;
                 
-                \Log::info('Updated charity funds', [
-                    'charity_id' => $charity->id,
-                    'new_funds_raised' => $charity->funds_raised
+                if ($isFiat) {
+                    $transactionId = DB::table('transactions')->insertGetId([
+                        'user_ic' => $user->ic_number,
+                        'charity_id' => $validated['charity_id'],
+                        'amount' => $validated['amount'],
+                        'type' => $isTestMode ? 'test_payment' : 'fiat_to_scroll',
+                        'status' => 'completed',
+                        'message' => $validated['message'] ?? null,
+                        'anonymous' => true,
+                        'payment_intent_id' => $validated['transaction_hash'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+                
+                // Use direct DB insert to bypass model constraints
+                $donationId = DB::table('donations')->insertGetId([
+                    'user_id' => $user->ic_number,
+                    'transaction_id' => $transactionId,
+                    'cause_id' => $validated['charity_id'],
+                    'amount' => $validated['amount'],
+                    'transaction_hash' => $validated['transaction_hash'],
+                    'donor_message' => $validated['message'] ?? null,
+                    'status' => $isTestMode ? 'completed' : 'pending',
+                    'currency_type' => $validated['currency_type'] ?? ($isFiat ? 'SCROLL' : 'ETH'),
+                    'is_anonymous' => true,
+                    'payment_method' => $isFiat ? ($isTestMode ? 'test_payment' : 'fiat_to_scroll') : 'blockchain',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
+                
+                // Also update the charity's fund data
+                $charity = \App\Models\Charity::find($validated['charity_id']);
+                if ($charity) {
+                    $charity->funds_raised = $charity->funds_raised + $validated['amount'];
+                    $charity->save();
+                }
+                
+                // Commit transaction
+                DB::commit();
+                
+                \Log::info('Simple donation recorded successfully', [
+                    'donation_id' => $donationId,
+                    'transaction_id' => $transactionId,
+                    'charity_id' => $validated['charity_id'],
+                    'amount' => $validated['amount'],
+                    'transaction_hash' => $validated['transaction_hash'],
+                    'is_fiat' => $isFiat,
+                    'test_mode' => $isTestMode
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'id' => $donationId,
+                    'transaction_id' => $transactionId,
+                    'message' => 'Donation recorded successfully'
+                ]);
+                
+            } catch (\Exception $dbError) {
+                // Rollback on error
+                DB::rollBack();
+                throw $dbError;
             }
-            
-            return response()->json([
-                'success' => true,
-                'id' => $donationId,
-                'message' => 'Donation recorded successfully'
-            ]);
         } catch (\Exception $e) {
             \Log::error('Error recording simple donation', [
                 'error' => $e->getMessage(),

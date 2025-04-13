@@ -20,12 +20,20 @@ use App\Http\Controllers\FinancialActivityController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\BlockchainController;
 use App\Http\Controllers\StripePaymentController;
+use App\Http\Controllers\FiatToScrollConverter;
+use App\Http\Controllers\StripeController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/user', [AuthController::class, 'registerUser']);
 Route::post('/register/organization', [AuthController::class, 'registerOrganization']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// Fiat to Scroll public routes
+Route::get('/scroll-conversion-rates', [FiatToScrollConverter::class, 'getConversionRates']);
+
+// Stripe public routes
+Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
 
 // Organization routes
 Route::get('/organizations', [OrganizationController::class, 'index']);
@@ -112,6 +120,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{user}/financial-activities', [UserController::class, 'getUserFinancialActivities']);
     Route::get('/donations/{donation}/invoice', [DonationController::class, 'generateInvoice']);
     Route::get('/donations/{donation}/invoice-html', [DonationController::class, 'generateInvoiceHtml']);
+
+    // Fiat to Scroll conversion routes
+    Route::post('/process-fiat-donation', [FiatToScrollConverter::class, 'convertAndDonate']);
+    
+    // Stripe routes
+    // Moved outside auth middleware
+    // Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
 });
 
 // Public endpoints for donations
@@ -119,6 +134,9 @@ Route::post('/donations', [DonationController::class, 'store']);
 
 // Public blockchain donation endpoint for unauthenticated donations
 Route::post('/blockchain-donations-noauth', [DonationController::class, 'storeBlockchainDonationNoAuth']);
+
+// Public fiat-to-scroll endpoint for unauthenticated donations
+Route::post('/fiat-to-scroll-noauth', [FiatToScrollConverter::class, 'convertAndDonateNoAuth']);
 
 // Simplified donation endpoint with minimal constraints
 Route::post('/simple-donation', [DonationController::class, 'storeSimpleDonation']);
@@ -413,4 +431,58 @@ Route::get('/blockchain/donation-count', [BlockchainController::class, 'getDonat
 Route::post('/blockchain/verify-transaction', [BlockchainController::class, 'verifyTransaction']);
 
 // Add Stripe payment routes
-Route::post('/process-card-payment', [StripePaymentController::class, 'processPayment'])->middleware('auth:sanctum'); 
+Route::post('/process-card-payment', [StripePaymentController::class, 'processPayment'])->middleware('auth:sanctum');
+
+// Add this test route to create a test charity
+Route::get('/create-test-charity', function() {
+    try {
+        // Check if charity already exists
+        $existingCharity = \App\Models\Charity::where('name', 'Test Charity')->first();
+        
+        if ($existingCharity) {
+            return response()->json([
+                'message' => 'Test charity already exists',
+                'charity' => $existingCharity
+            ]);
+        }
+        
+        // Find or create an organization
+        $organization = \App\Models\Organization::first();
+        if (!$organization) {
+            // Create a test organization if none exists
+            $organization = \App\Models\Organization::create([
+                'name' => 'Test Organization',
+                'email' => 'test@example.com',
+                'description' => 'This is a test organization',
+                'registration_number' => 'TEST123456',
+                'address' => '123 Test Street',
+                'phone' => '123-456-7890',
+                'website' => 'https://example.com',
+                'verified' => true
+            ]);
+        }
+        
+        // Create a charity
+        $charity = \App\Models\Charity::create([
+            'name' => 'Test Charity',
+            'description' => 'This is a test charity for donation testing',
+            'organization_id' => $organization->id,
+            'target_amount' => 10000,
+            'current_amount' => 0,
+            'start_date' => now(),
+            'end_date' => now()->addMonths(3),
+            'status' => 'active'
+        ]);
+        
+        return response()->json([
+            'message' => 'Test charity created successfully',
+            'charity' => $charity
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to create test charity',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+}); 

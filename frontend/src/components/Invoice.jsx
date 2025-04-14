@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
   FaDownload, 
@@ -17,6 +17,7 @@ import BackButton from './BackToHistory';
 export default function Invoice() {
   const { donationId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [invoiceHtml, setInvoiceHtml] = useState('');
@@ -86,6 +87,13 @@ export default function Invoice() {
         setInvoiceHtml(convertedHtml);
         setInvoiceData(response.data);
         setLoading(false);
+        
+        // Auto download if specified in URL
+        if (searchParams.get('download') === 'true') {
+          setTimeout(() => {
+            downloadInvoice();
+          }, 1000);
+        }
       } catch (error) {
         console.error('Error fetching invoice:', error);
         
@@ -102,7 +110,7 @@ export default function Invoice() {
     };
 
     fetchInvoice();
-  }, [donationId, retryCount, ethToRmRate]);
+  }, [donationId, retryCount, ethToRmRate, searchParams]);
 
   // Function to convert ETH values to RM in the HTML
   const convertEthToRm = (html, rate) => {
@@ -196,36 +204,27 @@ export default function Invoice() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg">
-          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h3 className="text-xl font-medium text-red-800 mb-2">Failed to Load Invoice</h3>
-          <p className="text-gray-600 mb-6">
-            We couldn't load the invoice for this donation. Please try again later or contact support if the problem persists.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              <FaArrowLeft className="mr-2" /> Go Back
-            </button>
-            <button
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">Failed to load invoice</h2>
+          <p className="mt-2">Please try again later</p>
+          <div className="mt-4 flex space-x-4 justify-center">
+            <Link to={`/donations/${donationId}`} className="inline-block text-indigo-600 hover:text-indigo-900">
+              Back to Donation
+            </Link>
+            <button 
               onClick={handleRetry}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
+              className="inline-block text-indigo-600 hover:text-indigo-900"
             >
-              <FaSync className="mr-2" /> Try Again
+              Try Again
             </button>
           </div>
         </div>
@@ -234,15 +233,11 @@ export default function Invoice() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen">
         <BackButton />
+      <div className="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
         
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-white shadow overflow-hidden sm:rounded-lg"
-        >
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
@@ -284,7 +279,7 @@ export default function Invoice() {
           <div className="px-4 py-5 sm:px-6">
             <div 
               id="invoice-container" 
-              className="invoice-container overflow-hidden"
+              className="invoice-container overflow-hidden border border-gray-200 p-6 rounded-md"
             >
               <div dangerouslySetInnerHTML={{ __html: invoiceHtml }} />
             </div>
@@ -295,7 +290,7 @@ export default function Invoice() {
               Thank you for your donation. For any questions regarding this invoice, please contact our support team.
             </p>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -123,6 +123,9 @@ const FundingProgress = ({ current, target, donorCount, endDate, className = "" 
   const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
   const statusColor = progress >= 100 ? 'green' : progress >= 75 ? 'blue' : 'indigo';
   
+  // Convert donorCount to a number and apply a default of 0 if it's not a valid number
+  const donors = typeof donorCount === 'number' ? donorCount : parseInt(donorCount) || 0;
+  
   try {
     return (
       <div className={`funding-progress ${className}`}>
@@ -151,7 +154,7 @@ const FundingProgress = ({ current, target, donorCount, endDate, className = "" 
         <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
           <div className="flex items-center space-x-1">
             <FaUsers className="text-gray-400" />
-            <span>{donorCount || 0} Donors</span>
+            <span>{donors} Donors</span>
           </div>
           <span>{getRemainingDays(endDate)} days left</span>
         </div>
@@ -193,7 +196,7 @@ export default function CharityDetails() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('milestones');
+  const [activeTab, setActiveTab] = useState('about');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
@@ -236,22 +239,31 @@ export default function CharityDetails() {
   const [transactionsList, setTransactionsList] = useState([]);
 
   // Add a state for the current data source
-  const [currentDataSource, setCurrentDataSource] = useState('transactions');
+  const [currentDataSource, setCurrentDataSource] = useState('all');
 
   // Add a loading state for blockchain donations
   const [isLoadingBlockchainDonations, setIsLoadingBlockchainDonations] = useState(false);
   const [blockchainDonationsError, setBlockchainDonationsError] = useState(null);
 
+  // Add a new state for tracking filter loading
+  const [filterLoading, setFilterLoading] = useState(false);
+
   // Add a function to load data based on the current data source
   const loadDataBySource = async (source) => {
     try {
+      setFilterLoading(true);
       let endpoint;
-      if (source === 'transactions') {
+      
+      // Set endpoint based on data source
+      if (source === 'all' || source === 'transactions') {
         endpoint = `/charities/${id}/transactions`;
       } else if (source === 'donations') {
         endpoint = `/charities/${id}/donations`;
       } else if (source === 'combined') {
-        endpoint = `/charities/${id}/financial-activities`;
+        // For combined, we'll fetch both transactions and blockchain data
+        // and combine them manually instead of using a potentially non-existent endpoint
+        console.log("Loading combined data from multiple sources");
+        endpoint = `/charities/${id}/transactions`;
       }
       
       console.log(`Loading data from ${endpoint}`);
@@ -259,11 +271,56 @@ export default function CharityDetails() {
       console.log(`${source} data:`, response.data);
       
       // Handle both paginated and non-paginated responses
-      const data = response.data.data ? response.data.data : response.data;
-      setTransactionsList(data);
+      const data = response.data.data || response.data;
+      
+      if (source === 'combined') {
+        // If it's combined, we need to pull in blockchain data as well
+        try {
+          // Get blockchain donations if available
+          if (blockchainDonations.length > 0) {
+            const formattedBlockchainDonations = blockchainDonations.map(donation => ({
+              id: donation.transactionHash || `blockchain-${Math.random().toString(36).substr(2, 9)}`,
+              transaction_hash: donation.transactionHash,
+              type: 'blockchain_donation',
+              amount: donation.amount,
+              status: 'completed',
+              created_at: donation.timestamp ? new Date(donation.timestamp).toISOString() : new Date().toISOString(),
+              donor: donation.donor,
+              is_blockchain: true
+            }));
+            
+            // Combine with regular transactions
+            const combinedData = [...data, ...formattedBlockchainDonations];
+            
+            // Sort by date (newest first)
+            const sortedData = combinedData.sort((a, b) => 
+              new Date(b.created_at) - new Date(a.created_at)
+            );
+            
+            console.log("Combined data:", sortedData);
+            setTransactionsList(sortedData);
+          } else {
+            // If no blockchain data, just use the transactions
+            setTransactionsList(data);
+          }
+        } catch (err) {
+          console.error('Error combining data:', err);
+          // Fall back to just using transactions
+          setTransactionsList(data);
+        }
+      } else {
+        // For non-combined sources, just set the data directly
+        setTransactionsList(data);
+      }
     } catch (error) {
       console.error(`Error loading ${source} data:`, error);
-      setTransactionsList([]);
+      // If we get an error, don't clear the list - this helps maintain state
+      // in case of temporary API issues
+      if (transactionsList.length === 0) {
+        toast.error(`Failed to load ${source} data. Please try again.`);
+      }
+    } finally {
+      setFilterLoading(false);
     }
   };
 
@@ -380,6 +437,7 @@ export default function CharityDetails() {
       const charityData = response.data;
       
       console.log("Charity data received:", charityData);
+      console.log("Donor count from response:", charityData.donor_count);
       
       setCharity(charityData);
       
@@ -407,10 +465,29 @@ export default function CharityDetails() {
           console.log("Fetching transactions for charity ID:", id);
           const transactionsRes = await axios.get(`/charities/${id}/transactions`);
           console.log("Transactions response:", transactionsRes.data);
-          setTransactions(transactionsRes.data);
+          
+          // Get the data properly, handling both array and paginated formats
+          const transactionsData = transactionsRes.data.data || transactionsRes.data;
+          setTransactions(transactionsData);
           
           // Also set the transactionsList state with the initial data
-          setTransactionsList(transactionsRes.data);
+          setTransactionsList(transactionsData);
+          
+          // If we have transaction data, we can calculate the donor count
+          const uniqueDonors = new Set();
+          transactionsData.forEach(tx => {
+            if (tx.donor_id) uniqueDonors.add(tx.donor_id);
+          });
+          console.log(`Found ${uniqueDonors.size} unique donors in transactions`);
+          
+          // Only update charity donor count if it's not already set (for debugging)
+          if (!charityData.donor_count && uniqueDonors.size > 0) {
+            console.log("Updating charity donor count from transactions:", uniqueDonors.size);
+            setCharity(prev => ({
+              ...prev,
+              donor_count: uniqueDonors.size
+            }));
+          }
         } catch (err) {
           console.error('Error fetching transactions:', err);
           setTransactions([]);
@@ -421,7 +498,27 @@ export default function CharityDetails() {
           console.log("Fetching donations for charity ID:", id);
           const donationsRes = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
           console.log("Donations response:", donationsRes.data);
-          setDonations(donationsRes.data.data || donationsRes.data);
+          
+          const donationsData = donationsRes.data.data || donationsRes.data;
+          setDonations(donationsData);
+          
+          // If we have donation data, we can cross-check the donor count
+          if (Array.isArray(donationsData) && donationsData.length > 0) {
+            const uniqueDonors = new Set();
+            donationsData.forEach(donation => {
+              if (donation.donor_id) uniqueDonors.add(donation.donor_id);
+            });
+            console.log(`Found ${uniqueDonors.size} unique donors in donations`);
+            
+            // Only update if charity has no donor count and donations has more donors than transactions
+            if (!charityData.donor_count && uniqueDonors.size > 0) {
+              console.log("Updating charity donor count from donations:", uniqueDonors.size);
+              setCharity(prev => ({
+                ...prev,
+                donor_count: uniqueDonors.size
+              }));
+            }
+          }
         } catch (err) {
           console.error('Error fetching donations:', err);
           setDonations([]);
@@ -647,10 +744,32 @@ export default function CharityDetails() {
   // Update the useEffect for combining transactions
   useEffect(() => {
     // Add console logs to debug
+    console.log("Combining transactions data...");
     console.log("Transactions:", transactions);
     console.log("Blockchain donations:", blockchainDonations);
+    console.log("Current data source:", currentDataSource);
     
-    if (transactions.length > 0 || blockchainDonations.length > 0) {
+    // Don't auto-combine here if we're using the combined data source option
+    // as that's now handled in loadDataBySource
+    if (currentDataSource === 'combined') {
+      console.log("Using pre-combined data from loadDataBySource");
+      return;
+    }
+    
+    // Filter transactions based on current data source
+    let filteredTransactions = [];
+    
+    if (Array.isArray(transactions)) {
+      if (currentDataSource === 'all') {
+        filteredTransactions = transactions;
+      } else if (currentDataSource === 'donations') {
+        filteredTransactions = transactions.filter(tx => tx.type === 'donation');
+      } else {
+        filteredTransactions = transactions;
+      }
+    }
+    
+    if (filteredTransactions.length > 0 || blockchainDonations.length > 0) {
       // Format blockchain donations to match transaction structure
       const formattedBlockchainDonations = blockchainDonations.map(donation => ({
         id: donation.transactionHash || `blockchain-${Math.random().toString(36).substr(2, 9)}`,
@@ -664,7 +783,7 @@ export default function CharityDetails() {
       }));
       
       // Get unique transactions by transaction_hash to avoid duplicates
-      const uniqueTransactions = [...transactions];
+      const uniqueTransactions = [...filteredTransactions];
       
       // Only add blockchain transactions that aren't already in the database
       formattedBlockchainDonations.forEach(blockchainTx => {
@@ -683,7 +802,7 @@ export default function CharityDetails() {
     } else {
       setTransactionsList([]);
     }
-  }, [transactions, blockchainDonations]);
+  }, [transactions, blockchainDonations, currentDataSource]);
 
   // Keep the useMemo for the comprehensive combined transactions
   const combinedTransactions = useMemo(() => {
@@ -988,49 +1107,83 @@ export default function CharityDetails() {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div className="bg-white rounded-t-xl shadow-sm overflow-hidden">
-          <div className="flex border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-xl shadow-sm overflow-hidden"
+        >
+          <div className="flex flex-col sm:flex-row">
             <button
               onClick={() => setActiveTab('about')}
-              className={`py-4 px-6 font-medium text-sm flex items-center transition-colors duration-200 ${
+              className={`relative flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
                 activeTab === 'about'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+                  ? 'text-indigo-600 bg-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              } flex-1 group`}
             >
-              <FaInfoCircle className={`mr-2 ${activeTab === 'about' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              About
+              <div className={`mr-2 ${activeTab === 'about' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} transition-colors duration-200`}>
+                <FaInfoCircle />
+              </div>
+              <span>About</span>
+              {activeTab === 'about' && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                  layoutId="activeTabIndicator"
+                />
+              )}
             </button>
             <button
               onClick={() => setActiveTab('milestones')}
-              className={`py-4 px-6 font-medium text-sm flex items-center transition-colors duration-200 ${
+              className={`relative flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
                 activeTab === 'milestones'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+                  ? 'text-indigo-600 bg-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              } flex-1 group`}
             >
-              <FaTasks className={`mr-2 ${activeTab === 'milestones' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              Milestones
+              <div className={`mr-2 ${activeTab === 'milestones' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} transition-colors duration-200`}>
+                <FaTasks />
+              </div>
+              <span>Milestones</span>
               {tasks.length > 0 && (
                 <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
                   {tasks.length}
                 </span>
               )}
+              {activeTab === 'milestones' && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                  layoutId="activeTabIndicator"
+                />
+              )}
             </button>
             <button
               onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-6 font-medium text-sm flex items-center transition-colors duration-200 ${
+              className={`relative flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
                 activeTab === 'transactions'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+                  ? 'text-indigo-600 bg-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              } flex-1 group`}
             >
-              <FaExchangeAlt className={`mr-2 ${activeTab === 'transactions' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              Transactions
+              <div className={`mr-2 ${activeTab === 'transactions' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} transition-colors duration-200`}>
+                <FaExchangeAlt />
+              </div>
+              <span>Transactions</span>
+              {transactions.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                  {transactions.length}
+                </span>
+              )}
+              {activeTab === 'transactions' && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                  layoutId="activeTabIndicator"
+                />
+              )}
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Tab Content */}
@@ -1041,8 +1194,9 @@ export default function CharityDetails() {
               key="about"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-b-xl shadow-sm overflow-hidden"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden"
             >
               <div className="p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
@@ -1172,215 +1326,218 @@ export default function CharityDetails() {
               key="milestones"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-b-xl shadow-sm overflow-hidden p-6"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden"
             >
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <FaTasks className="mr-3 text-indigo-500" />
-                Charity Milestones
-              </h2>
-              
-              {tasks.length > 0 ? (
-                <div className="relative">
-                  {/* Timeline line */}
-                  <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-indigo-200"></div>
-                  
-                  <div className="space-y-12">
-                    {[...tasks].reverse().map((task, index) => (
-                      <motion.div
-                        key={task.id}
-                        initial={{ opacity: 0, y: 50 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: "-100px" }}
-                        transition={{ duration: 0.5, delay: index * 0.2 }}
-                        className={`relative flex items-center ${
-                          index % 2 === 0 ? 'justify-start' : 'justify-end'
-                        }`}
-                      >
-                        {/* Timeline dot */}
-                        <div className="absolute left-1/2 transform -translate-x-1/2 w-5 h-5 bg-indigo-600 rounded-full border-4 border-white shadow-md z-10"></div>
-                        
-                        {/* Content box */}
-                        <div className={`w-5/12 bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 ${
-                          index % 2 === 0 ? 'mr-auto' : 'ml-auto'
-                        }`}>
-                          <div className="p-6">
-                            {/* Status Badge */}
-                            <div className="flex justify-end mb-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                task.status === 'completed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : task.status === 'in_progress'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
-                                {task.status === 'in_progress' && <FaClock className="mr-1" />}
-                                {task.status ? (task.status.charAt(0).toUpperCase() + task.status.slice(1).replace('_', ' ')) : 'Unknown'}
-                              </span>
-                            </div>
-
-                            {/* Task Title and Date */}
-                            <div className="mb-4 flex justify-between items-start">
-                              <div>
-                                <h3 className="text-xl font-semibold text-gray-900">{task.name}</h3>
-                                <p className="text-sm text-gray-500 mt-1 flex items-center">
-                                  <FaCalendarAlt className="mr-1" />
-                                  {formatDate(task.created_at)}
-                                </p>
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                  <FaTasks className="mr-3 text-indigo-500" />
+                  Charity Milestones
+                </h2>
+                
+                {tasks.length > 0 ? (
+                  <div className="relative">
+                    {/* Timeline line */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-indigo-200"></div>
+                    
+                    <div className="space-y-12">
+                      {[...tasks].reverse().map((task, index) => (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, y: 50 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true, margin: "-100px" }}
+                          transition={{ duration: 0.5, delay: index * 0.2 }}
+                          className={`relative flex items-center ${
+                            index % 2 === 0 ? 'justify-start' : 'justify-end'
+                          }`}
+                        >
+                          {/* Timeline dot */}
+                          <div className="absolute left-1/2 transform -translate-x-1/2 w-5 h-5 bg-indigo-600 rounded-full border-4 border-white shadow-md z-10"></div>
+                          
+                          {/* Content box */}
+                          <div className={`w-5/12 bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 ${
+                            index % 2 === 0 ? 'mr-auto' : 'ml-auto'
+                          }`}>
+                            <div className="p-6">
+                              {/* Status Badge */}
+                              <div className="flex justify-end mb-4">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  task.status === 'completed'
+                                    ? 'bg-green-100 text-green-800'
+                                    : task.status === 'in_progress'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
+                                  {task.status === 'in_progress' && <FaClock className="mr-1" />}
+                                  {task.status ? (task.status.charAt(0).toUpperCase() + task.status.slice(1).replace('_', ' ')) : 'Unknown'}
+                                </span>
                               </div>
-                              {canManageCharity() && (
-                                <div className="flex gap-2">
-                                  <Link
-                                    to={`/charities/${id}/tasks/${task.id}/edit`}
-                                    className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-colors duration-200"
-                                  >
-                                    <FaEdit className="mr-1" />
-                                    Edit
-                                  </Link>
-                                  <button
-                                    onClick={() => deleteTask(task.id)}
-                                    disabled={taskDeleteLoading}
-                                    className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors duration-200"
-                                  >
-                                    {taskDeleteLoading ? (
-                                      <div className="animate-spin h-3 w-3 border-2 border-current rounded-full border-t-transparent mr-1"></div>
-                                    ) : (
-                                      <FaTrash className="mr-1" />
-                                    )}
-                                    Delete
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Task Description */}
-                            <div className="bg-gray-50 p-3 rounded-lg mb-6">
-                              <p className="text-gray-700">{task.description}</p>
-                            </div>
-                            
-                            {/* Task Pictures */}
-                            {task.pictures && task.pictures.length > 0 && (
-                              <div className="mb-6">
-                                <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                                  <FaImages className="mr-1 text-indigo-500" />
-                                  Progress Images
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {task.pictures.map((picture, picIndex) => (
-                                    <div key={picIndex} className="relative h-48 rounded-lg overflow-hidden shadow-md group">
-                                      <img
-                                        src={formatImageUrl(picture.path)}
-                                        alt={`${task.name} - Image ${picIndex + 1}`}
-                                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
-                                        onError={(e) => {
-                                          console.error('Error loading task picture:', e);
-                                          e.target.src = 'https://placehold.co/400x300?text=Image+Not+Found';
-                                        }}
-                                      />
-                                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
 
-                            {/* Proof Document Preview */}
-                            {task.proof && (
-                              <div className="mt-4">
-                                <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                                  <FaFileAlt className="mr-1 text-indigo-500" />
-                                  Proof Document
-                                </h4>
-                                <div className="p-3 bg-white rounded-lg border border-gray-200">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                      {getFileIcon(getFileType(task.proof))}
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-gray-900 truncate">
-                                          {task.proof.split('/').pop()}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                          {getFileType(task.proof)}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <a 
-                                      href={formatImageUrl(task.proof)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center px-3 py-1 rounded-md text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                              {/* Task Title and Date */}
+                              <div className="mb-4 flex justify-between items-start">
+                                <div>
+                                  <h3 className="text-xl font-semibold text-gray-900">{task.name}</h3>
+                                  <p className="text-sm text-gray-500 mt-1 flex items-center">
+                                    <FaCalendarAlt className="mr-1" />
+                                    {formatDate(task.created_at)}
+                                  </p>
+                                </div>
+                                {canManageCharity() && (
+                                  <div className="flex gap-2">
+                                    <Link
+                                      to={`/charities/${id}/tasks/${task.id}/edit`}
+                                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-colors duration-200"
                                     >
-                                      <FaEye className="mr-1" />
-                                      View
-                                    </a>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Funding Progress */}
-                            {task.fund_targeted > 0 && (
-                              <div className="mt-4">
-                                <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                                  <FaChartBar className="mr-1 text-indigo-500" />
-                                  Funding Progress
-                                </h4>
-                                <FundingProgress 
-                                  current={task.current_amount || 0}
-                                  target={task.fund_targeted || 0}
-                                  donorCount={task.donor_count}
-                                  endDate={task.end_date}
-                                  className="border border-gray-100 rounded-lg p-4"
-                                />
-                                {task.status === 'completed' && (
-                                  <div className="mt-2 flex items-center justify-center text-green-600 text-sm">
-                                    <FaCheckCircle className="mr-1" />
-                                    Funding goal achieved!
+                                      <FaEdit className="mr-1" />
+                                      Edit
+                                    </Link>
+                                    <button
+                                      onClick={() => deleteTask(task.id)}
+                                      disabled={taskDeleteLoading}
+                                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors duration-200"
+                                    >
+                                      {taskDeleteLoading ? (
+                                        <div className="animate-spin h-3 w-3 border-2 border-current rounded-full border-t-transparent mr-1"></div>
+                                      ) : (
+                                        <FaTrash className="mr-1" />
+                                      )}
+                                      Delete
+                                    </button>
                                   </div>
                                 )}
                               </div>
-                            )}
+                              
+                              {/* Task Description */}
+                              <div className="bg-gray-50 p-3 rounded-lg mb-6">
+                                <p className="text-gray-700">{task.description}</p>
+                              </div>
+                              
+                              {/* Task Pictures */}
+                              {task.pictures && task.pictures.length > 0 && (
+                                <div className="mb-6">
+                                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                                    <FaImages className="mr-1 text-indigo-500" />
+                                    Progress Images
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {task.pictures.map((picture, picIndex) => (
+                                      <div key={picIndex} className="relative h-48 rounded-lg overflow-hidden shadow-md group">
+                                        <img
+                                          src={formatImageUrl(picture.path)}
+                                          alt={`${task.name} - Image ${picIndex + 1}`}
+                                          className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
+                                          onError={(e) => {
+                                            console.error('Error loading task picture:', e);
+                                            e.target.src = 'https://placehold.co/400x300?text=Image+Not+Found';
+                                          }}
+                                        />
+                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Proof Document Preview */}
+                              {task.proof && (
+                                <div className="mt-4">
+                                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                                    <FaFileAlt className="mr-1 text-indigo-500" />
+                                    Proof Document
+                                  </h4>
+                                  <div className="p-3 bg-white rounded-lg border border-gray-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-3">
+                                        {getFileIcon(getFileType(task.proof))}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm text-gray-900 truncate">
+                                            {task.proof.split('/').pop()}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            {getFileType(task.proof)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <a 
+                                        href={formatImageUrl(task.proof)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-3 py-1 rounded-md text-indigo-600 hover:text-indigo-800 transition-colors duration-200"
+                                      >
+                                        <FaEye className="mr-1" />
+                                        View
+                                      </a>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Funding Progress */}
+                              {task.fund_targeted > 0 && (
+                                <div className="mt-4">
+                                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                                    <FaChartBar className="mr-1 text-indigo-500" />
+                                    Funding Progress
+                                  </h4>
+                                  <FundingProgress 
+                                    current={task.current_amount || 0}
+                                    target={task.fund_targeted || 0}
+                                    donorCount={task.donor_count}
+                                    endDate={task.end_date}
+                                    className="border border-gray-100 rounded-lg p-4"
+                                  />
+                                  {task.status === 'completed' && (
+                                    <div className="mt-2 flex items-center justify-center text-green-600 text-sm">
+                                      <FaCheckCircle className="mr-1" />
+                                      Funding goal achieved!
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-gray-50 rounded-xl p-8 text-center mt-4">
-                  <FaInfoCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Milestones Found</h3>
-                  <p className="text-gray-600 mb-4">This charity hasn't added any milestones yet.</p>
-                  {canManageCharity() && (
+                ) : (
+                  <div className="bg-gray-50 rounded-xl p-8 text-center mt-4">
+                    <FaInfoCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Milestones Found</h3>
+                    <p className="text-gray-600 mb-4">This charity hasn't added any milestones yet.</p>
+                    {canManageCharity() && (
+                      <Link
+                        to={`/charities/${id}/tasks/create`}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200"
+                      >
+                        <FaPlus className="mr-2" />
+                        Add First Milestone
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {/* Add Milestone Button - only show if there are milestones and user can manage */}
+                {canManageCharity() && tasks.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-8 flex justify-center"
+                  >
                     <Link
                       to={`/charities/${id}/tasks/create`}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200"
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                     >
                       <FaPlus className="mr-2" />
-                      Add First Milestone
+                      Add New Milestone
                     </Link>
-                  )}
-                </div>
-              )}
-
-              {/* Add Milestone Button - only show if there are milestones and user can manage */}
-              {canManageCharity() && tasks.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-8 flex justify-center"
-                >
-                  <Link
-                    to={`/charities/${id}/tasks/create`}
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-                  >
-                    <FaPlus className="mr-2" />
-                    Add New Milestone
-                  </Link>
-                </motion.div>
-              )}
+                  </motion.div>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -1389,8 +1546,9 @@ export default function CharityDetails() {
               key="transactions"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-b-xl shadow-sm overflow-hidden"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden"
             >
               <div className="p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
@@ -1398,138 +1556,232 @@ export default function CharityDetails() {
                   Financial Transactions
                 </h2>
                 
-                {/* Data source filter */}
+                {/* Data source filter - Update the UI */}
                 <div className="mb-6 bg-gray-50 p-4 rounded-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="font-medium text-gray-700 flex items-center">
                       <FaFilter className="mr-2 text-indigo-500" />
-                      <span>View:</span>
+                      <span>Filter by:</span>
                     </div>
                     <div className="flex-grow">
-                      <select
-                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg"
-                        onChange={(e) => {
-                          const newDataSource = e.target.value;
-                          setCurrentDataSource(newDataSource);
-                        }}
-                        value={currentDataSource}
-                      >
-                        <option value="transactions">All Transactions</option>
-                        <option value="donations">Donations Only</option>
-                        <option value="combined">Combined Activities</option>
-                      </select>
+                      <div className="flex gap-3 flex-wrap">
+                        <button
+                          onClick={() => {
+                            setCurrentDataSource('all');
+                            loadDataBySource('all');
+                          }}
+                          disabled={filterLoading && currentDataSource === 'all'}
+                          className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                            currentDataSource === 'all'
+                              ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          } transition-colors duration-200`}
+                        >
+                          {filterLoading && currentDataSource === 'all' ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent mr-2"></div>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <FaExchangeAlt className="mr-2" />
+                              All Transactions
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCurrentDataSource('donations');
+                            loadDataBySource('donations');
+                          }}
+                          disabled={filterLoading && currentDataSource === 'donations'}
+                          className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                            currentDataSource === 'donations'
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          } transition-colors duration-200`}
+                        >
+                          {filterLoading && currentDataSource === 'donations' ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent mr-2"></div>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <FaHandHoldingHeart className="mr-2" />
+                              Donations Only
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCurrentDataSource('combined');
+                            loadDataBySource('combined');
+                          }}
+                          disabled={filterLoading && currentDataSource === 'combined'}
+                          className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                            currentDataSource === 'combined'
+                              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          } transition-colors duration-200`}
+                        >
+                          {filterLoading && currentDataSource === 'combined' ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <FaChartBar className="mr-2" />
+                              Combined Activities
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                     {currentUser && (
                       <button
                         onClick={() => loadDataBySource(currentDataSource)}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none transition-colors duration-200"
+                        disabled={filterLoading}
+                        className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                          filterLoading ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none'
+                        } transition-colors duration-200`}
                       >
-                        <FaSync className="mr-2" />
-                        Refresh
+                        {filterLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <FaSync className="mr-2" />
+                            Refresh
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
                 </div>
                 
+                {/* Update empty state message based on current data source */}
+                {transactionsList.length === 0 && currentUser && (
+                  <div className="bg-gray-50 rounded-xl p-8 text-center mt-4">
+                    <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      {currentDataSource === 'donations' 
+                        ? "No Donations Found" 
+                        : currentDataSource === 'combined' 
+                          ? "No Financial Activities Found"
+                          : "No Transactions Found"}
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      {currentDataSource === 'donations' 
+                        ? "This charity hasn't received any donations yet." 
+                        : currentDataSource === 'combined'
+                          ? "There are no financial activities recorded for this charity."
+                          : "This charity hasn't processed any transactions yet."}
+                    </p>
+                    <button
+                      onClick={() => setShowDonationModal(true)}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 transition-colors duration-200"
+                    >
+                      <FaHandHoldingHeart className="mr-2" />
+                      Make First Donation
+                    </button>
+                  </div>
+                )}
+
+                {/* Add back the transaction table and login message */}
                 {currentUser ? (
-                  transactionsList.length > 0 ? (
-                    <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Transaction ID
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Type
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {(Array.isArray(transactionsList) ? transactionsList : []).map(transaction => {
-                            if (!transaction) return null; // Skip null or undefined transactions
-                            
-                            return (
-                              <tr key={transaction.id || transaction.transaction_hash || Math.random()} className="hover:bg-gray-50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(transaction.created_at || new Date())}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                                  {(() => {
-                                    const id = transaction.transaction_hash || transaction.id;
-                                    if (!id) return 'N/A';
-                                    return typeof id === 'string' ? id.slice(0, 8) + '...' : `#${id}`;
-                                  })()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    ${transaction.type === 'donation' ? 'bg-green-100 text-green-800' : 
-                                      transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' : 
-                                      'bg-blue-100 text-blue-800'}`}>
-                                    {transaction.type === 'donation' && <FaHandHoldingHeart className="mr-1" />}
-                                    {transaction.type === 'withdrawal' && <FaMoneyBillWave className="mr-1" />}
-                                    {(!transaction.type || transaction.type === 'transaction') && <FaExchangeAlt className="mr-1" />}
-                                    {transaction.type?.charAt(0).toUpperCase() + transaction.type?.slice(1) || 'Transaction'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {transaction.amount ? 
-                                    <span className="font-mono">
-                                      {transaction.amount} {transaction.currency_type || transaction.is_blockchain ? 'ETH' : 'USD'}
-                                    </span> : 'N/A'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
-                                    {getStatusIcon(transaction.status)}
-                                    {formatStatus(transaction.status)}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  <button
-                                    onClick={() => {
-                                      // Navigate to the appropriate details page based on transaction type
-                                      const path = transaction.type === 'donation' 
-                                        ? `/donations/${transaction.id}` 
-                                        : `/transactions/${transaction.id}`;
-                                      navigate(path);
-                                    }}
-                                    className="text-indigo-600 hover:text-indigo-900 font-medium transition-colors duration-200"
-                                  >
-                                    View Details
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 rounded-xl p-8 text-center mt-4">
-                      <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Transactions Found</h3>
-                      <p className="text-gray-600 mb-4">This charity hasn't received any donations or processed any transactions yet.</p>
-                      <button
-                        onClick={() => setShowDonationModal(true)}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 transition-colors duration-200"
-                      >
-                        <FaHandHoldingHeart className="mr-2" />
-                        Make First Donation
-                      </button>
-                    </div>
-                  )
+                  <>
+                    {/* Empty state message - already added */}
+                    {transactionsList.length > 0 && (
+                      <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Transaction ID
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Type
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {(Array.isArray(transactionsList) ? transactionsList : []).map((transaction, index) => {
+                              if (!transaction) return null; // Skip null or undefined transactions
+                              
+                              const transactionId = transaction.id || transaction.transaction_hash || index;
+                              return (
+                                <tr key={transactionId} className="hover:bg-gray-50 transition-colors duration-150">
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {formatDate(transaction.created_at || new Date())}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                                    {(() => {
+                                      const id = transaction.transaction_hash || transaction.id;
+                                      if (!id) return 'N/A';
+                                      return typeof id === 'string' ? id.slice(0, 8) + '...' : `#${id}`;
+                                    })()}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                      ${transaction.type === 'donation' ? 'bg-green-100 text-green-800' : 
+                                        transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' : 
+                                        'bg-blue-100 text-blue-800'}`}>
+                                      {transaction.type === 'donation' && <FaHandHoldingHeart className="mr-1" />}
+                                      {transaction.type === 'withdrawal' && <FaMoneyBillWave className="mr-1" />}
+                                      {(!transaction.type || transaction.type === 'transaction') && <FaExchangeAlt className="mr-1" />}
+                                      {transaction.type?.charAt(0).toUpperCase() + transaction.type?.slice(1) || 'Transaction'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {transaction.amount ? 
+                                      <span className="font-mono">
+                                        {transaction.amount} {transaction.currency_type || transaction.is_blockchain ? 'ETH' : 'USD'}
+                                      </span> : 'N/A'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
+                                      {getStatusIcon(transaction.status)}
+                                      {formatStatus(transaction.status)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <button
+                                      onClick={() => {
+                                        // Navigate to the appropriate details page based on transaction type
+                                        const path = transaction.type === 'donation' 
+                                          ? `/donations/${transaction.id}` 
+                                          : `/transactions/${transaction.id}`;
+                                        navigate(path);
+                                      }}
+                                      className="text-indigo-600 hover:text-indigo-900 font-medium transition-colors duration-200"
+                                    >
+                                      View Details
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="bg-gray-50 rounded-xl p-8 text-center">
                     <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -1600,24 +1852,6 @@ export default function CharityDetails() {
         </motion.div>
       )}
 
-      {/* Add section for charity updates if user is following */}
-      {isFollowing && (
-        <div className="mt-8 bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">Latest Updates</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            You're following this charity. You'll receive notifications about their activities and campaigns.
-          </p>
-          <button 
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            onClick={() => {
-              // Navigate to user dashboard with charity updates
-              window.location.href = '/dashboard/following';
-            }}
-          >
-            View all updates in your dashboard →
-          </button>
-        </div>
-      )}
     </motion.div>
   );
 }

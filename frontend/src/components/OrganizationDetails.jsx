@@ -73,6 +73,9 @@ export default function OrganizationDetails() {
     cover: true
   });
 
+  // Add hasDocuments variable before the return statement
+  const hasDocuments = Boolean(orgData?.verified_document || orgData?.statutory_declaration);
+
   useEffect(() => {
     fetchOrganizationDetails();
     
@@ -414,43 +417,82 @@ export default function OrganizationDetails() {
 
       {/* Tabs Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="bg-white rounded-t-xl shadow-sm">
-          <div className="flex">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-xl shadow-sm overflow-hidden"
+        >
+          <div className="flex flex-col sm:flex-row">
             <button
               onClick={() => setActiveTab('information')}
-              className={`flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
+              className={`relative flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
                 activeTab === 'information'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50'
+                  ? 'text-indigo-600 bg-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              } flex-1`}
+              } flex-1 group`}
             >
-              <FaInfoCircle className={`mr-2 ${activeTab === 'information' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              Information
+              <div className={`mr-2 ${activeTab === 'information' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} transition-colors duration-200`}>
+                <FaInfoCircle />
+              </div>
+              <span>Information</span>
+              {activeTab === 'information' && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                  layoutId="activeTabIndicator"
+                />
+              )}
             </button>
             <button
               onClick={() => setActiveTab('charities')}
-              className={`flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
+              className={`relative flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
                 activeTab === 'charities'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50'
+                  ? 'text-indigo-600 bg-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              } flex-1`}
+              } flex-1 group`}
             >
-              <FaHandHoldingHeart className={`mr-2 ${activeTab === 'charities' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              Charities
+              <div className={`mr-2 ${activeTab === 'charities' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} transition-colors duration-200`}>
+                <FaHandHoldingHeart />
+              </div>
+              <span>Charities</span>
+              {charities.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+                  {charities.length}
+                </span>
+              )}
+              {activeTab === 'charities' && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                  layoutId="activeTabIndicator"
+                />
+              )}
             </button>
             <button
               onClick={() => setActiveTab('documents')}
-              className={`flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
+              className={`relative flex items-center justify-center py-4 px-6 font-medium text-sm transition-all duration-200 ${
                 activeTab === 'documents'
-                  ? 'border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50'
+                  ? 'text-indigo-600 bg-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              } flex-1`}
+              } flex-1 group`}
             >
-              <FaFileAlt className={`mr-2 ${activeTab === 'documents' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              Documents
+              <div className={`mr-2 ${activeTab === 'documents' ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} transition-colors duration-200`}>
+                <FaFileAlt />
+              </div>
+              <span>Documents</span>
+              {hasDocuments && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">
+                  <FaCheckCircle className="inline h-2 w-2 mr-0.5" />
+                </span>
+              )}
+              {activeTab === 'documents' && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                  layoutId="activeTabIndicator"
+                />
+              )}
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Tab Content */}
@@ -461,8 +503,9 @@ export default function OrganizationDetails() {
               key="information"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-b-xl shadow-sm overflow-hidden"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden"
             >
               <div className="p-6 md:p-8">
                 {/* Organization Summary Card */}
@@ -740,8 +783,9 @@ export default function OrganizationDetails() {
               key="charities"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-b-xl shadow-sm"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-sm"
             >
               <div className="p-6 md:p-8">
                 <div className="flex items-center justify-between mb-6">
@@ -819,8 +863,9 @@ export default function OrganizationDetails() {
               key="documents"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-b-xl shadow-sm"
+              exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-sm"
             >
               <div className="p-6 md:p-8">
                 <div className="flex items-center mb-6">

@@ -93,9 +93,9 @@ export default function TransactionDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen">
         <BackButton />
+      <div className="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">

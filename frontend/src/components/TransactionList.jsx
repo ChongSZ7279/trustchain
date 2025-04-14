@@ -54,6 +54,11 @@ export default function TransactionList() {
   });
   const [dataSource, setDataSource] = useState('transactions');
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+  const [debugInfo, setDebugInfo] = useState({
+    lastEndpoint: '',
+    lastResponse: null,
+    dataSourceType: ''
+  });
 
   // Status options for filter
   const statusOptions = [
@@ -66,7 +71,7 @@ export default function TransactionList() {
   const dataSourceOptions = [
     { value: 'transactions', label: 'Transactions' },
     { value: 'donations', label: 'Donations' },
-    { value: 'combined', label: 'Combined' }
+    { value: 'combined', label: 'All' }
   ];
 
   useEffect(() => {
@@ -115,8 +120,11 @@ export default function TransactionList() {
         queryParams.append('amountRange[max]', filters.amountRange.max);
       }
 
-      // Add data source parameter to fetch combined data
-      queryParams.append('source', dataSource);
+      // Fix the source parameter - we're getting a 405 error when we append the source=donations
+      // So let's only add this for non-donation endpoints
+      if (dataSource !== 'donations') {
+        queryParams.append('source', dataSource);
+      }
 
       // Determine the appropriate endpoint based on the data source and context
       let endpoint;
@@ -124,46 +132,108 @@ export default function TransactionList() {
       if (charityId) {
         // Charity-specific endpoints
         if (dataSource === 'donations') {
+          // For donations, use the standard charities/:id/donations endpoint
           endpoint = `/charities/${charityId}/donations`;
         } else if (dataSource === 'combined') {
-          endpoint = `/charities/${charityId}/financial-activities`;
+          endpoint = `/charities/${charityId}/transactions`;
+          setDebugInfo(prev => ({ ...prev, dataSourceType: 'combined' }));
         } else {
           endpoint = `/charities/${charityId}/transactions`;
+          setDebugInfo(prev => ({ ...prev, dataSourceType: 'transactions' }));
         }
       } else {
-        // General endpoints
+        // General endpoints - this is where we're seeing the 405 error
         if (dataSource === 'donations') {
-          endpoint = '/donations';
+          // Try using a different endpoint or method to get donations
+          // Option 1: Use transactions endpoint with a type filter
+          endpoint = '/transactions';
+          queryParams.append('type', 'donation');
+          setDebugInfo(prev => ({ ...prev, dataSourceType: 'donations-via-transactions' }));
         } else if (dataSource === 'combined') {
-          endpoint = '/financial-activities';
+          endpoint = '/transactions';
+          setDebugInfo(prev => ({ ...prev, dataSourceType: 'combined' }));
         } else {
           endpoint = '/transactions';
+          setDebugInfo(prev => ({ ...prev, dataSourceType: 'transactions' }));
         }
       }
 
+      // Store the last endpoint for debugging
+      setDebugInfo(prev => ({ ...prev, lastEndpoint: endpoint }));
+      
       console.log(`Fetching data from endpoint: ${endpoint} with params:`, Object.fromEntries(queryParams));
       
       const response = await axios.get(endpoint, { params: queryParams });
       console.log('API Response:', response.data);
       
-      setTransactions(response.data.data || response.data);
+      // Store the response for debugging
+      setDebugInfo(prev => ({ ...prev, lastResponse: response.data }));
+      
+      // Special handling for combined data source
+      if (dataSource === 'combined' && !charityId) {
+        // For global combined view without a charity ID, we'll just show transactions
+        // since we're getting a 405 error when trying to access donations endpoint
+        console.log('Using transactions data for combined view due to API limitations');
+        const responseData = extractDataFromResponse(response.data);
+        setTransactions(responseData);
+        updatePaginationFromResponse(response.data, responseData);
+        setLoading(false);
+        return;
+      } else if (dataSource === 'combined' && charityId) {
+        try {
+          // If we need to manually combine data from multiple sources
+          const transactionsData = extractDataFromResponse(response.data);
+          
+          // Now fetch donations data
+          const donationsEndpoint = `/charities/${charityId}/donations`;
+          
+          console.log(`Also fetching donations from: ${donationsEndpoint}`);
+          // Don't pass the source parameter to donations endpoint
+          const donationsParams = new URLSearchParams({
+            page: pagination.currentPage,
+            per_page: pagination.itemsPerPage
+          });
+          
+          const donationsResponse = await axios.get(donationsEndpoint, { params: donationsParams });
+          console.log('Donations API Response:', donationsResponse.data);
+          
+          const donationsData = extractDataFromResponse(donationsResponse.data);
+          
+          // Combine both datasets
+          const combinedData = [...transactionsData, ...donationsData];
+          console.log(`Combined ${transactionsData.length} transactions with ${donationsData.length} donations:`, combinedData);
+          
+          // Sort by date
+          const sortedData = combinedData.sort((a, b) => 
+            new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0)
+          );
+          
+          setTransactions(sortedData);
+          
+          // Update pagination manually
+          setPagination(prev => ({
+            ...prev,
+            totalItems: sortedData.length,
+            totalPages: Math.ceil(sortedData.length / prev.itemsPerPage),
+          }));
+          
+          setLoading(false);
+          return;
+        } catch (combineError) {
+          console.error('Error combining data sources:', combineError);
+          // Fall through to normal processing if combining fails
+        }
+      }
+      
+      // Normal processing for non-combined data sources
+      // Improved data extraction with helper function
+      const responseData = extractDataFromResponse(response.data);
+      
+      // Set the data
+      setTransactions(responseData);
       
       // Update pagination if the response includes pagination data
-      if (response.data.meta) {
-        setPagination({
-          currentPage: response.data.meta.current_page,
-          totalPages: response.data.meta.last_page,
-          totalItems: response.data.meta.total,
-          itemsPerPage: response.data.meta.per_page
-        });
-      } else if (response.data.current_page) {
-        setPagination({
-          currentPage: response.data.current_page,
-          totalPages: response.data.last_page,
-          totalItems: response.data.total,
-          itemsPerPage: response.data.per_page
-        });
-      }
+      updatePaginationFromResponse(response.data, responseData);
       
       setLoading(false);
     } catch (err) {
@@ -172,12 +242,68 @@ export default function TransactionList() {
         console.error('Error response data:', err.response.data);
         console.error('Error response status:', err.response.status);
         setError(`Failed to load data: ${err.response.status} ${err.response.statusText}`);
+        
+        // Special handling for 405 Method Not Allowed errors
+        if (err.response.status === 405) {
+          setError('The API endpoint does not support this request. Try a different filter option.');
+        }
       } else if (err.request) {
         setError('Failed to load data: No response from server');
       } else {
         setError(`Failed to load data: ${err.message}`);
       }
       setLoading(false);
+    }
+  };
+
+  // Helper function to extract data from API response
+  const extractDataFromResponse = (responseData) => {
+    if (!responseData) return [];
+    
+    // Handle paginated response
+    if (responseData.data && Array.isArray(responseData.data)) {
+      return responseData.data;
+    }
+    
+    // Handle direct array response
+    if (Array.isArray(responseData)) {
+      return responseData;
+    }
+    
+    // Try to find an array in the response object
+    for (const key in responseData) {
+      if (Array.isArray(responseData[key])) {
+        return responseData[key];
+      }
+    }
+    
+    console.error('Could not extract data from response:', responseData);
+    return [];
+  };
+
+  // Helper function to update pagination from response
+  const updatePaginationFromResponse = (response, extractedData) => {
+    if (response.meta) {
+      setPagination({
+        currentPage: response.meta.current_page,
+        totalPages: response.meta.last_page,
+        totalItems: response.meta.total,
+        itemsPerPage: response.meta.per_page
+      });
+    } else if (response.current_page) {
+      setPagination({
+        currentPage: response.current_page,
+        totalPages: response.last_page,
+        totalItems: response.total,
+        itemsPerPage: response.per_page
+      });
+    } else {
+      // If no pagination data, set the total items to the length of the data
+      setPagination(prev => ({
+        ...prev,
+        totalItems: extractedData.length,
+        totalPages: Math.ceil(extractedData.length / prev.itemsPerPage),
+      }));
     }
   };
 
@@ -287,19 +413,41 @@ export default function TransactionList() {
   };
 
   const getSourceLabel = (item) => {
+    if (!item) return 'Unknown';
+    
     if (item.source) {
       return item.source;
-    } else if (item.donor_message || item.cause_id) {
+    } else if (item.is_blockchain) {
+      return 'Blockchain';
+    } else if (item.donor_message || item.cause_id || item.donor_id) {
       return 'Donation';
+    } else if (item.transaction_hash) {
+      return 'Blockchain';
     } else {
       return 'Transaction';
     }
   };
 
   const getDetailsUrl = (item) => {
+    if (!item || !item.id) {
+      console.warn('Cannot generate details URL for item:', item);
+      return '/transactions';
+    }
+    
     const sourceType = getSourceLabel(item).toLowerCase();
-    return `/${sourceType}s/${item.id}`;
+    
+    // Handle special cases
+    if (sourceType === 'blockchain') {
+      return `/blockchain-transactions/${item.id}`;
+    } else if (sourceType === 'donation') {
+      return `/donations/${item.id}`;
+    } else {
+      return `/transactions/${item.id}`;
+    }
   };
+
+  // Add a debug panel that only shows in development mode
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (loading) {
     return (
@@ -606,45 +754,64 @@ export default function TransactionList() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {transactions.map((item, index) => (
-                  <motion.tr 
-                    key={`${getSourceLabel(item)}-${item.id}`} 
-                    className="hover:bg-gray-50 transition-colors duration-150"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(item.created_at || item.completed_at || Date.now()).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                      {item.transaction_hash?.slice(0, 8) || item.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {getTypeLabel(item)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatAmount(item.amount, item.currency_type)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
-                        {getStatusIcon(item.status)}
-                        {item.status?.charAt(0).toUpperCase() + item.status?.slice(1) || 'Unknown'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {getSourceLabel(item)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => navigate(getDetailsUrl(item))}
-                        className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
-                      >
-                        View Details
-                      </button>
-                    </td>
-                  </motion.tr>
-                ))}
+                {transactions.map((item, index) => {
+                  // Check if item is valid before rendering
+                  if (!item || typeof item !== 'object') {
+                    console.warn('Invalid transaction item:', item);
+                    return null;
+                  }
+                  
+                  // Debug log to help track issues
+                  console.log(`Rendering transaction ${index}:`, item);
+                  
+                  // Generate a unique key that won't cause React warnings
+                  const itemKey = item.id || item.transaction_hash || item.transaction_id || `transaction-${index}`;
+                  
+                  return (
+                    <motion.tr 
+                      key={itemKey} 
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                        {item.transaction_hash ? item.transaction_hash.slice(0, 8) : item.id || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getTypeLabel(item)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatAmount(item.amount, item.currency_type)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                          {getStatusIcon(item.status)}
+                          {item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Unknown'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getSourceLabel(item)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => {
+                            // Safely navigate to the details page based on item type
+                            const detailsUrl = getDetailsUrl(item);
+                            console.log('Navigating to:', detailsUrl);
+                            navigate(detailsUrl);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -689,6 +856,7 @@ export default function TransactionList() {
           </div>
         </motion.div>
       )}
+
     </motion.div>
   );
 }

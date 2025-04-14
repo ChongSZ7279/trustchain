@@ -313,24 +313,33 @@ export default function CharityDetails() {
     window.scrollTo(0, 0);
   }, [id]);
 
+  // Check follow status when the component mounts
   useEffect(() => {
-    // Add code to check if user is following this charity
-    const checkFollowStatus = async () => {
-      if (!userToken) return;
+    // Only check follow status if user is logged in and not an organization
+    if (currentUser && !isOrganizationUser()) {
+      const checkFollowStatus = async () => {
+        try {
+          setFollowLoading(true);
+          console.log(`Checking follow status for charity ${id}`);
+          const response = await axios.get(`/charities/${id}/follow-status`);
+          console.log('Follow status response:', response.data);
+          
+          if (response.data && response.data.is_following !== undefined) {
+            setIsFollowing(response.data.is_following);
+            if (response.data.follower_count !== undefined) {
+              setFollowerCount(response.data.follower_count);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking follow status:', error);
+        } finally {
+          setFollowLoading(false);
+        }
+      };
       
-      try {
-        const response = await axios.get(`/api/charities/${id}/follow-status`, {
-          headers: { Authorization: `Bearer ${userToken}` }
-        });
-        setIsFollowing(response.data.isFollowing);
-        setFollowerCount(response.data.followerCount);
-      } catch (error) {
-        console.error('Error checking follow status:', error);
-      }
-    };
-    
-    checkFollowStatus();
-  }, [id, userToken]);
+      checkFollowStatus();
+    }
+  }, [currentUser, id]);
 
   // Add a function to check if the current user is an organization
   const isOrganizationUser = () => {
@@ -753,14 +762,17 @@ export default function CharityDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading charity details...</p>
+            <p className="text-gray-500 text-sm mt-2">This may take a moment</p>
+          </div>
         </motion.div>
       </div>
     );

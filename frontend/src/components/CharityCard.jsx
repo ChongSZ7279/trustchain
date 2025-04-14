@@ -81,6 +81,31 @@ export default function CharityCard({ charity, inDashboard = false }) {
     console.log('Formatted charity image URL:', formatImageUrl(charity.picture_path));
   }, [charity]);
 
+  // Check follow status when component mounts
+  useEffect(() => {
+    // Only check follow status if user is logged in and not in dashboard
+    if (currentUser && !isOrganizationUser() && !inDashboard) {
+      const checkFollowStatus = async () => {
+        try {
+          console.log(`Checking follow status for charity ${charity.id}`);
+          const response = await axios.get(`/charities/${charity.id}/follow-status`);
+          console.log('Follow status response:', response.data);
+          
+          if (response.data && response.data.is_following !== undefined) {
+            setIsFollowing(response.data.is_following);
+            if (response.data.follower_count !== undefined) {
+              setFollowerCount(response.data.follower_count);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking follow status:', error);
+        }
+      };
+      
+      checkFollowStatus();
+    }
+  }, [currentUser, charity.id, inDashboard]);
+
   const toggleFollow = async () => {
     if (!currentUser) {
       toast.error('Please login to follow charities');

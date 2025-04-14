@@ -80,6 +80,34 @@ export default function OrganizationDetails() {
     window.scrollTo(0, 0);
   }, [id]);
 
+  // Check follow status when the component mounts
+  useEffect(() => {
+    // Only check follow status if user is logged in and not an organization
+    if (currentUser && !isOrganizationUser()) {
+      const checkFollowStatus = async () => {
+        try {
+          setIsFollowLoading(true);
+          console.log(`Checking follow status for organization ${id}`);
+          const response = await axios.get(`/organizations/${id}/follow-status`);
+          console.log('Follow status response:', response.data);
+          
+          if (response.data && response.data.is_following !== undefined) {
+            setIsFollowing(response.data.is_following);
+            if (response.data.follower_count !== undefined) {
+              setFollowerCount(response.data.follower_count);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking follow status:', error);
+        } finally {
+          setIsFollowLoading(false);
+        }
+      };
+      
+      checkFollowStatus();
+    }
+  }, [currentUser, id]);
+
   const fetchOrganizationDetails = async () => {
     try {
       setLoading(true);

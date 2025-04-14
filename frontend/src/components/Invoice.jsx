@@ -234,7 +234,7 @@ export default function Invoice() {
 
   return (
     <div className="min-h-screen">
-        <BackButton />
+      <BackButton />
       <div className="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
         
         <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">

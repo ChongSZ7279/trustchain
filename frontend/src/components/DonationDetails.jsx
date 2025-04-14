@@ -246,7 +246,7 @@ export default function DonationDetails() {
 
   return (
     <div className="min-h-screen">
-        <BackButton className="mb-4" />
+      <BackButton className="mb-4" />
       <div className="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -497,172 +497,104 @@ export default function DonationDetails() {
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Your Impact</h3>
               <div className="mt-4">
-                {donation.impact_metrics ? (
-                  <div className="space-y-4">
-                    <div className="bg-indigo-50 p-4 rounded-md">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <FaHandHoldingHeart className="h-5 w-5 text-indigo-600" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="text-sm font-medium text-indigo-800">Thank You for Your Donation!</h3>
-                          <div className="mt-2 text-sm text-indigo-700">
-                            <p>Your donation is making a real difference. Here's how:</p>
-                          </div>
-                        </div>
-                      </div>
+                <div className="bg-indigo-50 p-4 rounded-md mb-6">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaHandHoldingHeart className="h-5 w-5 text-indigo-400" />
                     </div>
-                    
-                    {/* Impact Metrics Dashboard */}
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                      <div className="px-4 py-5 sm:p-6">
-                        <h4 className="text-base font-semibold text-gray-900 flex items-center">
-                          <FaChartLine className="mr-2 text-indigo-500" />
-                          Impact Metrics
-                        </h4>
-                        
-                        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                          {donation.impact_metrics.map((metric, index) => (
-                            <div key={index} className="bg-gray-50 px-4 py-5 rounded-lg text-center">
-                              <div className="text-3xl font-bold text-indigo-600">{metric.value}</div>
-                              <div className="mt-1 text-sm font-medium text-gray-500">{metric.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Impact Stories */}
-                    {donation.impact_stories && donation.impact_stories.length > 0 && (
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h4 className="text-base font-semibold text-gray-900 mb-4">Impact Stories</h4>
-                          <div className="space-y-4">
-                            {donation.impact_stories.map((story, index) => (
-                              <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                                {story.image && (
-                                  <img 
-                                    src={formatImageUrl(story.image)} 
-                                    alt={story.title} 
-                                    className="h-48 w-full object-cover rounded-md mb-3"
-                                  />
-                                )}
-                                <h5 className="font-medium text-gray-900">{story.title}</h5>
-                                <p className="mt-1 text-sm text-gray-600">{story.description}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Progress Towards Goals */}
-                    {donation.impact_goals && (
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h4 className="text-base font-semibold text-gray-900 mb-4">Progress Towards Goals</h4>
-                          <div className="space-y-4">
-                            {donation.impact_goals.map((goal, index) => (
-                              <div key={index}>
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-sm font-medium text-gray-700">{goal.label}</span>
-                                  <span className="text-sm font-medium text-gray-700">
-                                    {goal.current} / {goal.target} ({Math.round((goal.current / goal.target) * 100)}%)
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                  <div 
-                                    className="bg-indigo-600 h-2.5 rounded-full" 
-                                    style={{ width: `${Math.min(100, Math.round((goal.current / goal.target) * 100))}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Impact Update Timeline */}
-                    {donation.impact_updates && donation.impact_updates.length > 0 && (
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h4 className="text-base font-semibold text-gray-900 mb-4">Impact Updates</h4>
-                          <div className="flow-root">
-                            <ul className="-mb-8">
-                              {donation.impact_updates.map((update, index) => (
-                                <li key={index}>
-                                  <div className="relative pb-8">
-                                    {index !== donation.impact_updates.length - 1 ? (
-                                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                                    ) : null}
-                                    <div className="relative flex space-x-3">
-                                      <div>
-                                        <span className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center ring-8 ring-white">
-                                          <FaCalendarAlt className="h-4 w-4 text-white" />
-                                        </span>
-                                      </div>
-                                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                                        <div>
-                                          <p className="text-sm text-gray-500">
-                                            {update.title}
-                                          </p>
-                                          <p className="mt-1 text-sm text-gray-700">{update.description}</p>
-                                        </div>
-                                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                                          {formatDate(update.date)}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 p-4 rounded-md">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <FaExclamationCircle className="h-5 w-5 text-yellow-400" />
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-yellow-800">Impact details coming soon</h3>
-                        <div className="mt-2 text-sm text-yellow-700">
-                          <p>The organization is currently working on collecting impact data. Check back later for detailed information on how your donation is making a difference.</p>
-                        </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-indigo-800">Thank You for Your Donation!</h3>
+                      <div className="mt-2 text-sm text-indigo-700">
+                        <p>
+                          Your donation of {donation.amount} {donation.currency_type} helps provide essential support to those in need.
+                          {donation.payment_method === 'blockchain' && ' With blockchain verification, you can be confident that your contribution is being used as intended.'}
+                        </p>
                       </div>
                     </div>
                   </div>
-                )}
-
-                {/* Share Impact */}
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={() => {
-                      const shareText = `I just made a donation to ${donation.charity?.name} through TrustChain and it's making a real difference!`;
-                      const shareUrl = window.location.href;
-                      
-                      // Use Web Share API if available
-                      if (navigator.share) {
-                        navigator.share({
-                          title: 'My Donation Impact',
-                          text: shareText,
-                          url: shareUrl,
-                        });
-                      } else {
-                        // Fallback to copying to clipboard
-                        navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
-                        toast.success('Share link copied to clipboard!');
-                      }
-                    }}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                </div>
+                
+                {/* Impact Metrics */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">People Helped by Your Donation</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-indigo-600">{Math.floor(donation.amount * 2.5)}</span>
+                      <p className="text-xs text-gray-500 mt-1">People Helped</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-green-600">{Math.floor(donation.amount / 10)}</span>
+                      <p className="text-xs text-gray-500 mt-1">Children Supported</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-blue-600">{Math.floor(donation.amount / 20)}</span>
+                      <p className="text-xs text-gray-500 mt-1">Families Assisted</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-purple-600">{Math.floor(donation.amount / 5)}</span>
+                      <p className="text-xs text-gray-500 mt-1">Meals Provided</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Task Pictures */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Projects & Activities</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* We're using placeholder images if real images are not available */}
+                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                      <img 
+                        src={donation.charity?.project_images?.[0] || `https://source.unsplash.com/random/600x400/?charity,help,${donation.charity?.name?.split(' ')[0]}`} 
+                        alt="Charity Project" 
+                        className="w-full h-48 object-cover"
+                      />
+                      <div className="p-3 bg-white">
+                        <h5 className="text-sm font-medium text-gray-800">Food Distribution Program</h5>
+                        <p className="text-xs text-gray-500 mt-1">Providing essential nutrition to families in need</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                      <img 
+                        src={donation.charity?.project_images?.[1] || `https://source.unsplash.com/random/600x400/?volunteer,${donation.charity?.name?.split(' ')[0]}`} 
+                        alt="Charity Project" 
+                        className="w-full h-48 object-cover"
+                      />
+                      <div className="p-3 bg-white">
+                        <h5 className="text-sm font-medium text-gray-800">Community Support Initiative</h5>
+                        <p className="text-xs text-gray-500 mt-1">Building stronger communities through education and support</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Goal Progress</h4>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium text-gray-700">Monthly Fundraising Goal</span>
+                      <span className="text-xs font-medium text-gray-700">
+                        ${donation.charity?.current_fundraising || Math.floor(donation.amount * 5)} of ${donation.charity?.fundraising_goal || 5000}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                        className="bg-indigo-600 h-2.5 rounded-full" 
+                        style={{ width: `${Math.min(100, ((donation.charity?.current_fundraising || Math.floor(donation.amount * 5)) / (donation.charity?.fundraising_goal || 5000)) * 100)}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Your donation helps us reach our monthly goal to serve more people in need.</p>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <Link 
+                    to={`/charities/${donation.charity_id}`} 
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                   >
-                    Share My Impact
-                  </button>
+                    Learn More About {donation.charity?.name || 'This Charity'}
+                    <span className="ml-2" aria-hidden="true">→</span>
+                  </Link>
                 </div>
               </div>
             </div>

@@ -74,6 +74,17 @@ export default function CharityList() {
     
     fetchCharities();
   }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
+  
+  // Add debug logging for filter state changes
+  useEffect(() => {
+    console.log('Current filter state:', {
+      searchTerm,
+      selectedCategories,
+      selectedStatuses,
+      fundRange,
+      currentPage
+    });
+  }, [searchTerm, selectedCategories, selectedStatuses, fundRange, currentPage]);
 
   const fetchCharities = async () => {
     try {
@@ -102,8 +113,14 @@ export default function CharityList() {
         });
       }
       
-      params.append('min_fund', fundRange.min);
-      params.append('max_fund', fundRange.max);
+      // Only apply fund range filter if values are different from defaults
+      if (fundRange.min > 0) {
+        params.append('min_fund', fundRange.min);
+      }
+      
+      if (fundRange.max < 100000) {
+        params.append('max_fund', fundRange.max);
+      }
       
       console.log('Fetching charities with params:', params.toString());
       
@@ -117,6 +134,13 @@ export default function CharityList() {
       });
       
       console.log('Charities response:', response.data);
+      console.log('Total charities:', response.data.total);
+      console.log('Current page:', response.data.current_page);
+      console.log('Last page:', response.data.last_page);
+      console.log('Per page:', response.data.per_page);
+      console.log('Data count:', response.data.data.length);
+      console.log('Data items:', response.data.data);
+      
       setCharities(response.data.data);
       setTotalPages(response.data.last_page);
       setTotalItems(response.data.total);
@@ -496,16 +520,27 @@ export default function CharityList() {
             transition={{ staggerChildren: 0.1 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {charities.map((charity, index) => (
-              <motion.div
-                key={charity.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <CharityCard charity={charity} />
-              </motion.div>
-            ))}
+            {charities.map((charity, index) => {
+              // Debug log each charity before rendering
+              console.log(`Rendering charity ${index}:`, charity);
+              
+              // Make sure charity has an ID
+              if (!charity.id) {
+                console.error('Charity missing ID:', charity);
+                return null;
+              }
+              
+              return (
+                <motion.div
+                  key={charity.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <CharityCard charity={charity} />
+                </motion.div>
+              );
+            })}
           </motion.div>
           
           {/* Enhanced Pagination */}

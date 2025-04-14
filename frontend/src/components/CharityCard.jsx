@@ -145,8 +145,12 @@ export default function CharityCard({ charity, inDashboard = false }) {
     }
   };
 
-  const progressPercentage = charity.funding_goal > 0 
-    ? Math.min(100, (charity.funds_raised / charity.funding_goal) * 100) 
+  // Support both field naming conventions (fund_received/fund_targeted and funds_raised/funding_goal)
+  const fundsRaised = charity.funds_raised || charity.fund_received || 0;
+  const fundingGoal = charity.funding_goal || charity.fund_targeted || 0;
+  
+  const progressPercentage = fundingGoal > 0 
+    ? Math.min(100, (fundsRaised / fundingGoal) * 100) 
     : 0;
 
   return (
@@ -236,8 +240,8 @@ export default function CharityCard({ charity, inDashboard = false }) {
             ></div>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span>{charity.funds_raised} ETH raised</span>
-            <span>Goal: {charity.funding_goal} ETH</span>
+            <span>{fundsRaised} ETH raised</span>
+            <span>Goal: {fundingGoal} ETH</span>
           </div>
           
           {charity.is_fully_funded && (

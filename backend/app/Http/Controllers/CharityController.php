@@ -11,7 +11,10 @@ class CharityController extends Controller
 {
     public function index(Request $request)
     {
+        \Log::info('CharityController::index request parameters', $request->all());
+        
         $query = Charity::with('organization');
+        \Log::info('Initial charity count', ['count' => $query->count()]);
 
         // Apply search filter if provided
         if ($request->has('search')) {
@@ -20,12 +23,14 @@ class CharityController extends Controller
                 $q->where('name', 'like', "%{$searchTerm}%")
                   ->orWhere('description', 'like', "%{$searchTerm}%");
             });
+            \Log::info('After search filter', ['search' => $searchTerm, 'count' => $query->count()]);
         }
 
         // Apply category filter if provided
         if ($request->has('categories')) {
             $categories = $request->categories;
             $query->whereIn('category', $categories);
+            \Log::info('After category filter', ['categories' => $categories, 'count' => $query->count()]);
         }
 
         // Apply status filter if provided
@@ -40,19 +45,24 @@ class CharityController extends Controller
                     }
                 }
             });
+            \Log::info('After status filter', ['statuses' => $statuses, 'count' => $query->count()]);
         }
 
         // Apply fund range filter if provided
         if ($request->has('min_fund')) {
             $query->where('fund_targeted', '>=', $request->min_fund);
+            \Log::info('After min_fund filter', ['min_fund' => $request->min_fund, 'count' => $query->count()]);
         }
         if ($request->has('max_fund')) {
             $query->where('fund_targeted', '<=', $request->max_fund);
+            \Log::info('After max_fund filter', ['max_fund' => $request->max_fund, 'count' => $query->count()]);
         }
 
         // Get paginated results
         $perPage = $request->input('per_page', 12); // Default to 12 items per page
+        \Log::info('Before pagination', ['per_page' => $perPage, 'count' => $query->count()]);
         $charities = $query->paginate($perPage);
+        \Log::info('After pagination', ['data_count' => count($charities), 'total' => $charities->total()]);
         
         // Add follower count to each charity
         $charities->each(function ($charity) {

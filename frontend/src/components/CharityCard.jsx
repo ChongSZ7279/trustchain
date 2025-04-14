@@ -38,13 +38,21 @@ const getFileIcon = (fileType) => {
 
 export default function CharityCard({ charity, inDashboard = false }) {
   const navigate = useNavigate();
-  const { organization, currentUser } = useAuth();
+  const auth = useAuth();
+  const { currentUser, accountType } = auth;
   const [showDetails, setShowDetails] = useState(false);
   const [isFollowing, setIsFollowing] = useState(inDashboard || charity.is_following || false);
   const [followerCount, setFollowerCount] = useState(charity.follower_count || 0);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
   
+  // Function to check if the user is an organization
+  const isOrganizationUser = () => {
+    // More thorough check for organization status
+    return accountType === 'organization' || 
+           currentUser?.account_type === 'organization' ||
+           currentUser?.is_organization === true;
+  };
   
   // Helper function to format image URL
   const formatImageUrl = (path) => {
@@ -80,7 +88,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
     }
 
     // Hide follow button for organization users
-    if (currentUser.account_type === 'organization') {
+    if (isOrganizationUser()) {
       return;
     }
 
@@ -145,24 +153,26 @@ export default function CharityCard({ charity, inDashboard = false }) {
           )}
         </div>
         
-        {/* Like button positioned on the top right */}
-        <div className="absolute top-4 right-4">
-          <button
-            onClick={toggleFollow}
-            disabled={isLoading}
-            className={`p-2 rounded-full transition-colors shadow-md ${
-              isFollowing 
-                ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
-                : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
-            }`}
-          >
-            {isFollowing ? (
-              <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-            ) : (
-              <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-            )}
-          </button>
-        </div>
+        {/* Like button positioned on the top right - only show for non-organization users */}
+        {!isOrganizationUser() && (
+          <div className="absolute top-4 right-4">
+            <button
+              onClick={toggleFollow}
+              disabled={isLoading}
+              className={`p-2 rounded-full transition-colors shadow-md ${
+                isFollowing 
+                  ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
+                  : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
+              }`}
+            >
+              {isFollowing ? (
+                <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
+              ) : (
+                <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
+              )}
+            </button>
+          </div>
+        )}
       </div>
       
       {/* Charity Info */}
@@ -243,7 +253,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           )}
 
           {/* Only show follow button for non-organization users and not in dashboard */}
-          {currentUser && currentUser.account_type !== 'organization' && !inDashboard && (
+          {currentUser && !isOrganizationUser() && !inDashboard && (
             <button
               onClick={toggleFollow}
               className={`text-sm flex items-center transition-colors duration-200 ${

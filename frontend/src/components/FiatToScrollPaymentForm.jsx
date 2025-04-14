@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FaCreditCard, FaLock, FaExchangeAlt, FaEthereum } from 'react-icons/fa';
+import { 
+  FaCreditCard, FaLock, FaExchangeAlt, FaEthereum, FaShieldAlt, 
+  FaInfoCircle, FaCheckCircle, FaSpinner
+} from 'react-icons/fa';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axios from 'axios';
@@ -7,18 +10,42 @@ import API_BASE_URL from '../config/api';
 
 // Initialize Stripe with the correct environment variable
 const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || process.env.REACT_APP_STRIPE_PUBLIC_KEY;
-console.log('Using Stripe public key:', stripeKey); // For debugging
 
 // Only initialize if we have a key
 const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // Component to show when Stripe isn't configured
 const StripeNotConfigured = () => (
-  <div className="p-4 bg-yellow-50 rounded-md text-yellow-800 text-sm">
-    <h3 className="font-medium mb-2">Stripe Not Configured</h3>
-    <p>The Stripe payment system is not properly configured. Please contact the administrator.</p>
+  <div className="p-5 bg-yellow-50 rounded-lg border border-yellow-200 text-yellow-800">
+    <div className="flex items-center mb-3">
+      <FaInfoCircle className="text-yellow-600 mr-2 text-lg" />
+      <h3 className="font-semibold">Stripe Payment Not Available</h3>
+    </div>
+    <p className="ml-6">
+      The payment system is currently unavailable. Please try again later or contact support if this issue persists.
+    </p>
   </div>
 );
+
+// Card element styling
+const cardElementOptions = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#424770',
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      '::placeholder': {
+        color: '#aab7c4',
+      },
+      padding: '10px 14px',
+    },
+    invalid: {
+      color: '#e53e3e',
+      iconColor: '#e53e3e',
+    },
+  },
+  hidePostalCode: true,
+};
 
 const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous = false, onSuccess, onError }) => {
   const [processing, setProcessing] = useState(false);
@@ -26,14 +53,17 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
   const [conversionRate, setConversionRate] = useState(null);
   const [scrollAmount, setScrollAmount] = useState(null);
   const [currency] = useState('USD'); // Default currency
+  const [paymentStatus, setPaymentStatus] = useState('idle'); // idle, processing, success, error
+  const [cardComplete, setCardComplete] = useState(false);
+  
   const stripe = useStripe();
   const elements = useElements();
 
   // Fetch current Scroll conversion rate
   useEffect(() => {
     const fetchConversionRate = async () => {
+      setPaymentStatus('loading_rate');
       try {
-        // Don't include auth token for this public endpoint
         const response = await axios.get(`${API_BASE_URL}/scroll-conversion-rates?currency=${currency}`, {
           headers: {
             'Content-Type': 'application/json'
@@ -43,14 +73,15 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
         if (response.data.success) {
           setConversionRate(response.data.data.scroll_price);
           calculateScrollAmount(amount, response.data.data.scroll_price);
+          setPaymentStatus('idle');
         }
       } catch (err) {
         console.error('Error fetching conversion rate:', err);
         // Use fallback value instead of showing error
         const fallbackRate = currency === 'USD' ? 2500 : 2300;
-        console.log('Using fallback conversion rate:', fallbackRate);
         setConversionRate(fallbackRate);
         calculateScrollAmount(amount, fallbackRate);
+        setPaymentStatus('idle');
       }
     };
 
@@ -68,7 +99,7 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
   const handleSubmit = async (event) => {
     event.preventDefault();
     
-    if (!stripe || !elements) {
+    if (!stripe || !elements || !cardComplete) {
       return;
     }
 
@@ -79,6 +110,7 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
     }
 
     setProcessing(true);
+    setPaymentStatus('processing');
     setError(null);
 
     try {
@@ -91,10 +123,11 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
       if (stripeError) {
         setError(stripeError.message);
         setProcessing(false);
+        setPaymentStatus('error');
         return;
       }
 
-      // First create a payment intent on the server (public endpoint, no auth needed)
+      // First create a payment intent on the server
       const createPaymentIntent = await axios.post(`${API_BASE_URL}/stripe/create-payment-intent`, {
         amount: parseFloat(amount),
         currency,
@@ -123,8 +156,6 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
         }
       } else {
         // In test mode, we don't actually confirm with Stripe
-        console.log('Using test mode, skipping Stripe confirmation');
-        // Create a fake successful payment result
         paymentResult = {
           paymentIntent: {
             id: createPaymentIntent.data.paymentIntentId,
@@ -137,13 +168,7 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
       const token = localStorage.getItem('token');
       const isLoggedIn = !!token;
       
-      // Use the appropriate endpoint based on authentication status
-      const endpoint = isLoggedIn 
-        ? `${API_BASE_URL}/process-fiat-donation` 
-        : `${API_BASE_URL}/fiat-to-scroll-noauth`;
-
-      // Force use the no-auth endpoint for now since auth isn't working properly
-      // Overwrite the endpoint rather than redeclaring it
+      // Use the no-auth endpoint
       let apiEndpoint = `${API_BASE_URL}/fiat-to-scroll-noauth`;
       
       // Prepare headers based on auth status
@@ -152,44 +177,29 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
         ...(isLoggedIn ? { 'Authorization': `Bearer ${token}` } : {})
       };
       
+      // Prepare payload for API call
+      const payload = {
+        amount: parseFloat(amount),
+        currency,
+        charity_id: charityId,
+        message,
+        is_anonymous: isAnonymous,
+        payment_intent_id: paymentResult.paymentIntent.id,
+        test_mode: isTestMode,
+        ...(!isLoggedIn ? { 
+          user_email: localStorage.getItem('guest_email') || 'guest@example.com',
+          user_name: localStorage.getItem('guest_name') || 'Guest User'
+        } : {})
+      };
+      
       // Call backend to process fiat to Scroll conversion
       try {
-        console.log('Sending request to:', apiEndpoint);
-        console.log('Request payload:', {
-          amount: parseFloat(amount),
-          currency,
-          charity_id: charityId,
-          message,
-          is_anonymous: isAnonymous,
-          payment_intent_id: paymentResult.paymentIntent.id,
-          test_mode: isTestMode,
-          ...(!isLoggedIn ? { 
-            user_email: localStorage.getItem('guest_email') || 'guest@example.com',
-            user_name: localStorage.getItem('guest_name') || 'Guest User'
-          } : {})
-        });
-        
         let response;
         try {
           // First try the fiat-to-scroll endpoint
-          response = await axios.post(apiEndpoint, {
-            amount: parseFloat(amount),
-            currency,
-            charity_id: charityId,
-            message,
-            is_anonymous: isAnonymous,
-            payment_intent_id: paymentResult.paymentIntent.id,
-            test_mode: isTestMode,
-            ...(!isLoggedIn ? { 
-              user_email: localStorage.getItem('guest_email') || 'guest@example.com',
-              user_name: localStorage.getItem('guest_name') || 'Guest User'
-            } : {})
-          }, { headers });
+          response = await axios.post(apiEndpoint, payload, { headers });
         } catch (firstError) {
-          console.error('First endpoint attempt failed:', firstError);
-          
           // If that fails, try the simple-donation endpoint as fallback
-          console.log('Trying fallback simple-donation endpoint...');
           response = await axios.post(`${API_BASE_URL}/simple-donation`, {
             charity_id: charityId,
             amount: parseFloat(amount),
@@ -197,24 +207,17 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
             message: message || '',
             test_mode: isTestMode
           });
-          
-          console.log('Simple donation fallback response:', response.data);
         }
 
-        console.log('Donation response:', response.data);
-
         if (response.data.success) {
-          // Extract the donation ID - try to parse as integer for proper redirection
+          // Extract donation data
           let donationId;
           
           if (response.data.donation && response.data.donation.id) {
-            // If we have a donation object with id
             donationId = parseInt(response.data.donation.id) || response.data.donation.id;
           } else if (response.data.id) {
-            // Direct id in response
             donationId = parseInt(response.data.id) || response.data.id;
           } else if (response.data.donation_id) {
-            // donation_id field
             donationId = parseInt(response.data.donation_id) || response.data.donation_id;
           } else {
             donationId = 'unknown';
@@ -226,34 +229,24 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
             response.data.transaction_hash ||
             paymentResult.paymentIntent.id;
           
-          console.log('Extracted donation data:', {
-            donationId, 
-            transactionHash,
-            testMode: isTestMode || response.data.test_mode
-          });
+          setPaymentStatus('success');
           
-          onSuccess({
-            success: true,
-            donation: {
-              id: donationId,
-              amount: parseFloat(amount),
-              transaction_hash: transactionHash
-            },
-            test_mode: isTestMode || response.data.test_mode
-          });
+          // Delay success callback slightly to show the success state
+          setTimeout(() => {
+            onSuccess({
+              success: true,
+              donation: {
+                id: donationId,
+                amount: parseFloat(amount),
+                transaction_hash: transactionHash
+              },
+              test_mode: isTestMode || response.data.test_mode
+            });
+          }, 1000);
         } else {
           throw new Error(response.data.error || 'Payment processing failed');
         }
       } catch (err) {
-        console.error('Error processing fiat-to-scroll payment:', err);
-        console.error('Error details:', {
-          message: err.message,
-          response: err.response?.data,
-          status: err.response?.status,
-          headers: err.response?.headers
-        });
-        
-        // Check for detailed error message in response
         let errorMessage = 'Payment processing failed';
         if (err.response && err.response.data) {
           if (err.response.data.error) {
@@ -261,93 +254,153 @@ const FiatToScrollPaymentForm = ({ amount, charityId, message = '', isAnonymous 
           } else if (err.response.data.message) {
             errorMessage = err.response.data.message;
           }
-          
-          // Log any additional error details
-          console.error('Backend error details:', err.response.data);
         } else if (err.message) {
           errorMessage = err.message;
         }
         
         setError(errorMessage);
+        setPaymentStatus('error');
         onError(err);
       }
     } catch (err) {
-      console.error('Error in payment process:', err);
       setError(err.message || 'An error occurred during payment processing');
+      setPaymentStatus('error');
       onError(err);
     } finally {
       setProcessing(false);
     }
   };
 
+  // Handle card input changes
+  const handleCardChange = (event) => {
+    setCardComplete(event.complete);
+    if (event.error) {
+      setError(event.error.message);
+    } else {
+      setError(null);
+    }
+  };
+
+  // Render different content based on payment status
+  if (paymentStatus === 'success') {
+    return (
+      <div className="bg-green-50 p-6 rounded-lg border border-green-200 text-center">
+        <div className="flex justify-center mb-4">
+          <div className="bg-green-100 rounded-full p-3">
+            <FaCheckCircle className="text-green-600 text-3xl" />
+          </div>
+        </div>
+        <h3 className="text-xl font-semibold text-green-800 mb-2">Payment Successful!</h3>
+        <p className="text-green-700 mb-4">
+          Your donation of ${amount} (equivalent to {scrollAmount} SCROLL) has been processed successfully.
+        </p>
+        <div className="bg-white p-3 rounded-md text-sm text-green-700 inline-block">
+          Thank you for your generosity!
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex items-center mb-4 justify-between">
+    <div className="space-y-5">
+      <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+        {/* Header with conversion info */}
+        <div className="flex items-center mb-5 justify-between border-b border-gray-100 pb-4">
           <div className="flex items-center">
-            <FaCreditCard className="text-gray-400 mr-2" />
-            <span className="text-sm text-gray-600">Card Details</span>
+            <div className="bg-indigo-100 p-2 rounded-full mr-3">
+              <FaCreditCard className="text-indigo-600" />
+            </div>
+            <span className="text-gray-800 font-medium">Secure Card Payment</span>
           </div>
-          <div className="flex items-center text-xs text-indigo-600">
-            <FaExchangeAlt className="mr-1" />
-            <span>1 {currency} ≈ {conversionRate ? (1/conversionRate).toFixed(6) : '...'} SCROLL</span>
+          <div className="flex items-center text-sm bg-blue-50 px-3 py-1 rounded-full text-blue-700">
+            <FaExchangeAlt className="mr-2" />
+            <span>{conversionRate ? `1 SCROLL ≈ $${conversionRate}` : 'Loading rates...'}</span>
           </div>
         </div>
         
-        <div className="border border-gray-200 rounded-md p-3 mb-3">
-          <CardElement
-            options={{
-              style: {
-                base: {
-                  fontSize: '16px',
-                  color: '#424770',
-                  '::placeholder': {
-                    color: '#aab7c4',
-                  },
-                },
-                invalid: {
-                  color: '#9e2146',
-                },
-              },
-            }}
-          />
+        {/* Card input section */}
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Card Information</label>
+          <div className={`border ${error ? 'border-red-300' : 'border-gray-300'} rounded-md p-4 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all`}>
+            <CardElement
+              options={cardElementOptions}
+              onChange={handleCardChange}
+            />
+          </div>
+          {error && (
+            <div className="mt-2 text-sm text-red-600 flex items-center">
+              <FaInfoCircle className="mr-1" />
+              {error}
+            </div>
+          )}
         </div>
         
-        <div className="bg-blue-50 p-3 rounded-md mb-3">
-          <div className="flex items-center text-sm text-blue-700 mb-1">
+        {/* Conversion details */}
+        <div className="bg-indigo-50 p-4 rounded-lg mb-5">
+          <div className="flex items-center text-indigo-800 font-medium mb-3">
             <FaEthereum className="mr-2" />
-            <span className="font-medium">Conversion Details</span>
+            <span>Donation Details</span>
           </div>
-          <div className="text-xs text-blue-600">
-            <p>You're donating: ${amount} {currency}</p>
-            <p>Equivalent in SCROLL: {scrollAmount || '...'} SCROLL</p>
-            <p>Current exchange rate: 1 SCROLL = ${conversionRate || '...'} {currency}</p>
+          <div className="grid grid-cols-2 gap-3 text-sm text-indigo-700">
+            <div className="flex justify-between">
+              <span>You're donating:</span>
+              <span className="font-medium">${amount} {currency}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Equivalent in SCROLL:</span>
+              <span className="font-medium">{scrollAmount || '...'} SCROLL</span>
+            </div>
+            <div className="flex justify-between col-span-2">
+              <span>Current exchange rate:</span>
+              <span className="font-medium">1 SCROLL = ${conversionRate || '...'} {currency}</span>
+            </div>
           </div>
         </div>
         
-        {error && (
-          <div className="mt-2 text-sm text-red-600">
-            {error}
+        {/* Security and benefits section */}
+        <div className="flex items-start mb-4 text-xs text-gray-600">
+          <div className="bg-gray-100 p-1 rounded-full mr-2 mt-1">
+            <FaShieldAlt className="text-gray-500" />
           </div>
-        )}
-        
-        <div className="mt-4 flex items-center text-xs text-gray-500">
-          <FaLock className="mr-1" />
-          <span>Your payment is secure and encrypted</span>
+          <div>
+            <p className="leading-tight">
+              Your donation is protected by blockchain technology. Your card details are securely processed by Stripe and never stored on our servers.
+            </p>
+          </div>
         </div>
       </div>
 
+      {/* Payment button */}
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={!stripe || processing || !conversionRate}
-        className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-          !stripe || processing || !conversionRate
+        disabled={!stripe || processing || !conversionRate || !cardComplete || paymentStatus === 'loading_rate'}
+        className={`w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-white relative
+          ${!stripe || processing || !conversionRate || !cardComplete || paymentStatus === 'loading_rate'
             ? 'bg-gray-400 cursor-not-allowed'
             : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-        }`}
+          }`}
       >
-        {processing ? 'Processing...' : `Pay $${amount} (${scrollAmount || '...'} SCROLL)`}
+        {processing ? (
+          <span className="flex items-center justify-center">
+            <FaSpinner className="animate-spin mr-2" />
+            Processing Payment...
+          </span>
+        ) : (
+          <>
+            {paymentStatus === 'loading_rate' ? (
+              <span className="flex items-center justify-center">
+                <FaSpinner className="animate-spin mr-2" />
+                Loading Exchange Rates...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center">
+                <FaLock className="mr-2" />
+                Pay ${amount} ({scrollAmount || '...'} SCROLL)
+              </span>
+            )}
+          </>
+        )}
       </button>
     </div>
   );
@@ -373,4 +426,4 @@ const FiatToScrollPaymentWrapper = ({ amount, charityId, message, isAnonymous, o
   );
 };
 
-export default FiatToScrollPaymentWrapper; 
+export default FiatToScrollPaymentWrapper;

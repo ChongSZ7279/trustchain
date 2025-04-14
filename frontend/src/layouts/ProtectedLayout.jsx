@@ -30,13 +30,14 @@ export default function ProtectedLayout() {
 
   console.log('ProtectedLayout - Authenticated, rendering protected content');
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
-      <main className="pt-16">
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="flex-grow pt-16">
+        {/* Main Content */}
+        <main className="flex-1 p-6">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
       <Footer />
     </div>
   );

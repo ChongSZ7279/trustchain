@@ -118,6 +118,15 @@ export function AuthProvider({ children }) {
           console.log('Using provided account type:', determinedAccountType);
         }
         
+        // Enhanced debugging for account type
+        console.log('AUTH CONTEXT - Account type determination:', {
+          providedAccountType: response.data.account_type,
+          isOrganization: response.data.user?.is_organization,
+          hasIcNumber: !!response.data.user?.ic_number,
+          finalAccountType: determinedAccountType,
+          userData: response.data.user
+        });
+        
         setAccountType(determinedAccountType);
       } catch (err) {
         console.error('Auth check error:', err);

@@ -20,6 +20,9 @@ class DatabaseSeeder extends Seeder
             DonationSeeder::class,
             FollowerSeeder::class,
             TransactionSeeder::class,
+            
+            // Uncomment this line if you need to fix issues with charity-organization relationships
+            // FixCharityOrganizationSeeder::class,
         ]);
     }
 }

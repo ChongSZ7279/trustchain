@@ -211,6 +211,14 @@ export default function CharityCard({ charity, inDashboard = false }) {
             </div>
           )}
         </div>
+
+        {/* People Affected */}
+        {charity.people_affected > 0 && (
+          <div className="mt-4 flex items-center text-sm text-gray-700">
+            <FaUsers className="mr-2 text-indigo-500" />
+            <span>Helping approximately {parseInt(charity.people_affected).toLocaleString()} people</span>
+          </div>
+        )}
       </div>
 
       {/* Actions */}

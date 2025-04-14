@@ -817,6 +817,22 @@ export default function CharityDetails() {
                     className="mb-4"
                   />
                 </div>
+
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <FaUsers className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-gray-500">People Affected</h3>
+                      <p className="mt-1 text-lg font-medium text-gray-900">
+                        {charity.people_affected ? parseInt(charity.people_affected).toLocaleString() : 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Actions */}
@@ -912,16 +928,6 @@ export default function CharityDetails() {
             }`}
           >
             Milestones
-          </button>
-          <button
-            onClick={() => setActiveTab('blockchain')}
-            className={`py-4 px-6 font-medium text-sm ${
-              activeTab === 'blockchain'
-                ? 'border-b-2 border-indigo-500 text-indigo-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Blockchain
           </button>
           <button
             onClick={() => setActiveTab('transactions')}
@@ -1229,201 +1235,6 @@ export default function CharityDetails() {
                   </Link>
                 </motion.div>
               )}
-            </motion.div>
-          )}
-
-          {activeTab === 'blockchain' && (
-            <motion.div
-              key="blockchain"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mt-4"
-            >
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden p-6">
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Blockchain Verification</h3>
-                  <p className="text-gray-600">
-                    This charity uses blockchain technology to ensure transparency and accountability.
-                    All donations are tracked on the blockchain and funds are only released when milestones are verified.
-                  </p>
-                  
-                  <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0">
-                        <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <h4 className="text-sm font-medium text-indigo-800">Blockchain ID</h4>
-                        <p className="mt-1 text-sm text-indigo-700">
-                          {charity?.blockchain_id || 'Not available'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Wallet Connection</h3>
-                  {blockchainLoading ? (
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-gray-800">Connecting to wallet...</h4>
-                        </div>
-                      </div>
-                    </div>
-                  ) : blockchainError ? (
-                    <div className="p-4 bg-red-50 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-red-800">Connection Error</h4>
-                          <p className="mt-1 text-sm text-red-700">{blockchainError}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleConnectWallet}
-                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      >
-                        Try Again
-                      </button>
-                    </div>
-                  ) : blockchainAccount ? (
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-green-800">Wallet Connected</h4>
-                          <p className="mt-1 text-sm text-green-700">
-                            {blockchainAccount.substring(0, 6)}...{blockchainAccount.substring(blockchainAccount.length - 4)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-yellow-50 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-yellow-800">Wallet Not Connected</h4>
-                          <p className="mt-1 text-sm text-yellow-700">
-                            Connect your wallet to make blockchain donations and verify milestones.
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleConnectWallet}
-                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      >
-                        Connect Wallet
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Blockchain Donations</h3>
-                  {isLoadingBlockchainDonations ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                      <p className="text-gray-600">Loading blockchain donations...</p>
-                    </div>
-                  ) : blockchainDonationsError ? (
-                    <div className="text-center py-8">
-                      <svg className="mx-auto h-12 w-12 text-red-400 mb-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Donations</h3>
-                      <p className="text-gray-600 mb-4">{blockchainDonationsError}</p>
-                      <button
-                        onClick={() => window.location.reload()}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      >
-                        Try Again
-                      </button>
-                    </div>
-                  ) : blockchainDonations.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Transaction Hash
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Donor
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Amount (ETH)
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {blockchainDonations.map((donation, index) => (
-                            <tr key={donation.transactionHash || index} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {donation.timestamp ? new Date(donation.timestamp).toLocaleString() : 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                                <a 
-                                  href={`https://etherscan.io/tx/${donation.transactionHash}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-indigo-600 hover:text-indigo-900"
-                                >
-                                  {(() => {
-                                    const id = donation.transactionHash || donation.id;
-                                    if (!id) return 'N/A';
-                                    return typeof id === 'string' ? id.slice(0, 8) : `#${id}`;
-                                  })()}
-                                </a>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <a 
-                                  href={`https://etherscan.io/address/${donation.donor}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-indigo-600 hover:text-indigo-900"
-                                >
-                                  {donation.donor.substring(0, 6)}...{donation.donor.substring(donation.donor.length - 4)}
-                                </a>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {donation.amount}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FaInfoCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Blockchain Donations Yet</h3>
-                      <p className="text-gray-600">This charity hasn't received any blockchain donations yet.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
             </motion.div>
           )}
 

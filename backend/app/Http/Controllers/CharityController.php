@@ -112,6 +112,7 @@ class CharityController extends Controller
             'description' => 'required|string',
             'objective' => 'required|string',
             'fund_targeted' => 'required|numeric|min:0',
+            'people_affected' => 'nullable|integer|min:0',
             'picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'verified_document' => 'nullable|mimes:pdf,doc,docx|max:2048',
         ]);
@@ -147,6 +148,7 @@ class CharityController extends Controller
             'description' => 'required|string',
             'objective' => 'required|string',
             'fund_targeted' => 'required|numeric|min:0',
+            'people_affected' => 'nullable|integer|min:0',
             'picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'verified_document' => 'nullable|mimes:pdf,doc,docx|max:2048',
         ]);

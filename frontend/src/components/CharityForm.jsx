@@ -36,6 +36,7 @@ export default function CharityForm() {
     description: '',
     objective: '',
     fund_targeted: '',
+    people_affected: '',
     picture: null,
   });
   const [files, setFiles] = useState({
@@ -88,6 +89,7 @@ export default function CharityForm() {
         description: charityData.description || '',
         objective: charityData.objective || '',
         fund_targeted: charityData.fund_targeted || '',
+        people_affected: charityData.people_affected || '',
         picture: charityData.picture_path || null,
         status: charityData.status || 'pending',
         organization_id: charityData.organization_id || accountType?.id
@@ -173,6 +175,10 @@ export default function CharityForm() {
     } else if (isNaN(formData.fund_targeted) || parseFloat(formData.fund_targeted) <= 0) {
       errors.fund_targeted = 'Target fund must be a positive number';
     }
+    
+    if (formData.people_affected && (isNaN(formData.people_affected) || parseInt(formData.people_affected) < 0)) {
+      errors.people_affected = 'People affected must be a positive number';
+    }
 
     if (!id && !files.verified_document) {
       errors.verified_document = 'Verified document is required';
@@ -203,6 +209,7 @@ export default function CharityForm() {
       formDataToSend.append('description', formData.description);
       formDataToSend.append('objective', formData.objective);
       formDataToSend.append('fund_targeted', formData.fund_targeted);
+      formDataToSend.append('people_affected', formData.people_affected || 0);
 
       // Add organization_id if available
       if (formData.organization_id || currentUser?.organization_id) {
@@ -467,6 +474,26 @@ export default function CharityForm() {
                     />
                     {isSubmitted && formErrors.fund_targeted && (
                       <p className="mt-2 text-sm text-red-600">{formErrors.fund_targeted}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="people_affected" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaBullseye className="mr-2 text-gray-400" />
+                      People Affected
+                    </label>
+                    <input
+                      type="number"
+                      name="people_affected"
+                      id="people_affected"
+                      min="0"
+                      step="1"
+                      value={formData.people_affected}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
+                    />
+                    {isSubmitted && formErrors.people_affected && (
+                      <p className="mt-2 text-sm text-red-600">{formErrors.people_affected}</p>
                     )}
                   </div>
                 </div>

@@ -16,8 +16,10 @@ return new class extends Migration
             $table->text('description');
             $table->text('objective');
             $table->decimal('fund_targeted', 10, 2);
+            $table->decimal('fund_received', 10, 2)->default(0.00);
             $table->string('picture_path')->nullable();
             $table->string('verified_document')->nullable();
+            $table->boolean('is_verified')->default(true);
             $table->timestamps();
         });
     }

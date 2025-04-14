@@ -4,7 +4,7 @@ import { formatImageUrl } from '../utils/helpers';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import BackToHistory from './BackToHistory';
+import CharityCard from './CharityCard';
 import { 
   FaBuilding, 
   FaChartBar, 
@@ -119,21 +119,22 @@ export default function OrganizationDashboard() {
       const data = response.data.data ? response.data.data : response.data;
       
       if (source === 'transactions') {
-        setTransactions(data);
+        setTransactions(data || []);
         // Calculate total donations from transactions
-        const total = data.reduce((sum, transaction) => sum + parseFloat(transaction.amount || 0), 0);
+        const total = Array.isArray(data) ? data.reduce((sum, transaction) => sum + parseFloat(transaction.amount || 0), 0) : 0;
         setTotalDonations(total);
       } else if (source === 'donations') {
-        setDonations(data);
+        setDonations(data || []);
       }
       
-      // Always update the combined transactions for display
-      setCombinedTransactions(data);
+      // Always ensure combinedTransactions is an array
+      setCombinedTransactions(Array.isArray(data) ? data : []);
       
       setLoading(false);
     } catch (error) {
       console.error(`Error loading ${source} data:`, error);
       setError(`Failed to load ${source} data`);
+      setCombinedTransactions([]); // Reset to empty array on error
       setLoading(false);
     }
   };
@@ -330,8 +331,6 @@ export default function OrganizationDashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-gray-50 pb-12"
     >
-      <BackToHistory fallbackPath="/organizations" />
-      
       {/* Header with gradient background */}
       <motion.div 
         initial={{ y: -20, opacity: 0 }}
@@ -389,13 +388,6 @@ export default function OrganizationDashboard() {
                 Edit Profile
               </Link>
             )}
-            <Link
-              to={`/organizations/${id}`}
-              className="inline-flex items-center px-4 py-2 border border-white/20 text-sm font-medium rounded-lg shadow-sm text-white hover:bg-white/10 backdrop-blur-sm transition-colors duration-200"
-            >
-              <FaExternalLinkAlt className="mr-2" />
-              View Public Page
-            </Link>
       </div>
         </div>
       </motion.div>
@@ -550,7 +542,7 @@ export default function OrganizationDashboard() {
                     <select
                       value={charityFilter}
                       onChange={(e) => setCharityFilter(e.target.value)}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="rounded-lg border border-gray-300 bg-white px-3 pr-10 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     >
                       <option value="all">All Categories</option>
                       <option value="education">Education</option>
@@ -615,78 +607,8 @@ export default function OrganizationDashboard() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
                       >
-                        <div className="relative">
-                          {charity.picture_path ? (
-                        <img
-                          src={formatImageUrl(charity.picture_path)}
-                          alt={charity.name}
-                              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                          ) : (
-                            <div className="w-full h-48 bg-gradient-to-r from-indigo-100 to-purple-100 flex items-center justify-center">
-                              <FaChartBar className="h-12 w-12 text-indigo-300" />
-                            </div>
-                          )}
-                          <div className="absolute top-2 right-2">
-                            {charity.is_verified ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                <FaCheckCircle className="mr-1 text-xs" />
-                                Verified
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                <FaExclamationTriangle className="mr-1 text-xs" />
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                      <div className="p-4">
-                          <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{charity.name}</h3>
-                          <p className="mt-1 text-sm text-gray-500 line-clamp-2 h-10">{charity.description}</p>
-                          
-                        <div className="mt-4">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Progress</span>
-                            <span className="text-gray-900 font-medium">
-                                ${parseFloat(charity.fund_received || 0).toFixed(2)} / ${parseFloat(charity.fund_targeted || 0).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="mt-2 relative">
-                              <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200">
-                              <div
-                                style={{
-                                  width: `${Math.min(
-                                      ((charity.fund_received || 0) / (charity.fund_targeted || 1)) * 100,
-                                    100
-                                  )}%`,
-                                }}
-                                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-500 ease-in-out rounded-full"
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                          
-                          <div className="mt-4 flex justify-between items-center pt-3 border-t border-gray-100">
-                          <Link
-                            to={`/charities/${charity.id}`}
-                              className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium inline-flex items-center text-sm transition-colors duration-200"
-                          >
-                              <FaExternalLinkAlt className="mr-1.5 text-xs" />
-                            View Details
-                          </Link>
-                          <Link
-                            to={`/charities/${charity.id}/edit`}
-                              className="text-gray-600 hover:text-indigo-600 inline-flex items-center text-sm transition-colors duration-200"
-                          >
-                              <FaEdit className="mr-1.5 text-xs" />
-                            Edit
-                          </Link>
-                        </div>
-                      </div>
+                        <CharityCard charity={charity} inDashboard={true} />
                       </motion.div>
                   ))}
                 </div>
@@ -882,7 +804,7 @@ export default function OrganizationDashboard() {
                 </div>
               ) : error ? (
                 <div className="text-center text-red-600">{error}</div>
-              ) : combinedTransactions.length === 0 ? (
+              ) : !Array.isArray(combinedTransactions) || combinedTransactions.length === 0 ? (
                 <div className="text-center py-12">
                   <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useBlockchain } from '../context/BlockchainContext';
 import { formatImageUrl } from '../utils/helpers';
@@ -9,7 +9,8 @@ import {
   calculateRewardTier, 
   calculateNextTierProgress, 
   getAchievements, 
-  calculateTotalDonationAmount 
+  calculateTotalDonationAmount,
+  rewardTiers
 } from '../utils/rewardSystem';
 import { motion } from 'framer-motion';
 import { 
@@ -20,6 +21,7 @@ import {
   FaSignOutAlt,
   FaHeart,
   FaStar,
+  FaChevronDown,
   FaMedal,
   FaCertificate,
   FaChartLine,
@@ -46,6 +48,13 @@ import {
   FaEllipsisH,
   FaCocktail,
   FaTicketAlt,
+  FaGift,
+  FaAward,
+  FaCaretRight,
+  FaShieldAlt,
+  FaGem,
+  FaCrown,
+  FaGlobe,
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
@@ -85,6 +94,18 @@ export default function UserDashboard() {
   const [claimedVouchers, setClaimedVouchers] = useState([]);
   const [voucherFilter, setVoucherFilter] = useState('all');
   const [tierFilter, setTierFilter] = useState('all');
+  const [rewards, setRewards] = useState([]);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [rewardPoints, setRewardPoints] = useState(0);
+  const [loadingRewards, setLoadingRewards] = useState(false);
+  const [loadingClaim, setLoadingClaim] = useState(false);
+  const [showRewardDetails, setShowRewardDetails] = useState(null);
+  const [peopleHelped, setPeopleHelped] = useState(0);
+  const [impactStats, setImpactStats] = useState({
+    peopleHelped: 0,
+    communitiesImpacted: 0,
+    countriesReached: 0
+  });
   
   // Define available frames based on REWARD_TIERS from rewardSystem.js
   const availableFrames = [
@@ -297,9 +318,10 @@ export default function UserDashboard() {
   };
 
   // Format date to a readable format
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   // Update the formatImageUrl function to handle all types of image paths
@@ -466,7 +488,22 @@ export default function UserDashboard() {
     }
   };
 
-  // Add a new function to calculate achievements based on all data
+  // Add this function to calculate impact statistics after the calculateTotalFromAllSources function
+  const calculateImpactStats = () => {
+    // Estimate impact based on total donation amount
+    // These are example calculations - in a real app, this would be based on actual charity data
+    const estimatedPeopleHelped = Math.floor(totalDonationAmount * 2.5); // Assuming $1 helps 2.5 people on average
+    const communitiesImpacted = Math.ceil(totalDonationAmount / 500); // Assuming each $500 impacts one community
+    const countriesReached = Math.min(Math.floor(totalDonationAmount / 1000), 15); // Cap at 15 countries
+
+    return {
+      peopleHelped: estimatedPeopleHelped,
+      communitiesImpacted,
+      countriesReached
+    };
+  };
+
+  // Modify the calculateUserAchievements function to fix the mismatch
   const calculateUserAchievements = () => {
     // Create a comprehensive list of achievements
     const userAchievements = [];
@@ -476,6 +513,7 @@ export default function UserDashboard() {
     console.log('Transactions:', transactions);
     console.log('Donations:', donations);
     console.log('Combined transactions:', combinedTransactions);
+    console.log('Total donation amount:', totalDonationAmount);
     
     // First donation achievement
     if (transactions.length > 0 || donations.length > 0 || combinedTransactions.length > 0) {
@@ -492,14 +530,14 @@ export default function UserDashboard() {
     
     // Add charity IDs from transactions
     transactions.forEach(transaction => {
-      if (transaction.charity_id) {
+      if (transaction && transaction.charity_id) {
         uniqueCharityIds.add(transaction.charity_id);
       }
     });
     
     // Add charity IDs from donations
     donations.forEach(donation => {
-      if (donation.charity_id) {
+      if (donation && donation.charity_id) {
         uniqueCharityIds.add(donation.charity_id);
       }
     });
@@ -561,11 +599,57 @@ export default function UserDashboard() {
       });
     }
     
+    // Add donation amount achievements - make sure to use the total amount
+    if (totalDonationAmount >= 100) {
+      userAchievements.push({ 
+        id: 'donate_100', 
+        name: 'Century Club', 
+        description: 'Donate a total of $100' 
+      });
+    }
+    
+    if (totalDonationAmount >= 500) {
+      userAchievements.push({ 
+        id: 'donate_500', 
+        name: 'Major Contributor', 
+        description: 'Donate a total of $500' 
+      });
+    }
+    
+    if (totalDonationAmount >= 1000) {
+      userAchievements.push({ 
+        id: 'donate_1000', 
+        name: 'Platinum Donor', 
+        description: 'Donate a total of $1,000' 
+      });
+    }
+
+    // Diamond donor achievement
+    if (totalDonationAmount >= 5000) {
+      userAchievements.push({ 
+        id: 'donate_5000', 
+        name: 'Diamond Donor', 
+        description: 'Donate a total of $5,000' 
+      });
+    }
+    
     console.log('Final achievements:', userAchievements);
     
     // Update the achievements state
     setAchievements(userAchievements);
+    
+    // Calculate impact stats
+    const stats = calculateImpactStats();
+    setImpactStats(stats);
   };
+
+  // Add this useEffect to update impact stats when totalDonationAmount changes
+  useEffect(() => {
+    if (totalDonationAmount > 0) {
+      const stats = calculateImpactStats();
+      setImpactStats(stats);
+    }
+  }, [totalDonationAmount]);
 
   // Add this useEffect to recalculate achievements when relevant data changes
   useEffect(() => {
@@ -575,30 +659,130 @@ export default function UserDashboard() {
     }
   }, [transactions, donations, combinedTransactions, followedOrganizations, followedCharities, currentUser]);
 
-  // Add this function to handle voucher claims
-  const handleClaimVoucher = async (voucherId, tierName) => {
-    try {
-      // In a real app, you would make an API call to claim the voucher
-      // For now, we'll just simulate it
-      toast.promise(
-        new Promise((resolve) => setTimeout(resolve, 1000)),
-        {
-          loading: 'Claiming voucher...',
-          success: () => {
-            // Add the voucher to claimed vouchers
-            setClaimedVouchers([...claimedVouchers, { id: voucherId, tier: tierName, claimedAt: new Date() }]);
-            return `Successfully claimed ${tierName} tier voucher!`;
+  // Add this function after fetchUserData
+  useEffect(() => {
+    const fetchRewards = async () => {
+      if (!currentUser) return;
+      
+      try {
+        setLoadingRewards(true);
+        
+        // In a real app, this would be an API call to your backend
+        // For now, we'll simulate the response
+        const mockVouchers = [
+          {
+            id: 'coffee-voucher',
+            name: 'Zeus Coffee Voucher',
+            description: '15% off any coffee purchase',
+            tier: 'Bronze',
+            points: 100,
+            merchant: 'Zeus Coffee',
+            expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+            image: ZeusImg
           },
-          error: 'Failed to claim voucher. Please try again.',
-        }
-      );
+          {
+            id: 'bubble-tea',
+            name: 'Tealive Discount',
+            description: 'Buy 1 Free 1 for any Boba Tea',
+            tier: 'Silver',
+            points: 250,
+            merchant: 'Tealive',
+            expiry: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
+            image: TealiveImg
+          },
+          {
+            id: 'movie-ticket',
+            name: 'Movie Ticket Discount',
+            description: '30% off any movie ticket',
+            tier: 'Gold',
+            points: 500,
+            merchant: 'Golden Screen Cinemas',
+            expiry: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+            image: 'https://img.freepik.com/free-vector/cinema-film-festival-background_1017-23786.jpg?w=826&t=st=1699021412~exp=1699022012~hmac=d1a5bcc8a27fad3cab2ed6ad6cddf2ffe276c26eca9a867a24516c12a6bed8db'
+          },
+          {
+            id: 'charity-points',
+            name: 'Extra Donation Points',
+            description: '500 bonus points on your next donation',
+            tier: 'Platinum',
+            points: 1000,
+            merchant: 'TrustChain',
+            expiry: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), // 120 days from now
+            image: 'https://img.freepik.com/free-vector/hand-drawn-charity-concept_23-2147550861.jpg?w=826&t=st=1699021459~exp=1699022059~hmac=ff6d5587dc3b2f75eaab4a3ef2d282d5842e61f8e7cc9e9e5a331b3f1a897acf'
+          },
+          {
+            id: 'premium-upgrade',
+            name: 'Premium User Upgrade',
+            description: '3 months of Premium User status',
+            tier: 'Diamond',
+            points: 5000,
+            merchant: 'TrustChain',
+            expiry: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180
+            image: 'https://img.freepik.com/free-vector/golden-royal-badge-design_1017-8055.jpg?w=826&t=st=1699021496~exp=1699022096~hmac=4b4e8b6e9c3f5b9c9c34b74a79a3a8b7ec2bc86e2f56d689cdb53daddc2f90b0'
+          }
+        ];
+        
+        // Calculate reward points based on donation amount (1 point per $1)
+        const points = Math.floor(totalDonationAmount);
+        setRewardPoints(points);
+        
+        // Filter vouchers based on user's tier
+        setAvailableVouchers(mockVouchers);
+        
+        setLoadingRewards(false);
+      } catch (error) {
+        console.error('Error fetching rewards:', error);
+        setLoadingRewards(false);
+      }
+    };
+    
+    if (currentUser && totalDonationAmount > 0) {
+      fetchRewards();
+    }
+  }, [currentUser, totalDonationAmount]);
+
+  // Update handleClaimVoucher function
+  const handleClaimVoucher = async (voucher) => {
+    if (!isVoucherClaimable(voucher.tier) || isVoucherClaimed(voucher.id)) {
+      toast.error('This voucher is not available for your current tier');
+      return;
+    }
+
+    try {
+      setLoadingClaim(true);
+      
+      // In a real app, you would make an API call to claim the voucher
+      // For now, we'll simulate a network request
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simulate deducting points (in a real app this would be handled by the backend)
+      setRewardPoints(prev => Math.max(0, prev - voucher.points));
+      
+      // Add the voucher to claimed vouchers
+      const newClaim = { 
+        id: voucher.id, 
+        name: voucher.name,
+        description: voucher.description,
+        tier: voucher.tier, 
+        merchant: voucher.merchant,
+        image: voucher.image,
+        claimedAt: new Date(),
+        redemptionCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
+        expiry: voucher.expiry
+      };
+      
+      setClaimedVouchers(prev => [...prev, newClaim]);
+      setLoadingClaim(false);
+      
+      toast.success(`Successfully claimed ${voucher.name}!`);
     } catch (error) {
       console.error('Error claiming voucher:', error);
+      setLoadingClaim(false);
       toast.error('Failed to claim voucher. Please try again.');
     }
   };
-  
-  // Add this function to check if a voucher is claimable
+
+  // Update isVoucherClaimable function
   const isVoucherClaimable = (tierName) => {
     // Check if the user's tier is high enough to claim this voucher
     const tierLevels = {
@@ -609,15 +793,66 @@ export default function UserDashboard() {
       'Diamond': 5
     };
     
-    const userTierLevel = tierLevels[rewardTier?.name] || 0;
+    const userTierLevel = tierLevels[rewardTier?.name?.split(' ')[0]] || 0;
     const requiredTierLevel = tierLevels[tierName] || 999;
+    
+    // Also check if user has enough points
+    const voucher = availableVouchers.find(v => v.tier === tierName);
+    if (voucher && rewardPoints < voucher.points) {
+      return false;
+    }
     
     return userTierLevel >= requiredTierLevel;
   };
-  
-  // Add this function to check if a voucher is already claimed
+
+  // Add function to check if a voucher is already claimed
   const isVoucherClaimed = (voucherId) => {
     return claimedVouchers.some(voucher => voucher.id === voucherId);
+  };
+
+  // Add function to get tier color
+  const getTierColor = (tierName) => {
+    if (!tierName) return 'bg-gray-100 text-gray-800';
+    
+    switch (tierName.toLowerCase()) {
+      case 'bronze':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'silver':
+        return 'bg-gray-200 text-gray-800 border-gray-300';
+      case 'gold':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'platinum':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'diamond':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  // Add function to get tier icon
+  const getTierIcon = (tierName) => {
+    if (!tierName) return FaMedal;
+    
+    switch (tierName.toLowerCase()) {
+      case 'bronze':
+        return FaMedal;
+      case 'silver':
+        return FaAward;
+      case 'gold':
+        return FaTrophy;
+      case 'platinum':
+        return FaShieldAlt;
+      case 'diamond':
+        return FaCrown;
+      default:
+        return FaMedal;
+    }
+  };
+
+  // Add function to format points
+  const formatPoints = (points) => {
+    return new Intl.NumberFormat().format(points);
   };
 
   return (
@@ -819,6 +1054,17 @@ export default function UserDashboard() {
               <FaTrophy className={`mr-2 h-4 w-4 ${activeTab === 'achievements' ? 'text-indigo-500' : 'text-gray-400'}`} />
               Achievements
             </button>
+            <button
+              onClick={() => setActiveTab('rewards')}
+              className={`${
+                activeTab === 'rewards'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center transition-colors duration-200 rounded-t-lg mx-1`}
+            >
+              <FaGift className={`mr-2 h-4 w-4 ${activeTab === 'rewards' ? 'text-indigo-500' : 'text-gray-400'}`} />
+              Rewards
+            </button>
           </nav>
 
           {/* Tab Content */}
@@ -858,7 +1104,7 @@ export default function UserDashboard() {
                     <div className="w-full bg-gray-100 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-500">Total Donated</span>
-                        <span className="text-lg font-bold text-indigo-600">${totalDonationAmount}</span>
+                        <span className="text-lg font-bold text-indigo-600">${totalDonationAmount.toFixed(2)}</span>
                       </div>
                       
                       <div className="flex justify-between items-center">
@@ -903,14 +1149,35 @@ export default function UserDashboard() {
                       </div>
                     </div>
                     
-                    <div className="mt-6">
-                      <button
-                        onClick={() => navigate('/user/edit')}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                      >
-                        <FaEdit className="mr-2" /> Edit Profile
-                      </button>
+                    {/* Add the new impact section */}
+                    <h3 className="text-lg font-medium text-gray-900 mt-8 mb-4">Your Impact</h3>
+                    
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm text-center">
+                          <FaUsers className="mx-auto h-8 w-8 text-indigo-500 mb-2" />
+                          <h4 className="text-2xl font-bold text-gray-900">{formatPoints(impactStats.peopleHelped)}</h4>
+                          <p className="text-sm text-gray-600">People Helped</p>
+                        </div>
+                        
+                        <div className="bg-white p-4 rounded-lg shadow-sm text-center">
+                          <FaHandHoldingUsd className="mx-auto h-8 w-8 text-green-500 mb-2" />
+                          <h4 className="text-2xl font-bold text-gray-900">{impactStats.communitiesImpacted}</h4>
+                          <p className="text-sm text-gray-600">Communities Impacted</p>
+                        </div>
+                        
+                        <div className="bg-white p-4 rounded-lg shadow-sm text-center">
+                          <FaGlobe className="mx-auto h-8 w-8 text-blue-500 mb-2" />
+                          <h4 className="text-2xl font-bold text-gray-900">{impactStats.countriesReached}</h4>
+                          <p className="text-sm text-gray-600">Countries Reached</p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mt-4 text-center">
+                        Your generosity has made a significant difference in the lives of many people around the world.
+                      </p>
                     </div>
+                    
                   </div>
                 </div>
               </motion.div>
@@ -1316,6 +1583,353 @@ export default function UserDashboard() {
                     </div>
                   ))}
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'rewards' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="p-6"
+              >
+                <div className="mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 text-white shadow-md">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 flex items-center">
+                        <FaGem className="mr-2" /> Reward Program
+                      </h2>
+                      <p className="text-indigo-100 mb-4">
+                        Earn points and unlock exclusive rewards by donating to charities.
+                      </p>
+                      
+                      <div className="bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="flex items-center font-medium">
+                            <FaGift className="mr-2" /> Your Points
+                          </span>
+                          <span className="text-2xl font-bold">{formatPoints(rewardPoints)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="flex items-center font-medium">
+                            <FaTrophy className="mr-2" /> Current Tier
+                          </span>
+                          <span className="flex items-center">
+                            {React.createElement(getTierIcon(rewardTier?.name?.split(' ')[0]), { className: "mr-2" })}
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              getTierColor(rewardTier?.name?.split(' ')[0])
+                            }`}>
+                              {rewardTier?.name || 'Bronze Donor'}
+                            </span>
+                          </span>
+                        </div>
+                        
+                        {nextTierProgress && nextTierProgress.nextTier && (
+                          <div className="mt-4">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span>Progress to {nextTierProgress.nextTier}</span>
+                              <span>${totalDonationAmount} / ${nextTierProgress.remaining + totalDonationAmount}</span>
+                            </div>
+                            <div className="w-full bg-white bg-opacity-30 rounded-full h-2.5">
+                              <div 
+                                className="bg-white h-2.5 rounded-full transition-all duration-500 ease-out"
+                                style={{ width: `${nextTierProgress.percentage}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-xs mt-2">
+                              ${nextTierProgress.remaining} more in donations to reach {nextTierProgress.nextTier}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 md:mt-0 md:ml-6 flex-shrink-0">
+                      <div className="bg-white bg-opacity-10 p-4 rounded-lg backdrop-blur-sm">
+                        <h3 className="text-lg font-medium mb-2">Benefits</h3>
+                        <ul className="space-y-2">
+                          {rewardTier?.benefits?.map((benefit, index) => (
+                            <li key={index} className="flex items-start">
+                              <FaCheck className="mt-1 mr-2 flex-shrink-0 text-green-300" />
+                              <span>{benefit}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Tier Information */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <FaCrown className="mr-2 text-yellow-500" />
+                    Reward Tiers
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                    {rewardTiers.map((tier, index) => (
+                      <div 
+                        key={tier.id}
+                        className={`border rounded-lg p-4 transition-all duration-300 ${
+                          rewardTier?.id === tier.id 
+                            ? 'ring-2 ring-indigo-500 shadow-md transform scale-105 z-10' 
+                            : 'hover:shadow-md'
+                        } ${getTierColor(tier.name.split(' ')[0])}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold flex items-center">
+                            {React.createElement(getTierIcon(tier.name.split(' ')[0]), { className: "mr-2" })}
+                            {tier.name}
+                          </h4>
+                          {rewardTier?.id === tier.id && (
+                            <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full">Current</span>
+                          )}
+                        </div>
+                        
+                        <div className="text-sm mb-2 font-medium">${tier.threshold}+ donated</div>
+                        
+                        <ul className="text-xs space-y-1 mt-2">
+                          {tier.benefits.map((benefit, idx) => (
+                            <li key={idx} className="flex items-start">
+                              <FaCaretRight className="mr-1 mt-0.5 flex-shrink-0" />
+                              <span>{benefit}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Available Vouchers */}
+                <div className="mb-8">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                      <FaTicketAlt className="mr-2 text-green-500" />
+                      Available Rewards
+                    </h3>
+                    
+                    <div className="flex space-x-4 mt-2 md:mt-0">
+                      <select
+                        className="bg-white border border-gray-300 rounded-md shadow-sm py-2 px-4 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        value={tierFilter}
+                        onChange={e => setTierFilter(e.target.value)}
+                      >
+                        <option value="all">All Tiers</option>
+                        <option value="Bronze">Bronze</option>
+                        <option value="Silver">Silver</option>
+                        <option value="Gold">Gold</option>
+                        <option value="Platinum">Platinum</option>
+                        <option value="Diamond">Diamond</option>
+                      </select>
+                      
+                      <button
+                        onClick={() => setVoucherFilter(voucherFilter === 'available' ? 'all' : 'available')}
+                        className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium ${
+                          voucherFilter === 'available'
+                            ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <FaFilter className="mr-2" />
+                        {voucherFilter === 'available' ? 'Show All' : 'Show Available'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {loadingRewards ? (
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+                    </div>
+                  ) : availableVouchers.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg">
+                      <FaTicketAlt className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No rewards available</h3>
+                      <p className="text-gray-600 mb-4">Make more donations to unlock rewards.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {availableVouchers
+                        .filter(voucher => tierFilter === 'all' || voucher.tier === tierFilter)
+                        .filter(voucher => voucherFilter !== 'available' || isVoucherClaimable(voucher.tier))
+                        .map(voucher => {
+                          const isClaimable = isVoucherClaimable(voucher.tier);
+                          const isClaimed = isVoucherClaimed(voucher.id);
+                          
+                          return (
+                            <div 
+                              key={voucher.id}
+                              className={`border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${
+                                !isClaimable ? 'opacity-70' : ''
+                              } ${isClaimed ? 'bg-gray-50' : 'bg-white'}`}
+                            >
+                              <div className="relative h-48 overflow-hidden">
+                                {voucher.image ? (
+                                  <img 
+                                    src={voucher.image}
+                                    alt={voucher.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-indigo-100 flex items-center justify-center">
+                                    <FaTicketAlt className="h-12 w-12 text-indigo-300" />
+                                  </div>
+                                )}
+                                
+                                <div className="absolute top-0 right-0 m-2">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTierColor(voucher.tier)}`}>
+                                    {React.createElement(getTierIcon(voucher.tier), { className: "mr-1 h-3 w-3" })}
+                                    {voucher.tier}
+                                  </span>
+                                </div>
+                                
+                                {isClaimed && (
+                                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                    <div className="bg-white text-gray-800 px-4 py-2 rounded-full font-medium transform rotate-12">
+                                      Claimed
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="p-4">
+                                <div className="flex justify-between items-start">
+                                  <h4 className="font-medium text-gray-900">{voucher.name}</h4>
+                                  <span className="flex items-center text-indigo-600 font-medium">
+                                    <FaGift className="mr-1" />
+                                    {formatPoints(voucher.points)}
+                                  </span>
+                                </div>
+                                
+                                <p className="text-sm text-gray-600 mt-1 mb-3">{voucher.description}</p>
+                                
+                                <div className="flex items-center text-xs text-gray-500 mb-3">
+                                  <span className="flex items-center">
+                                    <FaShoppingBag className="mr-1" />
+                                    {voucher.merchant}
+                                  </span>
+                                  <span className="mx-2">•</span>
+                                  <span className="flex items-center">
+                                    <FaClock className="mr-1" />
+                                    Expires: {formatDate(voucher.expiry)}
+                                  </span>
+                                </div>
+                                
+                                <button
+                                  onClick={() => handleClaimVoucher(voucher)}
+                                  disabled={!isClaimable || isClaimed || loadingClaim}
+                                  className={`w-full mt-2 px-4 py-2 border rounded-md text-sm font-medium transition-colors duration-200 ${
+                                    isClaimable && !isClaimed
+                                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-transparent'
+                                      : 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                  }`}
+                                >
+                                  {loadingClaim ? (
+                                    <span className="flex items-center justify-center">
+                                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Processing...
+                                    </span>
+                                  ) : isClaimed ? (
+                                    'Claimed'
+                                  ) : !isClaimable ? (
+                                    `Unlock at ${voucher.tier} Tier`
+                                  ) : (
+                                    'Claim Reward'
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Claimed Vouchers */}
+                {claimedVouchers.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <FaTicketAlt className="mr-2 text-green-500" />
+                      Your Claimed Rewards
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {claimedVouchers.map(voucher => (
+                        <div 
+                          key={voucher.id}
+                          className="border border-green-200 rounded-lg overflow-hidden shadow-sm bg-green-50"
+                        >
+                          <div className="relative h-48 overflow-hidden">
+                            {voucher.image ? (
+                              <img 
+                                src={voucher.image}
+                                alt={voucher.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-green-100 flex items-center justify-center">
+                                <FaTicketAlt className="h-12 w-12 text-green-300" />
+                              </div>
+                            )}
+                            
+                            <div className="absolute top-0 right-0 m-2">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTierColor(voucher.tier)}`}>
+                                {React.createElement(getTierIcon(voucher.tier), { className: "mr-1 h-3 w-3" })}
+                                {voucher.tier}
+                              </span>
+                            </div>
+                            
+                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2">
+                              <div className="text-center">
+                                <div className="text-xs">Redemption Code</div>
+                                <div className="font-mono font-bold tracking-wider">{voucher.redemptionCode}</div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4">
+                            <h4 className="font-medium text-gray-900">{voucher.name}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{voucher.description}</p>
+                            
+                            <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+                              <span className="flex items-center">
+                                <FaShoppingBag className="mr-1" />
+                                {voucher.merchant}
+                              </span>
+                              
+                              <span className="flex items-center">
+                                <FaClock className="mr-1" />
+                                Expires: {formatDate(voucher.expiry)}
+                              </span>
+                            </div>
+                            
+                            <div className="mt-3 pt-3 border-t border-green-200 flex justify-between items-center">
+                              <span className="text-xs text-gray-500">
+                                Claimed on {formatDate(voucher.claimedAt)}
+                              </span>
+                              
+                              <button
+                                onClick={() => {
+                                  // In a real app, this would show a QR code or allow download
+                                  toast.success('Voucher details copied to clipboard!');
+                                }}
+                                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center"
+                              >
+                                <FaDownload className="mr-1" />
+                                Download
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

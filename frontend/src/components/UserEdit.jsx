@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import BackButton from './BackToHistory';
 import { formatImageUrl } from '../utils/helpers';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaUser, 
   FaPhone, 
@@ -16,7 +17,9 @@ import {
   FaLock,
   FaTrophy,
   FaInfoCircle,
-  FaCheck
+  FaCheck,
+  FaExclamationTriangle,
+  FaEye
 } from 'react-icons/fa';
 import { 
   calculateRewardTier, 
@@ -59,6 +62,13 @@ export default function UserEdit() {
   const [achievements, setAchievements] = useState([]);
   const [rewardTier, setRewardTier] = useState(null);
   const [totalDonationAmount, setTotalDonationAmount] = useState(0);
+  
+  // Add image loading states
+  const [imageLoading, setImageLoading] = useState({
+    profile_picture: true,
+    front_ic_picture: true,
+    back_ic_picture: true
+  });
 
   // Fetch user transactions and calculate achievements
   useEffect(() => {
@@ -252,26 +262,71 @@ export default function UserEdit() {
     }
   };
 
+  if (loading && !currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen"
+    >
       <BackButton />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-            <div className="flex items-center">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Edit Profile</h3>
+      <div className="max-w-7xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-white shadow-lg rounded-2xl"
+        >
+          <div className="p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FaUser className="mr-3 text-indigo-600" />
+                Edit Profile
+              </h1>
             </div>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            {/* Basic Information */}
-            <div className="border-t border-gray-200">
-              <div className="px-4 py-5 sm:p-6">
-                <h4 className="text-md font-medium text-gray-900 mb-4">Basic Information</h4>
+
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-lg"
+              >
+                <div className="flex items-center">
+                  <FaExclamationTriangle className="text-red-400 mr-2" />
+                  <p className="text-sm text-red-700 whitespace-pre-line">{error}</p>
+                </div>
+              </motion.div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Basic Information Section */}
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="bg-gray-50 p-8 rounded-xl shadow-sm"
+              >
+                <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <FaInfoCircle className="mr-2 text-indigo-600" />
+                  Basic Information
+                </h2>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      <FaUser className="inline mr-2" />
+                  <div className="space-y-2">
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaUser className="mr-2 text-gray-400" />
                       Full Name
                     </label>
                     <input
@@ -280,13 +335,13 @@ export default function UserEdit() {
                       id="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                       required
                     />
                   </div>
-                  <div>
-                    <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">
-                      <FaPhone className="inline mr-2" />
+                  <div className="space-y-2">
+                    <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaPhone className="mr-2 text-gray-400" />
                       Phone Number
                     </label>
                     <input
@@ -295,33 +350,43 @@ export default function UserEdit() {
                       id="phone_number"
                       value={formData.phone_number}
                       onChange={handleInputChange}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors duration-200"
                     />
                   </div>
                 </div>
-              </div>
-            </div>
-            
-            {/* Profile Picture */}
-            <div className="border-t border-gray-200">
-              <div className="px-4 py-5 sm:p-6 border-b border-gray-200">
-                <h4 className="text-md font-medium text-gray-900 mb-4">Profile Picture</h4>
+              </motion.div>
+              
+              {/* Profile Picture Section */}
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="bg-gray-50 p-8 rounded-xl shadow-sm"
+              >
+                <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <FaCamera className="mr-2 text-indigo-600" />
+                  Profile Picture
+                </h2>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                  <div className="relative">
+                  <div className="relative group">
                     <div 
-                      className="h-32 w-32 rounded-full overflow-hidden border-4"
+                      className="h-32 w-32 rounded-full overflow-hidden border-4 transition-transform duration-200 group-hover:scale-105"
                       style={{ borderColor: formData.frame_color }}
                     >
                       {previewUrls.profile_picture ? (
-                        <img
-                          src={previewUrls.profile_picture}
-                          alt="Profile"
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            console.error("Profile image failed to load:", e);
-                            e.target.src = 'https://via.placeholder.com/150?text=Profile';
-                          }}
-                        />
+                        <>
+                          <img
+                            src={previewUrls.profile_picture}
+                            alt="Profile"
+                            className="h-full w-full object-cover"
+                            onLoad={() => setImageLoading(prev => ({ ...prev, profile_picture: false }))}
+                            onError={(e) => {
+                              console.error("Profile image failed to load:", e);
+                              e.target.src = 'https://via.placeholder.com/150?text=Profile';
+                            }}
+                          />
+                          <div className={`absolute inset-0 bg-gray-200 ${imageLoading.profile_picture ? 'animate-pulse' : 'hidden'}`} />
+                        </>
                       ) : (
                         <div className="h-full w-full bg-gray-200 flex items-center justify-center">
                           <FaUser className="h-16 w-16 text-gray-400" />
@@ -335,7 +400,7 @@ export default function UserEdit() {
                           setFormData(prev => ({ ...prev, profile_picture: null }));
                           setPreviewUrls(prev => ({ ...prev, profile_picture: null }));
                         }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors duration-200"
                       >
                         <FaTimes className="h-4 w-4" />
                       </button>
@@ -346,7 +411,7 @@ export default function UserEdit() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Upload New Picture
                     </label>
-                    <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                    <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors duration-200">
                       <div className="space-y-1 text-center">
                         <FaCamera className="mx-auto h-12 w-12 text-gray-400" />
                         <div className="flex text-sm text-gray-600">
@@ -371,9 +436,12 @@ export default function UserEdit() {
                 </div>
                 
                 {/* Frame Color Selection */}
-                <div className="mt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Frame Color</h3>
-                  <div className="grid grid-cols-6 gap-4">
+                <div className="mt-8">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <FaPalette className="mr-2 text-indigo-600" />
+                    Profile Frame Color
+                  </h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
                     {FRAME_COLORS.map((frame) => {
                       const isUnlocked = unlockedColors.some(f => f.id === frame.id);
                       const isSelected = formData.frame_color === frame.color;
@@ -384,10 +452,10 @@ export default function UserEdit() {
                             <button
                               type="button"
                               onClick={() => handleColorSelect(frame.color)}
-                              className={`h-16 w-16 rounded-full border-2 ${
-                                isSelected ? 'border-indigo-600' : 'border-gray-300'
+                              className={`h-16 w-16 rounded-full border-2 transition-all duration-200 ${
+                                isSelected ? 'border-indigo-600 shadow-md' : 'border-gray-300'
                               } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                                !isUnlocked ? 'opacity-60 cursor-not-allowed' : ''
+                                !isUnlocked ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-lg'
                               }`}
                               style={{ backgroundColor: frame.color }}
                               disabled={!isUnlocked}
@@ -418,51 +486,65 @@ export default function UserEdit() {
                     })}
                   </div>
                   
-                  <div className="mt-4 flex items-start">
+                  <div className="mt-4 flex items-start bg-indigo-50 p-3 rounded-lg">
                     <div className="flex-shrink-0">
                       <FaTrophy className="h-5 w-5 text-yellow-500" />
                     </div>
-                    <div className="ml-3 text-sm text-gray-500">
+                    <div className="ml-3 text-sm text-gray-700">
                       <p>Unlock more frame colors by completing achievements and reaching higher donor tiers.</p>
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
               
               {/* IC Pictures */}
-              <div className="px-4 py-5 sm:p-6">
-                <h4 className="text-md font-medium text-gray-900 mb-4">Identification Card</h4>
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="bg-gray-50 p-8 rounded-xl shadow-sm"
+              >
+                <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <FaIdCard className="mr-2 text-indigo-600" />
+                  Identification Card
+                </h2>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaIdCard className="mr-2 text-gray-400" />
                       Front IC
                     </label>
                     <div className="mt-1">
                       <div className="relative">
                         {previewUrls.front_ic_picture ? (
-                          <div className="relative">
+                          <div className="relative group">
                             <img
                               src={previewUrls.front_ic_picture}
                               alt="Front IC"
-                              className="h-48 w-full object-cover rounded-lg border border-gray-300"
+                              className="h-48 w-full object-cover rounded-lg border border-gray-300 transition-transform duration-200 group-hover:scale-[1.01]"
+                              onLoad={() => setImageLoading(prev => ({ ...prev, front_ic_picture: false }))}
                               onError={(e) => {
                                 console.error("IC image failed to load:", e);
                                 e.target.src = 'https://via.placeholder.com/400x200?text=Front+IC';
                               }}
                             />
+                            <div className={`absolute inset-0 bg-gray-200 rounded-lg ${imageLoading.front_ic_picture ? 'animate-pulse' : 'hidden'}`} />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 flex items-center justify-center rounded-lg">
+                              <FaEye className="text-white opacity-0 group-hover:opacity-100 transform scale-0 group-hover:scale-100 transition-all duration-200" />
+                            </div>
                             <button
                               type="button"
                               onClick={() => {
                                 setFormData(prev => ({ ...prev, front_ic_picture: null }));
                                 setPreviewUrls(prev => ({ ...prev, front_ic_picture: null }));
                               }}
-                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors duration-200"
                             >
                               <FaTimes className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
-                          <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                          <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors duration-200">
                             <div className="space-y-1 text-center">
                               <FaIdCard className="mx-auto h-12 w-12 text-gray-400" />
                               <div className="flex text-sm text-gray-600">
@@ -488,36 +570,42 @@ export default function UserEdit() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700 flex items-center">
+                      <FaIdCard className="mr-2 text-gray-400" />
                       Back IC
                     </label>
                     <div className="mt-1">
                       <div className="relative">
                         {previewUrls.back_ic_picture ? (
-                          <div className="relative">
+                          <div className="relative group">
                             <img
                               src={previewUrls.back_ic_picture}
                               alt="Back IC"
-                              className="h-48 w-full object-cover rounded-lg border border-gray-300"
+                              className="h-48 w-full object-cover rounded-lg border border-gray-300 transition-transform duration-200 group-hover:scale-[1.01]"
+                              onLoad={() => setImageLoading(prev => ({ ...prev, back_ic_picture: false }))}
                               onError={(e) => {
                                 console.error("IC image failed to load:", e);
                                 e.target.src = 'https://via.placeholder.com/400x200?text=Back+IC';
                               }}
                             />
+                            <div className={`absolute inset-0 bg-gray-200 rounded-lg ${imageLoading.back_ic_picture ? 'animate-pulse' : 'hidden'}`} />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 flex items-center justify-center rounded-lg">
+                              <FaEye className="text-white opacity-0 group-hover:opacity-100 transform scale-0 group-hover:scale-100 transition-all duration-200" />
+                            </div>
                             <button
                               type="button"
                               onClick={() => {
                                 setFormData(prev => ({ ...prev, back_ic_picture: null }));
                                 setPreviewUrls(prev => ({ ...prev, back_ic_picture: null }));
                               }}
-                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors duration-200"
                             >
                               <FaTimes className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
-                          <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                          <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors duration-200">
                             <div className="space-y-1 text-center">
                               <FaIdCard className="mx-auto h-12 w-12 text-gray-400" />
                               <div className="flex text-sm text-gray-600">
@@ -544,113 +632,113 @@ export default function UserEdit() {
                   </div>
                 </div>
                 
-                <div className="mt-4 flex items-start">
+                <div className="mt-4 flex items-start bg-blue-50 p-3 rounded-lg">
                   <div className="flex-shrink-0">
                     <FaInfoCircle className="h-5 w-5 text-blue-500" />
                   </div>
-                  <div className="ml-3 text-sm text-gray-500">
+                  <div className="ml-3 text-sm text-gray-700">
                     <p>Your IC pictures are used for verification purposes only and are stored securely. They will not be shared with other users or third parties.</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="px-4 py-5 sm:p-6 bg-red-50">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <FaTimes className="h-5 w-5 text-red-400" />
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">
-                        Error
-                      </h3>
-                      <div className="mt-2 text-sm text-red-700">
-                        <p>{error}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              </motion.div>
 
               {/* Form Actions */}
-              <div className="px-4 py-5 sm:p-6 bg-gray-50">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
-                  <div className="flex space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                      <FaTimes className="mr-2" />
-                      Delete Account
-                    </button>
-                  </div>
-                  
-                  <div className="flex space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => navigate('/user/dashboard')}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <FaSave className="mr-2" />
-                          Save Changes
-                        </>
-                      )}
-                    </button>
-                  </div>
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0 pt-6"
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="inline-flex items-center px-6 py-3 border-2 border-red-300 shadow-sm text-base font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                >
+                  <FaTimes className="mr-2" />
+                  Delete Account
+                </button>
+                
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/user/dashboard')}
+                    className="inline-flex items-center px-6 py-3 border-2 border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+                  >
+                    <FaTimes className="mr-2" />
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <FaSave className="mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
-            </div>
-          </form>
-        </div>
+              </motion.div>
+            </form>
+          </div>
+        </motion.div>
 
         {/* Delete Account Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-lg font-medium text-red-600 mb-4">Delete Account</h3>
-              <p className="text-gray-700 mb-6">
-                Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.
-              </p>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteAccount}
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                >
-                  {loading ? 'Deleting...' : 'Delete Account'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl"
+              >
+                <h3 className="text-lg font-medium text-red-600 mb-4 flex items-center">
+                  <FaExclamationTriangle className="mr-2" />
+                  Delete Account
+                </h3>
+                <p className="text-gray-700 mb-6">
+                  Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.
+                </p>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={loading}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                        Deleting...
+                      </>
+                    ) : 'Delete Account'}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 } 

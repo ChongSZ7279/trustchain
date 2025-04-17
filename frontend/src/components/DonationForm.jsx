@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaWallet, FaExclamationTriangle, FaEthereum, FaExchangeAlt } from 'react-icons/fa';
+import { FaTimes, FaWallet, FaExclamationTriangle, FaExchangeAlt, FaEthereum } from 'react-icons/fa';
+import Web3 from 'web3';
 import { useNavigate } from 'react-router-dom';
 import { initWeb3, donateToCharity, isWalletConnected, switchToScroll } from '../utils/contractInteraction';
 import { processDonation } from '../services/donationService';
-import { testDonationAPI } from '../utils/testDonation';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
 import FiatToScrollPaymentWrapper from './FiatToScrollPaymentForm';
 import FiatToScrollExplainer from './FiatToScrollExplainer';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 const DonationForm = ({ charityId, onDonate, loading = false }) => {
   console.log("DonationForm received charityId:", charityId);
-  
+
   const navigate = useNavigate();
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
@@ -22,21 +21,88 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain' or 'fiat_to_scroll'
   const [isAnonymous, setIsAnonymous] = useState(false);
-  
+
   useEffect(() => {
     const checkWalletConnection = async () => {
       try {
+        // Check if MetaMask is installed
+        if (!window.ethereum) {
+          console.log('MetaMask not detected');
+          return;
+        }
+
         const { chainId } = await initWeb3();
-        setWalletConnected(isWalletConnected());
-        setIsScrollNetwork(chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID);
+        const connected = isWalletConnected();
+        console.log('Initial wallet check - Connected:', connected, 'Chain ID:', chainId);
+
+        setWalletConnected(connected);
+        const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+        setIsScrollNetwork(isScroll);
+
+        // If wallet is connected but not on Scroll network, automatically try to switch
+        if (connected && !isScroll) {
+          console.log('Wallet connected but not on Scroll network. Attempting to switch...');
+          try {
+            await switchToScrollNetwork();
+          } catch (switchError) {
+            console.error('Failed to auto-switch to Scroll network:', switchError);
+          }
+        }
       } catch (error) {
         console.error('Error checking wallet connection:', error);
       }
     };
-    
+
+    // Set up event listeners for account and network changes
+    const setupEventListeners = () => {
+      if (window.ethereum) {
+        // Listen for account changes
+        window.ethereum.on('accountsChanged', async (accounts) => {
+          console.log('accountsChanged event triggered:', accounts);
+          if (accounts.length === 0) {
+            // User disconnected their wallet
+            setWalletConnected(false);
+            console.log('Wallet disconnected');
+          } else {
+            // User switched accounts
+            setWalletConnected(true);
+            console.log('Wallet account changed to:', accounts[0]);
+
+            // Check if we're on the correct network
+            try {
+              const web3 = new Web3(window.ethereum);
+              const chainId = await web3.eth.getChainId();
+              const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+              setIsScrollNetwork(isScroll);
+            } catch (error) {
+              console.error('Error checking chain after account change:', error);
+            }
+          }
+        });
+
+        // Listen for network changes
+        window.ethereum.on('chainChanged', async (chainIdHex) => {
+          console.log('chainChanged event triggered:', chainIdHex);
+          const chainId = parseInt(chainIdHex, 16);
+          const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+          setIsScrollNetwork(isScroll);
+          console.log('Network changed to chain ID:', chainId, 'Is Scroll:', isScroll);
+        });
+      }
+    };
+
     checkWalletConnection();
+    setupEventListeners();
+
+    // Cleanup function to remove event listeners
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', () => {});
+        window.ethereum.removeListener('chainChanged', () => {});
+      }
+    };
   }, []);
-  
+
   // Add navigation debugging
   useEffect(() => {
     console.log('Current charity ID:', charityId);
@@ -44,51 +110,120 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       console.log('DonationForm unmounting, last charity ID:', charityId);
     };
   }, [charityId]);
-  
+
+  // Flag to track if a wallet connection is in progress
+  const [connectionInProgress, setConnectionInProgress] = useState(false);
+
   const connectWallet = async () => {
+    // Prevent multiple simultaneous connection attempts
+    if (connectionInProgress) {
+      console.log('Wallet connection already in progress, please wait...');
+      toast.info('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
+      return false;
+    }
+
     try {
-      await initWeb3();
-      setWalletConnected(isWalletConnected());
+      setConnectionInProgress(true);
+      console.log('Connecting wallet from DonationForm');
+
+      // Check if already connected first
+      if (isWalletConnected()) {
+        console.log('Wallet already connected, checking network...');
+        setWalletConnected(true);
+
+        // Get chain ID directly
+        const web3Instance = new Web3(window.ethereum);
+        const chainId = await web3Instance.eth.getChainId();
+
+        // Check if we're on Scroll network
+        const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+        setIsScrollNetwork(isScroll);
+
+        // If not on Scroll network, try to switch
+        if (!isScroll) {
+          console.log('Connected but not on Scroll network. Attempting to switch...');
+          await switchToScrollNetwork();
+        }
+
+        return true;
+      }
+
+      // If not already connected, initialize Web3
+      const { chainId } = await initWeb3();
+      const connected = isWalletConnected();
+      console.log('Wallet connected:', connected, 'Chain ID:', chainId);
+
+      setWalletConnected(connected);
+
+      // Check if we're on Scroll network
+      const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+      setIsScrollNetwork(isScroll);
+
+      // If not on Scroll network, try to switch
+      if (connected && !isScroll) {
+        console.log('Connected but not on Scroll network. Attempting to switch...');
+        await switchToScrollNetwork();
+      }
+
+      return connected;
     } catch (error) {
       console.error('Error connecting wallet:', error);
+
+      // Handle specific error codes
+      if (error.code === -32002) {
+        toast.info('MetaMask request already pending. Please open MetaMask and confirm any pending requests.');
+      } else {
+        toast.error(`Failed to connect wallet: ${error.message}`);
+      }
+
+      return false;
+    } finally {
+      setConnectionInProgress(false);
     }
   };
-  
+
   const switchToScrollNetwork = async () => {
     try {
+      console.log('Attempting to switch to Scroll network from DonationForm');
       const success = await switchToScroll();
       if (success) {
         setIsScrollNetwork(true);
+        console.log('Successfully switched to Scroll network');
+        // Force a re-check of the wallet connection
+        setWalletConnected(isWalletConnected());
+      } else {
+        console.warn('Failed to switch to Scroll network');
       }
     } catch (error) {
       console.error('Error switching to Scroll network:', error);
+      toast.error(`Failed to switch to Scroll network: ${error.message}`);
     }
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       toast.error('Please enter a valid donation amount');
       return;
     }
-    
+
     if (!agreeTerms) {
       toast.error('Please agree to the terms');
       return;
     }
-    
+
     try {
       setProcessingDonation(true);
-      
+
       const donationAmount = parseFloat(amount);
       console.log("Processing donation for charity ID:", charityId, "amount:", donationAmount);
-      
+
       // Ensure charity ID is valid
       if (!charityId || isNaN(parseInt(charityId))) {
         throw new Error('Invalid charity ID. Please try refreshing the page.');
       }
-      
+
       const result = await processDonation(
         charityId,
         donationAmount,
@@ -110,7 +245,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         if (onDonate) {
           onDonate(donationAmount, result.transactionHash, true, result.databaseId);
         }
-        
+
         // Redirect to donation details if ID is available
         if (result.databaseId) {
           navigate(`/donations/${result.databaseId}`);
@@ -120,13 +255,13 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       }
     } catch (error) {
       console.error('Error processing donation:', error);
-      
+
       // Show a more user-friendly error message
       const errorMessage = error.message || 'Unknown error occurred';
-      const isBlockchainError = errorMessage.includes('MetaMask') || 
-                               errorMessage.includes('wallet') || 
+      const isBlockchainError = errorMessage.includes('MetaMask') ||
+                               errorMessage.includes('wallet') ||
                                errorMessage.includes('transaction');
-      
+
       if (isBlockchainError) {
         toast.error(`Blockchain Error: Please check your wallet connection and try again.`);
       } else {
@@ -136,28 +271,28 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       setProcessingDonation(false);
     }
   };
-  
-  
+
+
   const handleFiatToScrollSuccess = async (result) => {
     console.log('Fiat to Scroll payment successful:', result);
-    
+
     // Extract donation ID from the response
-    let donationId = result.donation?.id || 
+    let donationId = result.donation?.id ||
                    (result.donation && typeof result.donation === 'object' ? result.donation.id : null) ||
                    result.id;
-    
+
     // Extract transaction hash from the response
-    const transactionHash = 
-      result.donation?.transaction_hash || 
+    const transactionHash =
+      result.donation?.transaction_hash ||
       (result.transaction_hash || `fiat-${Date.now()}`);
-    
+
     // If we received a fake ID, try to create a real donation via simple-donation endpoint
     if (typeof donationId === 'string' && donationId.startsWith('fake_')) {
       console.log('Detected fake donation ID, attempting to create real donation record');
-      
+
       try {
         const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-        
+
         // Call the simple-donation endpoint
         const response = await axios.post(`${API_BASE_URL}/simple-donation`, {
           charity_id: charityId,
@@ -168,7 +303,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           is_fiat: true,
           currency_type: 'SCROLL'
         });
-        
+
         if (response.data.success) {
           // Update donation ID with the real one
           donationId = response.data.id;
@@ -177,26 +312,26 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         console.error('Failed to create real donation record:', err);
       }
     }
-    
+
     if (onDonate) {
       onDonate(
-        parseFloat(amount), 
+        parseFloat(amount),
         transactionHash,
-        true, 
+        true,
         donationId
       );
     }
-    
+
     // For test mode or missing donation ID, show success toast and redirect to charity page
     if (result.test_mode && (!donationId || typeof donationId === 'string' && donationId.startsWith('fake_'))) {
       navigate(`/charities/${charityId}`);
       toast.success('Test donation successful!');
-    } 
+    }
     // For successful donations with ID, navigate to donation details page
     else if (donationId && (typeof donationId === 'number' || !isNaN(parseInt(donationId)))) {
       navigate(`/donations/${donationId}`);
       toast.success('Donation successful! Viewing details...');
-    } 
+    }
     // Fallback for any other case
     else {
       navigate(`/charities/${charityId}`);
@@ -206,7 +341,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
 
   const handleFiatToScrollError = (error) => {
     console.error('Fiat to Scroll payment error:', error);
-    
+
     // Extract more detailed error information
     let errorMessage = error.message || 'Payment failed';
     if (error.response && error.response.data) {
@@ -216,7 +351,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         errorMessage = error.response.data.message;
       }
     }
-    
+
     toast.error(`Payment failed: ${errorMessage}`);
   };
 
@@ -232,7 +367,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       </button>
 
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Make a Donation</h2>
-      
+
       {/* Payment Method Selection */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Choose Payment Method</h3>
@@ -245,9 +380,12 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >
-            <FaEthereum className={`mr-2 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <div className="flex items-center">
+              <FaEthereum className={`mr-1 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
+              <span className={`text-xs font-bold ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`}>SCROLL</span>
+            </div>
             <span className={`font-medium ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Blockchain
+              Scroll
             </span>
           </button>
           <button
@@ -264,6 +402,9 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </span>
           </button>
         </div>
+        <p className="text-xs text-gray-500 mt-2 text-center">
+          We exclusively use Scroll for blockchain donations due to its lower fees and faster processing.
+        </p>
       </div>
 
       {paymentMethod === 'blockchain' ? (
@@ -279,7 +420,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                   <p className="text-xs text-yellow-600 mb-3">
                     Please connect your crypto wallet to make a blockchain donation
                   </p>
-                  <button 
+                  <button
                     onClick={connectWallet}
                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                   >
@@ -290,33 +431,61 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               </div>
             </div>
           )}
-          
+
           {walletConnected && !isScrollNetwork && (
             <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-100">
               <div className="flex items-start">
-                <FaEthereum className="text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex items-center mr-3">
+                  <FaEthereum className="text-blue-500 mr-1" />
+                  <span className="text-xs font-bold text-blue-500">SCROLL</span>
+                </div>
                 <div>
                   <p className="text-sm text-blue-700 font-medium">
-                    Switch to Scroll network
+                    Switch to Scroll network required
                   </p>
                   <p className="text-xs text-blue-600 mb-3">
-                    Scroll network offers lower transaction fees and faster processing
+                    We exclusively use Scroll for donations due to its lower fees and faster processing
                   </p>
-                  <button 
+                  <button
                     onClick={switchToScrollNetwork}
                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                   >
-                    Switch to Scroll
+                    Switch to Scroll Network
                   </button>
                 </div>
               </div>
             </div>
           )}
-          
+
+          {/* Debug section - only visible when there are issues */}
+          {walletConnected && isScrollNetwork && (
+            <div className="mb-5 p-4 bg-green-50 rounded-md border border-green-100">
+              <p className="text-sm text-green-700 font-medium">
+                ✅ Connected to Scroll network
+              </p>
+              <p className="text-xs text-green-600">
+                You can now make donations using Scroll
+              </p>
+              <div className="mt-2">
+                <button
+                  onClick={() => {
+                    // Force refresh of wallet connection status
+                    const connected = isWalletConnected();
+                    setWalletConnected(connected);
+                    toast.success(`Wallet connection refreshed: ${connected ? 'Connected' : 'Disconnected'}`);
+                  }}
+                  className="text-xs text-green-700 underline"
+                >
+                  Refresh connection status
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (ETH)
+                Amount (Scroll ETH)
               </label>
               <input
                 type="number"
@@ -331,7 +500,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 disabled={processingDonation || !walletConnected}
               />
             </div>
-            
+
             <div>
               <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-1">
                 Message (Optional)
@@ -346,7 +515,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 rows="3"
               />
             </div>
-            
+
             <div>
               <div className="flex items-start">
                 <div className="flex items-center h-5">
@@ -362,18 +531,18 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 </div>
                 <div className="ml-3 text-sm">
                   <label htmlFor="agreeTerms" className="font-medium text-gray-700">
-                    I understand that my donation will be processed via blockchain
+                    I understand that my donation will be processed via the Scroll blockchain
                   </label>
                   <p className="text-gray-500 text-xs mt-1">
-                    Funds will be securely held in escrow and released based on milestone completion.
+                    Funds will be securely held in escrow and released based on milestone completion. Scroll provides lower fees than other networks.
                   </p>
                 </div>
               </div>
             </div>
-            
+
             <div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className={`w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white shadow-sm transition-colors ${
                   processingDonation || !walletConnected
                     ? 'bg-indigo-300 cursor-not-allowed'
@@ -394,14 +563,17 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 )}
               </button>
             </div>
-            
+
             <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
               <p className="mb-1">
-                Your donation will be processed on the Scroll network with minimal gas fees.
+                Your donation will be processed exclusively on the Scroll network with minimal gas fees.
                 All transactions are transparent and verifiable on the blockchain.
               </p>
-              <p>
+              <p className="mb-1">
                 No personal information is stored on the blockchain, ensuring your privacy.
+              </p>
+              <p>
+                <strong>Why Scroll?</strong> Scroll offers significantly lower transaction fees compared to Ethereum, allowing more of your donation to reach the charity.
               </p>
             </div>
           </form>
@@ -409,7 +581,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       ) : (
         <div className="space-y-5">
           <FiatToScrollExplainer />
-          
+
           <div>
             <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
               Amount (USD)
@@ -426,7 +598,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
             />
           </div>
-          
+
           <div>
             <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-1">
               Message (Optional)
@@ -462,7 +634,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               </div>
             </div>
           </div>
-          
+
           {amount && parseFloat(amount) > 0 && (
             <FiatToScrollPaymentWrapper
               amount={parseFloat(amount)}

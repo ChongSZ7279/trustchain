@@ -52,7 +52,7 @@ module.exports = {
     },
     scrollSepolia: {
       url: "https://sepolia-rpc.scroll.io",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
       chainId: 534351,
     },
   },

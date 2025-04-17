@@ -52,7 +52,8 @@ import {
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import Web3 from 'web3';
-import CharityContract from '../contracts/CharityContract.json';
+// Import the DonationContractABI instead of CharityContract
+import { DonationContractABI } from '../contracts/DonationContractABI';
 import MilestoneTracker from './MilestoneTracker';
 import TransactionHistory from './TransactionHistory';
 import BlockchainVerificationBadge from './BlockchainVerificationBadge';
@@ -496,11 +497,12 @@ export default function CharityDetails() {
       // Fetch donations (now public for all users)
       try {
         console.log("Fetching donations for charity ID:", id);
-        const donationsRes = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
-        console.log("Donations response:", donationsRes.data);
 
-        const donationsData = donationsRes.data.data || donationsRes.data;
-        setDonations(donationsData);
+        // Use the service function that handles multiple endpoints
+        const donationsData = await getCharityDonations(id);
+        console.log("Donations response:", donationsData);
+
+        setDonations(donationsData || []);
 
         // If we have donation data, we can cross-check the donor count
         if (Array.isArray(donationsData) && donationsData.length > 0) {
@@ -697,12 +699,12 @@ export default function CharityDetails() {
         // Refresh charity data
         await fetchCharityData();
 
-        // Explicitly fetch donations again
+        // Explicitly fetch donations again using the service function
         try {
-          const donationsResponse = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
-          console.log("Fetched donations:", donationsResponse.data);
-          // Handle paginated response
-          setDonations(donationsResponse.data.data || donationsResponse.data);
+          const donationsData = await getCharityDonations(id);
+          console.log("Fetched donations:", donationsData);
+          // Set the donations
+          setDonations(donationsData || []);
         } catch (donationError) {
           console.error("Error fetching donations:", donationError);
         }

@@ -4,9 +4,9 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { 
-  FaArrowLeft, 
-  FaCheckCircle, 
+import {
+  FaArrowLeft,
+  FaCheckCircle,
   FaExclamationCircle,
   FaExclamationTriangle,
   FaSync,
@@ -28,7 +28,7 @@ import {
   FaPrint
 } from 'react-icons/fa';
 import { ethers } from 'ethers';
-import { DonationContractABI } from '../utils/contractABI';
+import { DonationContractABI } from '../contracts/DonationContractABI';
 import { formatImageUrl } from '../utils/helpers';
 import BackButton from './BackToHistory';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
@@ -52,6 +52,24 @@ export default function DonationDetails() {
     const fetchDonation = async () => {
       try {
         const data = await getDonationDetails(id);
+
+        // Check if this is an anonymous donation with amount 0
+        if (data.anonymous_donation && data.amount === 0) {
+          // Try to get the amount from localStorage
+          try {
+            const recentDonations = JSON.parse(localStorage.getItem('recentDonations') || '[]');
+            const donationInfo = recentDonations.find(d => d.id.toString() === id.toString());
+
+            if (donationInfo && donationInfo.amount) {
+              console.log('Found donation amount in localStorage:', donationInfo.amount);
+              // Update the amount from localStorage
+              data.amount = donationInfo.amount;
+            }
+          } catch (localStorageError) {
+            console.warn('Error reading donation from localStorage:', localStorageError);
+          }
+        }
+
         setDonation(data);
       } catch (err) {
         console.error('Error fetching donation details:', err);
@@ -124,7 +142,7 @@ export default function DonationDetails() {
       const response = await axios.post(`/donations/${donation.id}`, {
         status: newStatus
       });
-      
+
       setDonation(response.data);
       toast.success(`Donation marked as ${newStatus}`);
     } catch (err) {
@@ -139,7 +157,7 @@ export default function DonationDetails() {
     if (!window.confirm('Are you sure you want to delete this donation? This action cannot be undone.')) {
       return;
     }
-    
+
     try {
       setDeleteLoading(true);
       await axios.delete(`/donations/${donation.id}`);
@@ -158,7 +176,7 @@ export default function DonationDetails() {
     try {
       let provider;
       let signer;
-      
+
       // Check ethers version by feature detection
       if (typeof ethers.BrowserProvider === 'function') {
         // ethers v6
@@ -169,11 +187,11 @@ export default function DonationDetails() {
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
       }
-      
+
       const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
-      
+
       const contract = new ethers.Contract(
-        contractAddress, 
+        contractAddress,
         DonationContractABI,
         signer
       );
@@ -281,7 +299,7 @@ export default function DonationDetails() {
                 <dt className="text-sm font-medium text-gray-500">Amount</dt>
                 <dd className="mt-1 text-sm text-gray-900">
                   {donation.amount} {donation.currency_type}
-                  
+
                   {isFiatToScroll && donation.fiat_amount && (
                     <div className="mt-2 flex items-center text-sm text-gray-600">
                       <FaDollarSign className="mr-1 text-green-500" />
@@ -377,7 +395,7 @@ export default function DonationDetails() {
           {/* Invoice Section */}
           <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Donation Receipt</h3>
-            
+
             <div className="mt-4 bg-gray-50 p-4 rounded-md">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -401,10 +419,10 @@ export default function DonationDetails() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="mt-3">
                 <p className="text-xs text-gray-500">
-                  This donation receipt serves as your official record for tax purposes. 
+                  This donation receipt serves as your official record for tax purposes.
                   View or download the full invoice for detailed information.
                 </p>
               </div>
@@ -415,7 +433,7 @@ export default function DonationDetails() {
           {donation.payment_method === 'blockchain' && donation.transaction_hash && (
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
-              
+
               <div className="mt-4">
                 <div className="flex items-center mb-4">
                   <div className={`flex-shrink-0 h-5 w-5 rounded-full ${donation.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'} mr-2`}></div>
@@ -423,14 +441,14 @@ export default function DonationDetails() {
                     {donation.status === 'completed' ? 'Verified on Blockchain' : 'Pending Verification'}
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 p-4 rounded-md">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
                       <dd className="mt-1 text-sm text-gray-900 break-all">{donation.transaction_hash}</dd>
                     </div>
-                    
+
                     {donation.smart_contract_data && (
                       <>
                         <div>
@@ -454,11 +472,11 @@ export default function DonationDetails() {
                       </>
                     )}
                   </div>
-                  
+
                   <div className="mt-4">
-                    <a 
-                      href={getBlockExplorerLink(donation.transaction_hash)} 
-                      target="_blank" 
+                    <a
+                      href={getBlockExplorerLink(donation.transaction_hash)}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-indigo-600 hover:text-indigo-900 inline-flex items-center"
                     >
@@ -467,7 +485,7 @@ export default function DonationDetails() {
                     </a>
                   </div>
                 </div>
-                
+
                 {donation.status === 'completed' && (
                   <div className="mt-4 p-4 bg-green-50 rounded-md">
                     <div className="flex">
@@ -493,7 +511,7 @@ export default function DonationDetails() {
           )}
 
           {/* Impact Section */}
-          {donation.status === 'completed' && (
+          {(donation.status === 'completed' || donation.status === 'pending' || donation.status === 'confirmed') && (
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Your Impact</h3>
               <div className="mt-4">
@@ -513,7 +531,7 @@ export default function DonationDetails() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Impact Metrics */}
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-4">People Helped by Your Donation</h4>
@@ -536,16 +554,16 @@ export default function DonationDetails() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Task Pictures */}
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Projects & Activities</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* We're using placeholder images if real images are not available */}
                     <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                      <img 
-                        src={donation.charity?.project_images?.[0] || `https://source.unsplash.com/random/600x400/?charity,help,${donation.charity?.name?.split(' ')[0]}`} 
-                        alt="Charity Project" 
+                      <img
+                        src={donation.charity?.project_images?.[0] || `https://source.unsplash.com/random/600x400/?charity,help,${donation.charity?.name?.split(' ')[0]}`}
+                        alt="Charity Project"
                         className="w-full h-48 object-cover"
                       />
                       <div className="p-3 bg-white">
@@ -554,9 +572,9 @@ export default function DonationDetails() {
                       </div>
                     </div>
                     <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                      <img 
-                        src={donation.charity?.project_images?.[1] || `https://source.unsplash.com/random/600x400/?volunteer,${donation.charity?.name?.split(' ')[0]}`} 
-                        alt="Charity Project" 
+                      <img
+                        src={donation.charity?.project_images?.[1] || `https://source.unsplash.com/random/600x400/?volunteer,${donation.charity?.name?.split(' ')[0]}`}
+                        alt="Charity Project"
                         className="w-full h-48 object-cover"
                       />
                       <div className="p-3 bg-white">
@@ -566,7 +584,7 @@ export default function DonationDetails() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Progress Bar */}
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Goal Progress</h4>
@@ -578,18 +596,18 @@ export default function DonationDetails() {
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className="bg-indigo-600 h-2.5 rounded-full" 
+                      <div
+                        className="bg-indigo-600 h-2.5 rounded-full"
                         style={{ width: `${Math.min(100, ((donation.charity?.current_fundraising || Math.floor(donation.amount * 5)) / (donation.charity?.fundraising_goal || 5000)) * 100)}%` }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">Your donation helps us reach our monthly goal to serve more people in need.</p>
                   </div>
                 </div>
-                
+
                 <div className="text-center">
-                  <Link 
-                    to={`/charities/${donation.charity_id}`} 
+                  <Link
+                    to={`/charities/${donation.charity_id}`}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                   >
                     Learn More About {donation.charity?.name || 'This Charity'}
@@ -614,8 +632,8 @@ export default function DonationDetails() {
                   {donation.task_proof.map((proof, index) => (
                     <div key={index} className="border rounded-lg overflow-hidden">
                       {proof.type.startsWith('image/') ? (
-                        <img 
-                          src={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`} 
+                        <img
+                          src={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`}
                           alt={`Proof ${index + 1}`}
                           className="w-full h-48 object-cover"
                         />
@@ -629,7 +647,7 @@ export default function DonationDetails() {
                         <p className="text-xs text-gray-500">
                           Uploaded: {new Date(proof.uploaded_at).toLocaleDateString()}
                         </p>
-                        <a 
+                        <a
                           href={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -750,7 +768,7 @@ export default function DonationDetails() {
                 <p className="text-green-700">
                   Funds were released on {formatDate(donation.completed_at)}
                 </p>
-                
+
                 {donation.transfer_transaction_hash && (
                   <div className="mt-4">
                     <p className="text-sm text-gray-700">
@@ -776,4 +794,4 @@ export default function DonationDetails() {
       </div>
     </div>
   );
-} 
+}

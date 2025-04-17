@@ -159,9 +159,10 @@ export default function CharityCard({ charity, inDashboard = false }) {
       transition={{ duration: 0.2 }}
       className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
     >
-    <Link to={`/charities/${charity.id}`}
-    className="flex flex-col h-full"
-    >
+      <Link
+      to={`/charities/${charity.id}`}
+      className="flex flex-col h-full"
+      >
       {/* Cover Image */}
       <div className="relative p-4">
         <div 
@@ -185,26 +186,6 @@ export default function CharityCard({ charity, inDashboard = false }) {
           )}
         </div>
         
-        {/* Like button positioned on the top right - only show for non-organization users */}
-        {!isOrganizationUser() && (
-          <div className="absolute top-4 right-4">
-            <button
-              onClick={toggleFollow}
-              disabled={isLoading}
-              className={`p-2 rounded-full transition-colors shadow-md ${
-                isFollowing 
-                  ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
-                  : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
-              }`}
-            >
-              {isFollowing ? (
-                <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-              ) : (
-                <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-              )}
-            </button>
-          </div>
-        )}
       </div>
       
       {/* Charity Info */}

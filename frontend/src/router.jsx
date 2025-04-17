@@ -104,7 +104,43 @@ const router = createBrowserRouter([
           title: "Blockchain Basics",
           subtitle: "Learn the basics of blockchain technology"
         }
-      }
+      },
+      {
+        path: '/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/transactions/:id',
+        element: <TransactionDetails />
+      },
+      {
+        path: '/charities/:id/donate',
+        element: <DonationForm />
+      },
+      {
+        path: '/donations/:id',
+        element: <DonationDetails />
+      },
+      {
+        path: '/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/charities/:charityId/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/charities/:charityId/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/charities/:charityId/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
     ]
   },
   {
@@ -198,42 +234,6 @@ const router = createBrowserRouter([
       {
         path: '/charities/:charityId/tasks/:taskId/edit',
         element: <TaskForm />
-      },
-      {
-        path: '/transactions',
-        element: <TransactionList />
-      },
-      {
-        path: '/transactions/:id',
-        element: <TransactionDetails />
-      },
-      {
-        path: '/charities/:id/donate',
-        element: <DonationForm />
-      },
-      {
-        path: '/donations/:id',
-        element: <DonationDetails />
-      },
-      {
-        path: '/donations',
-        element: <TransactionList dataSource="donations" />
-      },
-      {
-        path: '/financial-activities',
-        element: <TransactionList dataSource="combined" />
-      },
-      {
-        path: '/charities/:charityId/transactions',
-        element: <TransactionList />
-      },
-      {
-        path: '/charities/:charityId/donations',
-        element: <TransactionList dataSource="donations" />
-      },
-      {
-        path: '/charities/:charityId/financial-activities',
-        element: <TransactionList dataSource="combined" />
       },
       {
         path: '/donations/:donationId/invoice',

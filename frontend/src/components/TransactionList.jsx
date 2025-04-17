@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaSearch, 
-  FaFilter, 
+import {
+  FaSearch,
+  FaFilter,
   FaCalendarAlt,
   FaMoneyBillWave,
   FaUser,
@@ -35,6 +35,7 @@ export default function TransactionList() {
   const [searchFocus, setSearchFocus] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [viewType, setViewType] = useState(charityId ? 'charity' : 'system');
+  // No authentication check needed - transactions are now public
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -81,9 +82,9 @@ export default function TransactionList() {
     if (filters.dateRange.start || filters.dateRange.end) filtersCount++;
     if (filters.amountRange.min || filters.amountRange.max) filtersCount++;
     if (dataSource !== 'transactions') filtersCount++;
-    
+
     setActiveFiltersCount(filtersCount);
-    
+
     fetchTransactions();
   }, [pagination.currentPage, searchTerm, filters, viewType, charityId, dataSource]);
 
@@ -91,7 +92,7 @@ export default function TransactionList() {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Create query parameters object with only non-empty values
       const queryParams = new URLSearchParams({
         page: pagination.currentPage,
@@ -128,7 +129,7 @@ export default function TransactionList() {
 
       // Determine the appropriate endpoint based on the data source and context
       let endpoint;
-      
+
       if (charityId) {
         // Charity-specific endpoints
         if (dataSource === 'donations') {
@@ -160,15 +161,15 @@ export default function TransactionList() {
 
       // Store the last endpoint for debugging
       setDebugInfo(prev => ({ ...prev, lastEndpoint: endpoint }));
-      
+
       console.log(`Fetching data from endpoint: ${endpoint} with params:`, Object.fromEntries(queryParams));
-      
+
       const response = await axios.get(endpoint, { params: queryParams });
       console.log('API Response:', response.data);
-      
+
       // Store the response for debugging
       setDebugInfo(prev => ({ ...prev, lastResponse: response.data }));
-      
+
       // Special handling for combined data source
       if (dataSource === 'combined' && !charityId) {
         // For global combined view without a charity ID, we'll just show transactions
@@ -183,40 +184,40 @@ export default function TransactionList() {
         try {
           // If we need to manually combine data from multiple sources
           const transactionsData = extractDataFromResponse(response.data);
-          
+
           // Now fetch donations data
           const donationsEndpoint = `/charities/${charityId}/donations`;
-          
+
           console.log(`Also fetching donations from: ${donationsEndpoint}`);
           // Don't pass the source parameter to donations endpoint
           const donationsParams = new URLSearchParams({
             page: pagination.currentPage,
             per_page: pagination.itemsPerPage
           });
-          
+
           const donationsResponse = await axios.get(donationsEndpoint, { params: donationsParams });
           console.log('Donations API Response:', donationsResponse.data);
-          
+
           const donationsData = extractDataFromResponse(donationsResponse.data);
-          
+
           // Combine both datasets
           const combinedData = [...transactionsData, ...donationsData];
           console.log(`Combined ${transactionsData.length} transactions with ${donationsData.length} donations:`, combinedData);
-          
+
           // Sort by date
-          const sortedData = combinedData.sort((a, b) => 
+          const sortedData = combinedData.sort((a, b) =>
             new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0)
           );
-          
+
           setTransactions(sortedData);
-          
+
           // Update pagination manually
           setPagination(prev => ({
             ...prev,
             totalItems: sortedData.length,
             totalPages: Math.ceil(sortedData.length / prev.itemsPerPage),
           }));
-          
+
           setLoading(false);
           return;
         } catch (combineError) {
@@ -224,17 +225,17 @@ export default function TransactionList() {
           // Fall through to normal processing if combining fails
         }
       }
-      
+
       // Normal processing for non-combined data sources
       // Improved data extraction with helper function
       const responseData = extractDataFromResponse(response.data);
-      
+
       // Set the data
       setTransactions(responseData);
-      
+
       // Update pagination if the response includes pagination data
       updatePaginationFromResponse(response.data, responseData);
-      
+
       setLoading(false);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -242,7 +243,7 @@ export default function TransactionList() {
         console.error('Error response data:', err.response.data);
         console.error('Error response status:', err.response.status);
         setError(`Failed to load data: ${err.response.status} ${err.response.statusText}`);
-        
+
         // Special handling for 405 Method Not Allowed errors
         if (err.response.status === 405) {
           setError('The API endpoint does not support this request. Try a different filter option.');
@@ -259,24 +260,24 @@ export default function TransactionList() {
   // Helper function to extract data from API response
   const extractDataFromResponse = (responseData) => {
     if (!responseData) return [];
-    
+
     // Handle paginated response
     if (responseData.data && Array.isArray(responseData.data)) {
       return responseData.data;
     }
-    
+
     // Handle direct array response
     if (Array.isArray(responseData)) {
       return responseData;
     }
-    
+
     // Try to find an array in the response object
     for (const key in responseData) {
       if (Array.isArray(responseData[key])) {
         return responseData[key];
       }
     }
-    
+
     console.error('Could not extract data from response:', responseData);
     return [];
   };
@@ -315,7 +316,7 @@ export default function TransactionList() {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    
+
     // For nested properties
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
@@ -332,7 +333,7 @@ export default function TransactionList() {
         [name]: value
       }));
     }
-    
+
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
@@ -361,7 +362,7 @@ export default function TransactionList() {
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
-    
+
     switch (status.toLowerCase()) {
       case 'completed':
       case 'confirmed':
@@ -378,7 +379,7 @@ export default function TransactionList() {
 
   const getStatusIcon = (status) => {
     if (!status) return null;
-    
+
     switch (status.toLowerCase()) {
       case 'completed':
       case 'confirmed':
@@ -407,14 +408,14 @@ export default function TransactionList() {
 
   const formatAmount = (amount, currencyType) => {
     if (!amount) return '$0.00';
-    
+
     const formattedAmount = `$${parseFloat(amount).toFixed(2)}`;
     return currencyType ? `${formattedAmount} (${currencyType})` : formattedAmount;
   };
 
   const getSourceLabel = (item) => {
     if (!item) return 'Unknown';
-    
+
     if (item.source) {
       return item.source;
     } else if (item.is_blockchain) {
@@ -433,9 +434,9 @@ export default function TransactionList() {
       console.warn('Cannot generate details URL for item:', item);
       return '/transactions';
     }
-    
+
     const sourceType = getSourceLabel(item).toLowerCase();
-    
+
     // Handle special cases
     if (sourceType === 'blockchain') {
       return `/blockchain-transactions/${item.id}`;
@@ -491,13 +492,13 @@ export default function TransactionList() {
   }
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
     >
       {/* Header with gradient background */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="relative rounded-xl bg-gradient-to-r from-indigo-700 to-purple-700 text-white p-8 mb-8 shadow-lg overflow-hidden"
@@ -507,22 +508,22 @@ export default function TransactionList() {
           <div className="absolute top-0 left-0 w-64 h-64 rounded-full bg-white transform -translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-white transform translate-x-1/3 translate-y-1/3"></div>
         </div>
-        
+
         <div className="relative z-10">
           <h1 className="text-3xl font-bold flex items-center">
             <FaHistory className="mr-3" />
             Transactions
           </h1>
           <p className="mt-2 text-indigo-100 max-w-xl">
-            {viewType === 'charity' 
-              ? 'View and manage charity-specific financial transactions.' 
+            {viewType === 'charity'
+              ? 'View and manage charity-specific financial transactions.'
               : 'Track all transaction activities across the platform.'}
           </p>
         </div>
       </motion.div>
 
       {/* Search and Filter Bar */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="bg-white rounded-xl shadow-md mb-8"
@@ -545,7 +546,7 @@ export default function TransactionList() {
                 className={`block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
               />
               {searchTerm && (
-                <button 
+                <button
                   onClick={() => setSearchTerm('')}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                 >
@@ -558,13 +559,13 @@ export default function TransactionList() {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`inline-flex items-center px-4 py-3 border shadow-sm text-sm font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200 ${
-                activeFiltersCount > 0 || showFilters 
-                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100' 
+                activeFiltersCount > 0 || showFilters
+                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
                   : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
               }`}
             >
               <FaSlidersH className="mr-2" />
-              Filters 
+              Filters
               {activeFiltersCount > 0 && (
                 <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-indigo-100 bg-indigo-600 rounded-full">
                   {activeFiltersCount}
@@ -665,7 +666,7 @@ export default function TransactionList() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
                       onClick={resetFilters}
@@ -694,7 +695,7 @@ export default function TransactionList() {
             {pagination.totalItems} {pagination.totalItems === 1 ? 'Transaction' : 'Transactions'} Found
             {searchTerm && <span className="ml-2 text-gray-500 text-base font-normal">for "{searchTerm}"</span>}
           </h2>
-          
+
           {/* Active filters */}
           {activeFiltersCount > 0 && (
             <div className="mt-2 sm:mt-0 flex items-center text-sm text-gray-500">
@@ -708,7 +709,7 @@ export default function TransactionList() {
               {dataSource !== 'transactions' && (
                 <span className="mr-2">Source: {dataSource}</span>
               )}
-              <button 
+              <button
                 onClick={resetFilters}
                 className="ml-2 text-indigo-600 hover:text-indigo-800 font-medium"
               >
@@ -760,16 +761,16 @@ export default function TransactionList() {
                     console.warn('Invalid transaction item:', item);
                     return null;
                   }
-                  
+
                   // Debug log to help track issues
                   console.log(`Rendering transaction ${index}:`, item);
-                  
+
                   // Generate a unique key that won't cause React warnings
                   const itemKey = item.id || item.transaction_hash || item.transaction_id || `transaction-${index}`;
-                  
+
                   return (
-                    <motion.tr 
-                      key={itemKey} 
+                    <motion.tr
+                      key={itemKey}
                       className="hover:bg-gray-50 transition-colors duration-150"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -815,7 +816,7 @@ export default function TransactionList() {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination */}
           <div className="border-t border-gray-200 px-4 py-3">
             <Pagination
@@ -826,7 +827,7 @@ export default function TransactionList() {
           </div>
         </motion.div>
       ) : (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white shadow-lg rounded-xl p-8 text-center"
@@ -841,7 +842,7 @@ export default function TransactionList() {
                 ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
                 : 'Transactions will appear here once they are created.'}
             </p>
-            
+
             {(searchTerm || activeFiltersCount > 0) && (
               <div className="flex justify-center">
                 <button

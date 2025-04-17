@@ -43,20 +43,27 @@ Route::get('/organizations/{id}', [OrganizationController::class, 'show']);
 Route::get('/charities', [CharityController::class, 'index']);
 Route::get('/charities/{id}', [CharityController::class, 'show']);
 Route::get('/organizations/{id}/charities', [CharityController::class, 'organizationCharities']);
+Route::get('/charities/{id}/donations', [DonationController::class, 'charityDonations']);
 Route::post('/charities/{id}/donations', [DonationController::class, 'store'])->middleware('auth:sanctum');
 
 // Public task routes
 Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
 Route::get('/tasks/{id}', [TaskController::class, 'show']);
 
+// Public transaction routes
+Route::get('/transactions', [TransactionController::class, 'index']);
+Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+Route::get('/charities/{charityId}/transactions', [TransactionController::class, 'getCharityTransactions']);
+Route::get('/tasks/{taskId}/transactions', [TransactionController::class, 'getTaskTransactions']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
-    
+
     // Protected user routes
     Route::match(['put', 'patch'], '/users/{id}', [UserController::class, 'update']);
-    
+
     // Protected organization routes
     Route::match(['put', 'patch'], '/organizations/{id}', [OrganizationController::class, 'update']);
     Route::delete('/organizations/{id}', [OrganizationController::class, 'destroy']);
@@ -80,28 +87,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/charities/{charityId}/tasks', [TaskController::class, 'store']);
     Route::match(['put', 'patch'], '/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
-    
+
     // Debug fix task route
     Route::put('/fix-tasks/{id}', [FixTaskController::class, 'update']);
-    
+
     // Task Pictures routes
     Route::get('/tasks/{taskId}/pictures', [TaskPictureController::class, 'index']);
     Route::post('/tasks/{taskId}/pictures', [TaskPictureController::class, 'store']);
     Route::delete('/tasks/{taskId}/pictures/{pictureId}', [TaskPictureController::class, 'destroy']);
-    
-    // Transaction routes
-    Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+
+    // Protected transaction routes
     Route::post('/transactions', [TransactionController::class, 'store']);
-    Route::get('/charities/{charityId}/transactions', [TransactionController::class, 'getCharityTransactions']);
-    Route::get('/tasks/{taskId}/transactions', [TransactionController::class, 'getTaskTransactions']);
     Route::get('/users/{userId}/transactions', [TransactionController::class, 'getUserTransactions']);
 
-    // Donation routes
-    Route::get('/charities/{id}/donations', [DonationController::class, 'charityDonations']);
+    // Protected donation routes
     Route::post('/charities/{id}/donations', [DonationController::class, 'store']);
     Route::get('/donations/{donation}', [DonationController::class, 'show']);
-    
+
     // Other donation-related routes
     Route::post('/blockchain-donations', [DonationController::class, 'storeBlockchainDonation']);
     Route::get('/user/donations', [DonationController::class, 'userDonations']);
@@ -123,7 +125,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Fiat to Scroll conversion routes
     Route::post('/process-fiat-donation', [FiatToScrollConverter::class, 'convertAndDonate']);
-    
+
     // Stripe routes
     // Moved outside auth middleware
     // Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
@@ -151,7 +153,7 @@ Route::post('/charities/{id}/donations/test', [DonationController::class, 'testD
 Route::get('/storage-test', function () {
     $disk = config('filesystems.disks.public');
     $files = Storage::disk('public')->files();
-    
+
     return response()->json([
         'disk_config' => $disk,
         'files' => $files,
@@ -174,7 +176,7 @@ Route::post('/test-upload', function (Request $request) {
         'headers' => $request->header(),
         'content_type' => $request->header('Content-Type'),
     ]);
-    
+
     if ($request->hasFile('test_file')) {
         $file = $request->file('test_file');
         $path = $file->store('test_uploads', 'public');
@@ -186,7 +188,7 @@ Route::post('/test-upload', function (Request $request) {
             'mime' => $file->getMimeType(),
         ]);
     }
-    
+
     return response()->json([
         'message' => 'No file uploaded',
         'data' => $request->all(),
@@ -200,14 +202,14 @@ Route::get('/test-invoice', function() {
             'title' => 'Test Invoice',
             'date' => now()->format('F j, Y')
         ]);
-        
+
         return $pdf->download('test-invoice.pdf');
     } catch (\Exception $e) {
         \Log::error('Test invoice error', [
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
         ]);
-        
+
         return response()->json([
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
@@ -221,14 +223,14 @@ Route::get('/simple-test-pdf', function() {
         // Create a very simple PDF with minimal content
         $html = '<html><body><h1>Test PDF</h1><p>This is a test.</p></body></html>';
         $pdf = \PDF::loadHTML($html);
-        
+
         return $pdf->download('simple-test.pdf');
     } catch (\Exception $e) {
         \Log::error('Simple PDF test error', [
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
         ]);
-        
+
         return response()->json([
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
@@ -240,7 +242,7 @@ Route::get('/simple-test-pdf', function() {
 Route::get('/test-invoice-html', function() {
     try {
         $html = '<html><body><h1>Test Invoice</h1><p>This is a test invoice.</p></body></html>';
-        
+
         return response()->json([
             'html' => $html,
             'filename' => 'test-invoice.pdf'
@@ -250,7 +252,7 @@ Route::get('/test-invoice-html', function() {
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
         ]);
-        
+
         return response()->json([
             'message' => 'Failed to generate test invoice HTML',
             'error' => $e->getMessage()
@@ -266,18 +268,18 @@ Route::get('/create-test-donation', function() {
     try {
         // Check if donation with ID 1 exists
         $existingDonation = \App\Models\Donation::find(1);
-        
+
         if ($existingDonation) {
             return response()->json([
                 'message' => 'Test donation already exists',
                 'donation' => $existingDonation
             ]);
         }
-        
+
         // Find a valid user and charity
         $user = \App\Models\User::first();
         $charity = \App\Models\Charity::first();
-        
+
         if (!$user || !$charity) {
             return response()->json([
                 'message' => 'Cannot create test donation - no users or charities found',
@@ -285,7 +287,7 @@ Route::get('/create-test-donation', function() {
                 'charities_exist' => (bool)$charity
             ], 500);
         }
-        
+
         // Create a test donation
         $donation = new \App\Models\Donation();
         $donation->id = 1; // Force ID to be 1
@@ -297,7 +299,7 @@ Route::get('/create-test-donation', function() {
         $donation->donor_message = 'This is a test donation';
         $donation->is_anonymous = false;
         $donation->save();
-        
+
         return response()->json([
             'message' => 'Test donation created successfully',
             'donation' => $donation
@@ -315,14 +317,14 @@ Route::get('/create-test-donation', function() {
 Route::get('/donations/{donation}/direct-html', function($donationId) {
     try {
         $donation = \App\Models\Donation::find($donationId);
-        
+
         if (!$donation) {
             return response()->json([
                 'message' => 'Donation not found',
                 'error' => 'The requested donation does not exist'
             ], 404);
         }
-        
+
         // Create a simple HTML directly
         $html = "
         <html>
@@ -346,7 +348,7 @@ Route::get('/donations/{donation}/direct-html', function($donationId) {
         </body>
         </html>
         ";
-        
+
         return response()->json([
             'html' => $html,
             'filename' => "donation-invoice-{$donationId}.pdf"
@@ -369,11 +371,11 @@ Route::get('/check-database', function() {
             'charities' => \App\Models\Charity::count(),
             'transactions' => \App\Models\Transaction::count(),
         ];
-        
+
         $donationSample = \App\Models\Donation::first();
         $userSample = \App\Models\User::first();
         $charitySample = \App\Models\Charity::first();
-        
+
         return response()->json([
             'message' => 'Database check completed',
             'table_counts' => $tables,
@@ -394,22 +396,22 @@ Route::get('/check-database', function() {
 Route::get('/donations/{donation}/simple-html', function($donationId) {
     try {
         $donation = \App\Models\Donation::find($donationId);
-        
+
         if (!$donation) {
             return response()->json([
                 'message' => 'Donation not found',
                 'error' => 'The requested donation does not exist'
             ], 404);
         }
-        
+
         $data = [
             'donation' => $donation,
             'date' => now()->format('F j, Y'),
             'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
         ];
-        
+
         $html = view('invoices.simple', $data)->render();
-        
+
         return response()->json([
             'html' => $html,
             'filename' => "donation-invoice-{$donationId}.pdf"
@@ -438,14 +440,14 @@ Route::get('/create-test-charity', function() {
     try {
         // Check if charity already exists
         $existingCharity = \App\Models\Charity::where('name', 'Test Charity')->first();
-        
+
         if ($existingCharity) {
             return response()->json([
                 'message' => 'Test charity already exists',
                 'charity' => $existingCharity
             ]);
         }
-        
+
         // Find or create an organization
         $organization = \App\Models\Organization::first();
         if (!$organization) {
@@ -461,7 +463,7 @@ Route::get('/create-test-charity', function() {
                 'verified' => true
             ]);
         }
-        
+
         // Create a charity
         $charity = \App\Models\Charity::create([
             'name' => 'Test Charity',
@@ -473,7 +475,7 @@ Route::get('/create-test-charity', function() {
             'end_date' => now()->addMonths(3),
             'status' => 'active'
         ]);
-        
+
         return response()->json([
             'message' => 'Test charity created successfully',
             'charity' => $charity
@@ -485,4 +487,4 @@ Route::get('/create-test-charity', function() {
             'trace' => $e->getTraceAsString()
         ], 500);
     }
-}); 
+});

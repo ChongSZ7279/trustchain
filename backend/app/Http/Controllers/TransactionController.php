@@ -23,15 +23,11 @@ class TransactionController extends Controller
                 'id' => Auth::id(),
                 'ic_number' => Auth::user()->ic_number,
                 'type' => get_class(Auth::user())
-            ] : null,
+            ] : 'guest',
             'request' => request()->all()
         ]);
 
-        // Check if user is authenticated
-        if (!Auth::check()) {
-            \Log::warning('Unauthenticated user trying to access transactions');
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+        // Transactions are now public - no authentication check needed
 
         $query = Transaction::with(['user', 'charity', 'task']);
 
@@ -81,7 +77,7 @@ class TransactionController extends Controller
 
         // Get paginated results
         $transactions = $query->latest()->paginate(request('per_page', 10));
-        
+
         \Log::info('Transaction query results:', [
             'total' => $transactions->total(),
             'current_page' => $transactions->currentPage(),
@@ -122,7 +118,7 @@ class TransactionController extends Controller
         }
 
         $data = $validator->validated();
-        
+
         // Set user_ic if not anonymous
         if (!($request->anonymous ?? false)) {
             $data['user_ic'] = Auth::user() ? Auth::user()->ic_number : $request->user_ic;
@@ -195,14 +191,14 @@ class TransactionController extends Controller
     {
         // Add logging to debug
         \Log::info("Fetching transactions for charity: $charityId");
-        
+
         $transactions = Transaction::where('charity_id', $charityId)
             ->with(['user']) // Include any needed relationships
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         \Log::info("Found " . $transactions->count() . " transactions");
-        
+
         return response()->json($transactions);
     }
 
@@ -212,12 +208,12 @@ class TransactionController extends Controller
     public function getTaskTransactions($taskId)
     {
         $task = Task::findOrFail($taskId);
-        
+
         $transactions = Transaction::with(['user', 'charity'])
             ->where('task_id', $taskId)
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return response()->json($transactions);
     }
 
@@ -247,27 +243,27 @@ class TransactionController extends Controller
             ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
+
         try {
             $user = User::where('ic_number', $userId)->firstOrFail();
-            
+
             $transactions = Transaction::with(['charity', 'task'])
                 ->where('user_ic', $userId)
                 ->orderBy('created_at', 'desc')
                 ->get();
-            
+
             \Log::info('Successfully retrieved transactions', [
                 'user_ic' => $userId,
                 'count' => $transactions->count()
             ]);
-                
+
             return response()->json($transactions);
         } catch (\Exception $e) {
             \Log::error('Error retrieving transactions', [
                 'user_ic' => $userId,
                 'error' => $e->getMessage()
             ]);
-            
+
             return response()->json(['message' => 'Error retrieving transactions'], 500);
         }
     }

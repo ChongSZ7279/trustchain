@@ -7,9 +7,9 @@ import { formatImageUrl, getFileType, setupGlobalImageErrorHandler } from '../ut
 import { motion, AnimatePresence } from 'framer-motion';
 import DonationForm from './DonationForm';
 import BackButton from './BackToHistory';
-import { 
-  FaChartBar, 
-  FaTasks, 
+import {
+  FaChartBar,
+  FaTasks,
   FaHandHoldingHeart,
   FaExchangeAlt,
   FaFileAlt,
@@ -88,7 +88,7 @@ const formatStatus = (status) => {
 // Update these functions to handle undefined values
 const getStatusColor = (status) => {
   if (!status) return 'bg-gray-100 text-gray-800';
-  
+
   switch (status.toLowerCase()) {
     case 'completed':
     case 'verified':
@@ -104,7 +104,7 @@ const getStatusColor = (status) => {
 
 const getStatusIcon = (status) => {
   if (!status) return null;
-  
+
   switch (status.toLowerCase()) {
     case 'completed':
     case 'verified':
@@ -122,10 +122,10 @@ const getStatusIcon = (status) => {
 const FundingProgress = ({ current, target, donorCount, endDate, className = "" }) => {
   const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
   const statusColor = progress >= 100 ? 'green' : progress >= 75 ? 'blue' : 'indigo';
-  
+
   // Convert donorCount to a number and apply a default of 0 if it's not a valid number
   const donors = typeof donorCount === 'number' ? donorCount : parseInt(donorCount) || 0;
-  
+
   try {
     return (
       <div className={`funding-progress ${className}`}>
@@ -184,7 +184,7 @@ export default function CharityDetails() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { currentUser, accountType } = auth;
-  
+
   // Debug auth context
   console.log("CharityDetails - Full Auth Context:", auth);
   console.log("CharityDetails - User Type:", accountType);
@@ -222,16 +222,16 @@ export default function CharityDetails() {
   });
 
   const blockchainContext = useBlockchain() || {};
-  const { 
-    account: blockchainAccount, 
-    isLoading: blockchainLoading, 
+  const {
+    account: blockchainAccount,
+    isLoading: blockchainLoading,
     error: blockchainError,
     contract,
     web3,
     isConnected,
     connectWallet
   } = blockchainContext;
-  
+
   const [blockchainDonations, setBlockchainDonations] = useState([]);
   const [donationLoading, setDonationLoading] = useState(false);
 
@@ -253,7 +253,7 @@ export default function CharityDetails() {
     try {
       setFilterLoading(true);
       let endpoint;
-      
+
       // Set endpoint based on data source
       if (source === 'all' || source === 'transactions') {
         endpoint = `/charities/${id}/transactions`;
@@ -265,14 +265,14 @@ export default function CharityDetails() {
         console.log("Loading combined data from multiple sources");
         endpoint = `/charities/${id}/transactions`;
       }
-      
+
       console.log(`Loading data from ${endpoint}`);
       const response = await axios.get(endpoint);
       console.log(`${source} data:`, response.data);
-      
+
       // Handle both paginated and non-paginated responses
       const data = response.data.data || response.data;
-      
+
       if (source === 'combined') {
         // If it's combined, we need to pull in blockchain data as well
         try {
@@ -288,15 +288,15 @@ export default function CharityDetails() {
               donor: donation.donor,
               is_blockchain: true
             }));
-            
+
             // Combine with regular transactions
             const combinedData = [...data, ...formattedBlockchainDonations];
-            
+
             // Sort by date (newest first)
-            const sortedData = combinedData.sort((a, b) => 
+            const sortedData = combinedData.sort((a, b) =>
               new Date(b.created_at) - new Date(a.created_at)
             );
-            
+
             console.log("Combined data:", sortedData);
             setTransactionsList(sortedData);
           } else {
@@ -326,10 +326,10 @@ export default function CharityDetails() {
 
   // Call this function when the component mounts or when the data source changes
   useEffect(() => {
-    if (currentUser && id) {
+    if (id) {
       loadDataBySource(currentDataSource);
     }
-  }, [currentUser, id, currentDataSource]);
+  }, [id, currentDataSource]);
 
   // Initialize Web3 and smart contract
   useEffect(() => {
@@ -340,11 +340,11 @@ export default function CharityDetails() {
           await window.ethereum.request({ method: 'eth_requestAccounts' });
           const web3Instance = new Web3(window.ethereum);
           setWeb3(web3Instance);
-          
+
           // Get user account
           const accounts = await web3Instance.eth.getAccounts();
           setAccount(accounts[0]);
-          
+
           // Initialize contract
           const networkId = await web3Instance.eth.net.getId();
           const deployedNetwork = CharityContract.networks[networkId];
@@ -360,7 +360,7 @@ export default function CharityDetails() {
         console.log('Please install MetaMask or another Web3 provider');
       }
     };
-    
+
     initWeb3();
   }, []);
 
@@ -380,7 +380,7 @@ export default function CharityDetails() {
           console.log(`Checking follow status for charity ${id}`);
           const response = await axios.get(`/charities/${id}/follow-status`);
           console.log('Follow status response:', response.data);
-          
+
           if (response.data && response.data.is_following !== undefined) {
             setIsFollowing(response.data.is_following);
             if (response.data.follower_count !== undefined) {
@@ -393,7 +393,7 @@ export default function CharityDetails() {
           setFollowLoading(false);
         }
       };
-      
+
       checkFollowStatus();
     }
   }, [currentUser, id]);
@@ -401,28 +401,28 @@ export default function CharityDetails() {
   // Add a function to check if the current user is an organization
   const isOrganizationUser = () => {
     // Add debugging logs
-    console.log("CharityDetails - isOrganizationUser check:", { 
-      currentUser: currentUser ? 'exists' : 'null', 
+    console.log("CharityDetails - isOrganizationUser check:", {
+      currentUser: currentUser ? 'exists' : 'null',
       accountType,
       userAccountType: currentUser?.account_type,
       isUserOrganization: currentUser?.is_organization,
       charityOrgId: charity?.organization_id,
       currentUserId: currentUser?.id,
     });
-    
+
     // More thorough check for organization status
-    const isOrg = 
+    const isOrg =
       // Check context accountType
-      accountType === 'organization' || 
+      accountType === 'organization' ||
       // Check user's account_type property
       currentUser?.account_type === 'organization' ||
       // Check is_organization flag
       currentUser?.is_organization === true ||
       // Check if current user ID matches the charity's organization ID
       (currentUser?.id && charity?.organization_id && currentUser.id.toString() === charity.organization_id.toString());
-    
+
     console.log("CharityDetails - isOrganizationUser result:", isOrg);
-    
+
     return isOrg;
   };
 
@@ -430,17 +430,17 @@ export default function CharityDetails() {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log("Fetching charity data for ID:", id);
-      
+
       const response = await axios.get(`/charities/${id}`);
       const charityData = response.data;
-      
+
       console.log("Charity data received:", charityData);
       console.log("Donor count from response:", charityData.donor_count);
-      
+
       setCharity(charityData);
-      
+
       if (charityData.organization_id) {
         try {
           const orgResponse = await axios.get(`/organizations/${charityData.organization_id}`);
@@ -449,7 +449,7 @@ export default function CharityDetails() {
           console.error('Error fetching organization:', err);
         }
       }
-      
+
       try {
         const tasksRes = await axios.get(`/charities/${id}/tasks`);
         console.log("Tasks response:", tasksRes.data);
@@ -458,73 +458,72 @@ export default function CharityDetails() {
         console.error('Error fetching tasks:', err);
         setTasks([]);
       }
-      
-      // Fetch transactions only if user is authorized
-      if (currentUser) {
-        try {
-          console.log("Fetching transactions for charity ID:", id);
-          const transactionsRes = await axios.get(`/charities/${id}/transactions`);
-          console.log("Transactions response:", transactionsRes.data);
-          
-          // Get the data properly, handling both array and paginated formats
-          const transactionsData = transactionsRes.data.data || transactionsRes.data;
-          setTransactions(transactionsData);
-          
-          // Also set the transactionsList state with the initial data
-          setTransactionsList(transactionsData);
-          
-          // If we have transaction data, we can calculate the donor count
+
+      // Fetch transactions (now public for all users)
+      try {
+        console.log("Fetching transactions for charity ID:", id);
+        const transactionsRes = await axios.get(`/charities/${id}/transactions`);
+        console.log("Transactions response:", transactionsRes.data);
+
+        // Get the data properly, handling both array and paginated formats
+        const transactionsData = transactionsRes.data.data || transactionsRes.data;
+        setTransactions(transactionsData);
+
+        // Also set the transactionsList state with the initial data
+        setTransactionsList(transactionsData);
+
+        // If we have transaction data, we can calculate the donor count
+        const uniqueDonors = new Set();
+        transactionsData.forEach(tx => {
+          if (tx.donor_id) uniqueDonors.add(tx.donor_id);
+        });
+        console.log(`Found ${uniqueDonors.size} unique donors in transactions`);
+
+        // Only update charity donor count if it's not already set (for debugging)
+        if (!charityData.donor_count && uniqueDonors.size > 0) {
+          console.log("Updating charity donor count from transactions:", uniqueDonors.size);
+          setCharity(prev => ({
+            ...prev,
+            donor_count: uniqueDonors.size
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+        setTransactions([]);
+        setTransactionsList([]);
+      }
+
+      // Fetch donations (now public for all users)
+      try {
+        console.log("Fetching donations for charity ID:", id);
+        const donationsRes = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
+        console.log("Donations response:", donationsRes.data);
+
+        const donationsData = donationsRes.data.data || donationsRes.data;
+        setDonations(donationsData);
+
+        // If we have donation data, we can cross-check the donor count
+        if (Array.isArray(donationsData) && donationsData.length > 0) {
           const uniqueDonors = new Set();
-          transactionsData.forEach(tx => {
-            if (tx.donor_id) uniqueDonors.add(tx.donor_id);
+          donationsData.forEach(donation => {
+            if (donation.donor_id) uniqueDonors.add(donation.donor_id);
           });
-          console.log(`Found ${uniqueDonors.size} unique donors in transactions`);
-          
-          // Only update charity donor count if it's not already set (for debugging)
+          console.log(`Found ${uniqueDonors.size} unique donors in donations`);
+
+          // Only update if charity has no donor count and donations has more donors than transactions
           if (!charityData.donor_count && uniqueDonors.size > 0) {
-            console.log("Updating charity donor count from transactions:", uniqueDonors.size);
+            console.log("Updating charity donor count from donations:", uniqueDonors.size);
             setCharity(prev => ({
               ...prev,
               donor_count: uniqueDonors.size
             }));
           }
-        } catch (err) {
-          console.error('Error fetching transactions:', err);
-          setTransactions([]);
-          setTransactionsList([]);
         }
-        
-        try {
-          console.log("Fetching donations for charity ID:", id);
-          const donationsRes = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
-          console.log("Donations response:", donationsRes.data);
-          
-          const donationsData = donationsRes.data.data || donationsRes.data;
-          setDonations(donationsData);
-          
-          // If we have donation data, we can cross-check the donor count
-          if (Array.isArray(donationsData) && donationsData.length > 0) {
-            const uniqueDonors = new Set();
-            donationsData.forEach(donation => {
-              if (donation.donor_id) uniqueDonors.add(donation.donor_id);
-            });
-            console.log(`Found ${uniqueDonors.size} unique donors in donations`);
-            
-            // Only update if charity has no donor count and donations has more donors than transactions
-            if (!charityData.donor_count && uniqueDonors.size > 0) {
-              console.log("Updating charity donor count from donations:", uniqueDonors.size);
-              setCharity(prev => ({
-                ...prev,
-                donor_count: uniqueDonors.size
-              }));
-            }
-          }
-        } catch (err) {
-          console.error('Error fetching donations:', err);
-          setDonations([]);
-        }
+      } catch (err) {
+        console.error('Error fetching donations:', err);
+        setDonations([]);
       }
-      
+
       setLoading(false);
     } catch (err) {
       console.error('Error fetching charity:', err);
@@ -566,24 +565,24 @@ export default function CharityDetails() {
       // Redirect to login or show login modal
       return;
     }
-    
+
     // Prevent organization users from following charities
     if (isOrganizationUser()) {
       toast.error("Organizations cannot follow charities");
       return;
     }
-    
+
     try {
       const endpoint = isFollowing ? 'unfollow' : 'follow';
       const response = await axios.post(`/api/charities/${id}/${endpoint}`, {}, {
         headers: { Authorization: `Bearer ${userToken}` }
       });
-      
+
       setIsFollowing(!isFollowing);
       setFollowerCount(response.data.updatedFollowerCount);
-      
-      toast.success(isFollowing ? 
-        "You've unfollowed this charity" : 
+
+      toast.success(isFollowing ?
+        "You've unfollowed this charity" :
         "You're now following this charity! You'll receive updates about their activities."
       );
     } catch (error) {
@@ -615,20 +614,50 @@ export default function CharityDetails() {
   };
 
   const submitDonation = async () => {
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-    
     // Validate the donation amount
     const amount = parseFloat(donationAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error('Please enter a valid donation amount');
       return;
     }
-    
-    // Close the modal and navigate to the donation page
+
+    // Close the modal
     setShowDonationModal(false);
+
+    // Store the donation amount in localStorage for the donation page
+    localStorage.setItem('pendingDonationAmount', amount);
+    localStorage.setItem('pendingDonationCharityId', id);
+
+    // If user is not logged in, show a friendly message and redirect to login page with return URL
+    if (!currentUser) {
+      // Show a more informative toast message
+      toast(
+        t => (
+          <div className="flex items-start">
+            <div className="ml-3">
+              <p className="font-medium">Login required to complete donation</p>
+              <p className="text-sm">You'll be redirected to login, then return to complete your donation.</p>
+            </div>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="ml-4 text-gray-400 hover:text-gray-500"
+            >
+              <span className="sr-only">Close</span>
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        ),
+        { duration: 5000 }
+      );
+
+      // Redirect to login with return URL
+      navigate(`/login?redirect=/charities/${id}/donate`);
+      return;
+    }
+
+    // If user is logged in, go directly to donation page
     navigate(`/charities/${id}/donate?amount=${amount}`);
   };
 
@@ -639,13 +668,13 @@ export default function CharityDetails() {
 
   const getTimeRemaining = () => {
     if (!charity?.end_date) return null;
-    
+
     const endDate = new Date(charity.end_date);
     const now = new Date();
     const timeRemaining = endDate - now;
-    
+
     if (timeRemaining <= 0) return 'Ended';
-    
+
     const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
     return `${days} days left`;
   };
@@ -653,21 +682,21 @@ export default function CharityDetails() {
   const handleDonation = async (amount, transactionHash, isBlockchain) => {
     try {
       setDonationLoading(true);
-      
+
       if (transactionHash) {
         toast.success(
-          isBlockchain 
-            ? 'Donation successful! Transaction has been recorded on the blockchain.' 
+          isBlockchain
+            ? 'Donation successful! Transaction has been recorded on the blockchain.'
             : 'Donation successful! Thank you for your contribution.'
         );
         setShowDonationModal(false);
-        
+
         // Add console logs to debug
         console.log("Donation successful, refreshing data...");
-        
+
         // Refresh charity data
         await fetchCharityData();
-        
+
         // Explicitly fetch donations again
         try {
           const donationsResponse = await axios.get(`${API_BASE_URL}/charities/${id}/donations`);
@@ -677,7 +706,7 @@ export default function CharityDetails() {
         } catch (donationError) {
           console.error("Error fetching donations:", donationError);
         }
-        
+
         // Also refresh blockchain donations if the contract is available
         try {
           if (contract && charity?.blockchain_id) {
@@ -720,7 +749,7 @@ export default function CharityDetails() {
       try {
         setIsLoadingBlockchainDonations(true);
         setBlockchainDonationsError(null);
-        
+
         const donations = await contract.methods.getCharityDonations(charity.blockchain_id).call();
         const formattedDonations = donations.map(donation => ({
           transactionHash: donation.transactionHash,
@@ -737,7 +766,7 @@ export default function CharityDetails() {
         setIsLoadingBlockchainDonations(false);
       }
     };
-    
+
     fetchBlockchainDonations();
   }, [charity, contract, web3]);
 
@@ -748,17 +777,17 @@ export default function CharityDetails() {
     console.log("Transactions:", transactions);
     console.log("Blockchain donations:", blockchainDonations);
     console.log("Current data source:", currentDataSource);
-    
+
     // Don't auto-combine here if we're using the combined data source option
     // as that's now handled in loadDataBySource
     if (currentDataSource === 'combined') {
       console.log("Using pre-combined data from loadDataBySource");
       return;
     }
-    
+
     // Filter transactions based on current data source
     let filteredTransactions = [];
-    
+
     if (Array.isArray(transactions)) {
       if (currentDataSource === 'all') {
         filteredTransactions = transactions;
@@ -768,7 +797,7 @@ export default function CharityDetails() {
         filteredTransactions = transactions;
       }
     }
-    
+
     if (filteredTransactions.length > 0 || blockchainDonations.length > 0) {
       // Format blockchain donations to match transaction structure
       const formattedBlockchainDonations = blockchainDonations.map(donation => ({
@@ -781,22 +810,22 @@ export default function CharityDetails() {
         donor: donation.donor,
         is_blockchain: true
       }));
-      
+
       // Get unique transactions by transaction_hash to avoid duplicates
       const uniqueTransactions = [...filteredTransactions];
-      
+
       // Only add blockchain transactions that aren't already in the database
       formattedBlockchainDonations.forEach(blockchainTx => {
         if (!uniqueTransactions.some(tx => tx.transaction_hash === blockchainTx.transaction_hash)) {
           uniqueTransactions.push(blockchainTx);
         }
       });
-      
+
       // Sort by date (newest first)
-      const combined = uniqueTransactions.sort((a, b) => 
+      const combined = uniqueTransactions.sort((a, b) =>
         new Date(b.created_at) - new Date(a.created_at)
       );
-      
+
       console.log("Combined transactions:", combined);
       setTransactionsList(combined);
     } else {
@@ -811,7 +840,7 @@ export default function CharityDetails() {
       is_blockchain: false,
       type: tx.type || 'transaction'
     })) || [];
-    
+
     const formattedDonations = donations.data?.map(donation => ({
       ...donation,
       is_blockchain: false,
@@ -819,14 +848,14 @@ export default function CharityDetails() {
       // Map cause_id to charity_id for consistency
       charity_id: donation.cause_id
     })) || [];
-    
+
     const formattedBlockchainDonations = blockchainDonations.map(tx => ({
       ...tx,
       is_blockchain: true,
       type: 'donation',
       status: 'completed'
     }));
-    
+
     return [...formattedTransactions, ...formattedDonations, ...formattedBlockchainDonations]
       .sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
   }, [transactions, donations, blockchainDonations]);
@@ -841,11 +870,11 @@ export default function CharityDetails() {
   const verifyBlockchainTransaction = async (transactionHash) => {
     try {
       const result = await verifyTransaction(transactionHash);
-      
+
       if (result.verified) {
         toast.success('Transaction verified on blockchain!');
         console.log('Transaction details:', result.details);
-        
+
         // You could display these details in a modal or tooltip
         setVerificationDetails(result.details);
         setShowVerificationModal(true);
@@ -862,10 +891,10 @@ export default function CharityDetails() {
   const handleConnectWallet = async () => {
     try {
       toast.loading('Connecting to wallet...', { id: 'wallet-connect' });
-      
+
       console.log("Attempting wallet connection from CharityDetails");
       const success = await connectWallet();
-      
+
       if (success) {
         toast.success('Wallet connected successfully!', { id: 'wallet-connect' });
         console.log("Wallet connected successfully");
@@ -899,7 +928,7 @@ export default function CharityDetails() {
 
   if (error || !charity) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="min-h-screen flex items-center justify-center bg-gray-50"
@@ -930,7 +959,7 @@ export default function CharityDetails() {
 
       {/* Charity Profile Card */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="bg-white rounded-xl shadow-md overflow-hidden"
@@ -939,11 +968,11 @@ export default function CharityDetails() {
           <div className="relative h-64 w-full overflow-hidden">
             <div className={`absolute inset-0 bg-gray-200 ${imageLoading.cover ? 'animate-pulse' : ''}`}></div>
             {charity?.picture_path ? (
-              <div 
+              <div
                 className="absolute inset-0 bg-cover bg-center"
-                style={{ 
+                style={{
                   backgroundImage: `url(${formatImageUrl(charity.picture_path)})`,
-                  zIndex: 1 
+                  zIndex: 1
                 }}
                 onLoad={() => setImageLoading(prev => ({ ...prev, cover: false }))}
               ></div>
@@ -955,7 +984,7 @@ export default function CharityDetails() {
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" style={{ zIndex: 2 }}></div>
           </div>
-          
+
           {/* Charity Info Section */}
           <div className="p-6 relative -mt-20" style={{ zIndex: 3 }}>
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -1016,7 +1045,7 @@ export default function CharityDetails() {
                   <FaUsers className="mr-2 text-gray-500" />
                   <span>Helping {charity.people_affected ? parseInt(charity.people_affected).toLocaleString() : '0'} people</span>
                 </div>
-                
+
                 <div className="flex items-center text-gray-600 text-sm mt-2">
                   <FaCalendarAlt className="mr-2 text-gray-500" />
                   <span>{getTimeRemaining()}</span>
@@ -1024,7 +1053,7 @@ export default function CharityDetails() {
 
                 {/* Fund Progress */}
                 <div className="mt-4">
-                  <FundingProgress 
+                  <FundingProgress
                     current={charity?.fund_received || 0}
                     target={charity?.fund_targeted || 0}
                     donorCount={charity?.donor_count}
@@ -1036,52 +1065,49 @@ export default function CharityDetails() {
 
               {/* Actions */}
               <div className="flex gap-3 mt-4 md:mt-0 self-end md:self-center">
-                {currentUser && (
-                  <>
-                    {/* Only show follow button for non-organization users */}
-                    {!isOrganizationUser() && (
-                      <button
-                        onClick={handleFollowToggle}
-                        disabled={followLoading}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center ${
-                          isFollowing 
-                            ? 'bg-gray-100 text-indigo-600 hover:bg-gray-200 border border-indigo-600' 
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                        }`}
-                      >
-                        {followLoading ? (
-                          <div className="animate-spin h-4 w-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
-                        ) : (
-                          <FaThumbsUp className="mr-2" />
-                        )}
-                        {isFollowing ? 'Following' : 'Follow'}
-                      </button>
-                    )}
+                {/* Donate button - visible to all users */}
+                <button
+                  onClick={() => setShowDonationModal(true)}
+                  className="px-4 py-2 rounded-lg font-medium text-sm bg-green-600 text-white hover:bg-green-700 transition-all duration-200 flex items-center"
+                >
+                  <FaHandHoldingHeart className="mr-2" />
+                  Donate
+                </button>
 
-                    {/* Donate button */}
-                    <button
-                      onClick={() => setShowDonationModal(true)}
-                      className="px-4 py-2 rounded-lg font-medium text-sm bg-green-600 text-white hover:bg-green-700 transition-all duration-200 flex items-center"
-                    >
-                      <FaHandHoldingHeart className="mr-2" />
-                      Donate
-                    </button>
-
-                    <div className="relative">
-                      <button
-                        onClick={handleShare}
-                        className="px-4 py-2 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center"
-                      >
-                        <FaShare className="mr-2" />
-                        Share
-                      </button>
-                      {showShareTooltip && (
-                        <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800 text-white text-xs py-2 px-3 rounded z-10 shadow-lg">
-                          Link copied to clipboard!
-                        </div>
-                      )}
+                {/* Share button - visible to all users */}
+                <div className="relative">
+                  <button
+                    onClick={handleShare}
+                    className="px-4 py-2 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center"
+                  >
+                    <FaShare className="mr-2" />
+                    Share
+                  </button>
+                  {showShareTooltip && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800 text-white text-xs py-2 px-3 rounded z-10 shadow-lg">
+                      Link copied to clipboard!
                     </div>
-                  </>
+                  )}
+                </div>
+
+                {/* Follow button - only for logged-in non-organization users */}
+                {currentUser && !isOrganizationUser() && (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={followLoading}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center ${
+                      isFollowing
+                        ? 'bg-gray-100 text-indigo-600 hover:bg-gray-200 border border-indigo-600'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    {followLoading ? (
+                      <div className="animate-spin h-4 w-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                    ) : (
+                      <FaThumbsUp className="mr-2" />
+                    )}
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </button>
                 )}
 
                 {canManageCharity() && (
@@ -1095,7 +1121,7 @@ export default function CharityDetails() {
                 )}
               </div>
             </div>
-            
+
             {/* Description Summary */}
             <div className="mt-6 bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700">
@@ -1108,7 +1134,7 @@ export default function CharityDetails() {
 
       {/* Tabs Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
@@ -1128,7 +1154,7 @@ export default function CharityDetails() {
               </div>
               <span>About</span>
               {activeTab === 'about' && (
-                <motion.div 
+                <motion.div
                   className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
                   layoutId="activeTabIndicator"
                 />
@@ -1152,7 +1178,7 @@ export default function CharityDetails() {
                 </span>
               )}
               {activeTab === 'milestones' && (
-                <motion.div 
+                <motion.div
                   className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
                   layoutId="activeTabIndicator"
                 />
@@ -1176,7 +1202,7 @@ export default function CharityDetails() {
                 </span>
               )}
               {activeTab === 'transactions' && (
-                <motion.div 
+                <motion.div
                   className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
                   layoutId="activeTabIndicator"
                 />
@@ -1203,7 +1229,7 @@ export default function CharityDetails() {
                   <FaInfoCircle className="mr-3 text-indigo-500" />
                   Charity Information
                 </h2>
-                
+
                 <div className="mt-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                     <FaBullseye className="mr-2 text-indigo-500" />
@@ -1303,7 +1329,7 @@ export default function CharityDetails() {
                               </p>
                             </div>
                           </div>
-                          <a 
+                          <a
                             href={formatImageUrl(charity.verified_document)}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -1335,12 +1361,12 @@ export default function CharityDetails() {
                   <FaTasks className="mr-3 text-indigo-500" />
                   Charity Milestones
                 </h2>
-                
+
                 {tasks.length > 0 ? (
                   <div className="relative">
                     {/* Timeline line */}
                     <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-indigo-200"></div>
-                    
+
                     <div className="space-y-12">
                       {[...tasks].reverse().map((task, index) => (
                         <motion.div
@@ -1355,7 +1381,7 @@ export default function CharityDetails() {
                         >
                           {/* Timeline dot */}
                           <div className="absolute left-1/2 transform -translate-x-1/2 w-5 h-5 bg-indigo-600 rounded-full border-4 border-white shadow-md z-10"></div>
-                          
+
                           {/* Content box */}
                           <div className={`w-5/12 bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 ${
                             index % 2 === 0 ? 'mr-auto' : 'ml-auto'
@@ -1409,12 +1435,12 @@ export default function CharityDetails() {
                                   </div>
                                 )}
                               </div>
-                              
+
                               {/* Task Description */}
                               <div className="bg-gray-50 p-3 rounded-lg mb-6">
                                 <p className="text-gray-700">{task.description}</p>
                               </div>
-                              
+
                               {/* Task Pictures */}
                               {task.pictures && task.pictures.length > 0 && (
                                 <div className="mb-6">
@@ -1461,7 +1487,7 @@ export default function CharityDetails() {
                                           </p>
                                         </div>
                                       </div>
-                                      <a 
+                                      <a
                                         href={formatImageUrl(task.proof)}
                                         target="_blank"
                                         rel="noopener noreferrer"
@@ -1474,7 +1500,7 @@ export default function CharityDetails() {
                                   </div>
                                 </div>
                               )}
-                              
+
                               {/* Funding Progress */}
                               {task.fund_targeted > 0 && (
                                 <div className="mt-4">
@@ -1482,7 +1508,7 @@ export default function CharityDetails() {
                                     <FaChartBar className="mr-1 text-indigo-500" />
                                     Funding Progress
                                   </h4>
-                                  <FundingProgress 
+                                  <FundingProgress
                                     current={task.current_amount || 0}
                                     target={task.fund_targeted || 0}
                                     donorCount={task.donor_count}
@@ -1555,7 +1581,7 @@ export default function CharityDetails() {
                   <FaExchangeAlt className="mr-3 text-indigo-500" />
                   Financial Transactions
                 </h2>
-                
+
                 {/* Data source filter - Update the UI */}
                 <div className="mb-6 bg-gray-50 p-4 rounded-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -1662,21 +1688,21 @@ export default function CharityDetails() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Update empty state message based on current data source */}
-                {transactionsList.length === 0 && currentUser && (
+                {transactionsList.length === 0 && (
                   <div className="bg-gray-50 rounded-xl p-8 text-center mt-4">
                     <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {currentDataSource === 'donations' 
-                        ? "No Donations Found" 
-                        : currentDataSource === 'combined' 
+                      {currentDataSource === 'donations'
+                        ? "No Donations Found"
+                        : currentDataSource === 'combined'
                           ? "No Financial Activities Found"
                           : "No Transactions Found"}
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      {currentDataSource === 'donations' 
-                        ? "This charity hasn't received any donations yet." 
+                      {currentDataSource === 'donations'
+                        ? "This charity hasn't received any donations yet."
                         : currentDataSource === 'combined'
                           ? "There are no financial activities recorded for this charity."
                           : "This charity hasn't processed any transactions yet."}
@@ -1691,12 +1717,9 @@ export default function CharityDetails() {
                   </div>
                 )}
 
-                {/* Add back the transaction table and login message */}
-                {currentUser ? (
-                  <>
-                    {/* Empty state message - already added */}
-                    {transactionsList.length > 0 && (
-                      <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+                {/* Transaction table - now visible to all users */}
+                {transactionsList.length > 0 && (
+                  <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
@@ -1723,7 +1746,7 @@ export default function CharityDetails() {
                           <tbody className="bg-white divide-y divide-gray-200">
                             {(Array.isArray(transactionsList) ? transactionsList : []).map((transaction, index) => {
                               if (!transaction) return null; // Skip null or undefined transactions
-                              
+
                               const transactionId = transaction.id || transaction.transaction_hash || index;
                               return (
                                 <tr key={transactionId} className="hover:bg-gray-50 transition-colors duration-150">
@@ -1738,9 +1761,9 @@ export default function CharityDetails() {
                                     })()}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                      ${transaction.type === 'donation' ? 'bg-green-100 text-green-800' : 
-                                        transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' : 
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                      ${transaction.type === 'donation' ? 'bg-green-100 text-green-800' :
+                                        transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' :
                                         'bg-blue-100 text-blue-800'}`}>
                                       {transaction.type === 'donation' && <FaHandHoldingHeart className="mr-1" />}
                                       {transaction.type === 'withdrawal' && <FaMoneyBillWave className="mr-1" />}
@@ -1749,7 +1772,7 @@ export default function CharityDetails() {
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {transaction.amount ? 
+                                    {transaction.amount ?
                                       <span className="font-mono">
                                         {transaction.amount} {transaction.currency_type || transaction.is_blockchain ? 'ETH' : 'USD'}
                                       </span> : 'N/A'}
@@ -1764,8 +1787,8 @@ export default function CharityDetails() {
                                     <button
                                       onClick={() => {
                                         // Navigate to the appropriate details page based on transaction type
-                                        const path = transaction.type === 'donation' 
-                                          ? `/donations/${transaction.id}` 
+                                        const path = transaction.type === 'donation'
+                                          ? `/donations/${transaction.id}`
                                           : `/transactions/${transaction.id}`;
                                         navigate(path);
                                       }}
@@ -1780,21 +1803,6 @@ export default function CharityDetails() {
                           </tbody>
                         </table>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl p-8 text-center">
-                    <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Login Required</h3>
-                    <p className="text-gray-600 mb-4">Please log in to view transaction details for this charity.</p>
-                    <Link
-                      to="/login"
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none transition-colors duration-200"
-                    >
-                      <FaUsers className="mr-2" />
-                      Log In
-                    </Link>
-                  </div>
                 )}
               </div>
             </motion.div>
@@ -1816,10 +1824,10 @@ export default function CharityDetails() {
             exit={{ scale: 0.95, opacity: 0 }}
             className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl"
           >
-            <DonationForm 
+            <DonationForm
               charityId={id}
-              onDonate={handleDonation} 
-              loading={donationLoading} 
+              onDonate={handleDonation}
+              loading={donationLoading}
             />
           </motion.div>
         </motion.div>

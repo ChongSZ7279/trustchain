@@ -59,6 +59,14 @@ const Navigation = () => {
                     </Link>
                   </>
                 )}
+                {user.is_admin && (
+                  <Link
+                    to="/admin/verification"
+                    className="bg-yellow-500 text-white hover:bg-yellow-600 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Admin Verification
+                  </Link>
+                )}
                 {user.type === 'user' && (
                   <Link
                     to="/dashboard"
@@ -97,4 +105,4 @@ const Navigation = () => {
   );
 };
 
-export default Navigation; 
+export default Navigation;

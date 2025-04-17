@@ -26,12 +26,13 @@ import Guidelines from './pages/Guidelines';
 import FAQ from './pages/FAQ';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword'; 
+import ResetPassword from './components/ResetPassword';
 import ApiTest from './components/ApiTest';
 import Invoice from './components/Invoice';
 import BlockchainTester from './components/BlockchainTester';
 import SponsorshipPartners from './components/SponsorshipPartners';
 import BlockchainBasics from './pages/BlockchainBasics';
+import AdminVerificationPanel from './components/admin/AdminVerificationPanel';
 
 const router = createBrowserRouter([
   {
@@ -238,6 +239,10 @@ const router = createBrowserRouter([
       {
         path: '/donations/:donationId/invoice',
         element: <Invoice />
+      },
+      {
+        path: '/admin/verification',
+        element: <AdminVerificationPanel />
       }
     ]
   },

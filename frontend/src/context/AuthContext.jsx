@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
   // Set up axios defaults
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
   console.log('Using API URL:', apiUrl);
-  
+
   axios.defaults.baseURL = apiUrl;
   axios.defaults.withCredentials = true;
   axios.defaults.headers.common['Accept'] = 'application/json';
@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
           status: error.response.status,
           data: error.response.data
         });
-        
+
         // Handle 401 Unauthorized errors (token expired or invalid)
         if (error.response.status === 401 && !error.config.url.includes('login')) {
           // Skip logout for endpoints that don't require auth
@@ -85,7 +85,7 @@ export function AuthProvider({ children }) {
       try {
         const token = localStorage.getItem('token');
         console.log('Checking authentication with token:', token ? 'Token exists' : 'No token');
-        
+
         if (!token) {
           setCurrentUser(null);
           setAccountType(null);
@@ -97,13 +97,13 @@ export function AuthProvider({ children }) {
         console.log('Fetching user data from /user endpoint');
         const response = await axios.get('/user');
         console.log('User data response:', response.data);
-        
+
         // Set the current user
         setCurrentUser(response.data.user);
-        
+
         // Determine account type with fallback logic
         let determinedAccountType = response.data.account_type;
-        
+
         // If account_type is not provided, try to determine from user data
         if (!determinedAccountType) {
           if (response.data.user?.is_organization) {
@@ -117,7 +117,7 @@ export function AuthProvider({ children }) {
         } else {
           console.log('Using provided account type:', determinedAccountType);
         }
-        
+
         // Enhanced debugging for account type
         console.log('AUTH CONTEXT - Account type determination:', {
           providedAccountType: response.data.account_type,
@@ -126,11 +126,11 @@ export function AuthProvider({ children }) {
           finalAccountType: determinedAccountType,
           userData: response.data.user
         });
-        
+
         setAccountType(determinedAccountType);
       } catch (err) {
         console.error('Auth check error:', err);
-        
+
         // Log more details about the error
         if (err.response) {
           console.error('Auth check error response:', {
@@ -138,7 +138,7 @@ export function AuthProvider({ children }) {
             data: err.response.data
           });
         }
-        
+
         // Clear auth data on error
         localStorage.removeItem('token');
         setCurrentUser(null);
@@ -160,7 +160,7 @@ export function AuthProvider({ children }) {
       // Determine the endpoint based on account type
       let endpoint;
       let type;
-      
+
       // Check if userData is FormData
       if (userData instanceof FormData) {
         // Get the type from FormData
@@ -168,7 +168,7 @@ export function AuthProvider({ children }) {
         endpoint = type === 'organization' ? '/register/organization' : '/register/user';
         console.log('FormData detected, using endpoint:', endpoint);
         console.log('Registration type:', type);
-        
+
         // Debug FormData contents
         console.log('FormData contents:');
         for (let pair of userData.entries()) {
@@ -180,10 +180,10 @@ export function AuthProvider({ children }) {
         endpoint = type === 'organization' ? '/register/organization' : '/register/user';
         console.log('Object data detected, using endpoint:', endpoint);
         console.log('Registration type:', type);
-        
+
         // Create FormData for file uploads
         const formData = new FormData();
-        
+
         // Add all fields to FormData
         Object.keys(userData).forEach(key => {
           // Skip confirmPassword as backend doesn't need it directly
@@ -198,20 +198,20 @@ export function AuthProvider({ children }) {
             }
           }
         });
-        
+
         // Replace userData with formData
         userData = formData;
-        
+
         // Debug FormData contents after creation
         console.log('Created FormData contents:');
         for (let pair of userData.entries()) {
           console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name + ' (File)' : pair[1]));
         }
       }
-      
+
       console.log('Using endpoint:', endpoint);
       console.log('Registration type:', type);
-      
+
       try {
         // Ensure we're using the correct content type for FormData
         const response = await axios.post(endpoint, userData, {
@@ -220,16 +220,16 @@ export function AuthProvider({ children }) {
             'Accept': 'application/json'
           }
         });
-        
+
         console.log('Registration response:', response.data);
         return response.data;
       } catch (err) {
         console.error('Registration error:', err);
-        
+
         if (err.response) {
           console.log('Error response status:', err.response.status);
           console.log('Error response data:', err.response.data);
-          
+
           if (err.response.status === 422) {
             console.log('Validation errors:', err.response.data.errors);
             setError('Validation failed: ' + JSON.stringify(err.response.data.errors));
@@ -243,7 +243,7 @@ export function AuthProvider({ children }) {
           console.log('Error setting up request:', err.message);
           setError('Error setting up request: ' + err.message);
         }
-        
+
         throw err;
       }
     } catch (err) {
@@ -262,43 +262,43 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       console.log('Attempting login with:', { email });
-      
+
       // Make sure we're sending the data in the correct format
       const loginData = {
         email: email.trim(),
         password: password
       };
-      
+
       // Log the exact data being sent
       console.log('Sending login data to /login endpoint:', JSON.stringify(loginData));
-      
+
       // Skip the test-login endpoint that's causing 500 errors
       // and go directly to the actual login endpoint
       const response = await axios.post('/login', loginData);
-      
+
       console.log('Login response:', response.data);
       console.log('Account type from response:', response.data.account_type);
-      
+
       // Store token in localStorage
       localStorage.setItem('token', response.data.token);
-      
+
       // Ensure we have a valid account type, defaulting to 'user' if not provided
-      const accountType = response.data.account_type || 
+      const accountType = response.data.account_type ||
                          (response.data.user?.is_organization ? 'organization' : 'user');
-      
+
       console.log('Determined account type:', accountType);
-      
+
       // Set current user and account type
       setCurrentUser(response.data.user);
       setAccountType(accountType);
-      
+
       return {
         ...response.data,
         account_type: accountType // Ensure consistent account_type in the return value
       };
     } catch (err) {
       console.error('Login error:', err);
-      
+
       // Handle different error scenarios
       if (err.response) {
         console.log('Error response:', {
@@ -306,7 +306,7 @@ export function AuthProvider({ children }) {
           data: err.response.data,
           headers: err.response.headers
         });
-        
+
         if (err.response.status === 422) {
           // Validation errors
           setError('Please check your email and password.');
@@ -331,7 +331,7 @@ export function AuthProvider({ children }) {
         console.log('Error setting up request:', err.message);
         setError('An unexpected error occurred. Please try again.');
       }
-      
+
       throw err;
     } finally {
       setLoading(false);
@@ -428,23 +428,23 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       console.log('Attempting test login with:', { email });
-      
+
       // Make sure we're sending the data in the correct format
       const loginData = {
         email: email.trim(),
         password: password
       };
-      
+
       console.log('Sending test login data:', loginData);
-      
+
       const response = await axios.post('/test-login', loginData);
-      
+
       console.log('Test login response:', response.data);
-      
+
       return response.data;
     } catch (err) {
       console.error('Test login error:', err);
-      
+
       if (err.response) {
         console.log('Test error response:', {
           status: err.response.status,
@@ -452,7 +452,7 @@ export function AuthProvider({ children }) {
           headers: err.response.headers
         });
       }
-      
+
       throw err;
     } finally {
       setLoading(false);
@@ -463,9 +463,13 @@ export function AuthProvider({ children }) {
   const shouldBypassAuthCheck = (url) => {
     // List of endpoints that should not trigger logout on 401
     const bypassEndpoints = [
-      '/scroll-conversion-rates'
+      '/scroll-conversion-rates',
+      '/check-verification-tables',
+      '/admin/verification/tasks',
+      '/admin/verification/donations',
+      '/admin/verification/stats'
     ];
-    
+
     return bypassEndpoints.some(endpoint => url.includes(endpoint));
   };
 
@@ -516,4 +520,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-} 
+}

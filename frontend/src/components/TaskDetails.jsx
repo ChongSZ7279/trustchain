@@ -1,24 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useBlockchain } from '../context/BlockchainContext';
 import { formatImageUrl } from '../utils/helpers';
 import MilestoneTracker from './MilestoneTracker';
 import TransactionHistory from './TransactionHistory';
 import TaskFundingForm from './TaskFundingForm';
-import { 
-  FaArrowLeft, 
-  FaChartBar, 
-  FaCheckCircle, 
-  FaClock, 
-  FaEthereum, 
-  FaExclamationTriangle, 
-  FaExternalLinkAlt, 
-  FaHandHoldingHeart, 
-  FaInfoCircle, 
-  FaLock, 
-  FaMoneyBillWave, 
+import AdminFundReleaseButton from './AdminFundReleaseButton';
+import {
+  FaArrowLeft,
+  FaChartBar,
+  FaCheckCircle,
+  FaClock,
+  FaEthereum,
+  FaExclamationTriangle,
+  FaExternalLinkAlt,
+  FaHandHoldingHeart,
+  FaInfoCircle,
+  FaLock,
+  FaMoneyBillWave,
   FaTag
 } from 'react-icons/fa';
 
@@ -27,7 +29,7 @@ export default function TaskDetails() {
   const navigate = useNavigate();
   const { user, organization } = useAuth();
   const { account, getTaskBalance } = useBlockchain();
-  
+
   const [task, setTask] = useState(null);
   const [charity, setCharity] = useState(null);
   const [milestones, setMilestones] = useState([]);
@@ -38,11 +40,11 @@ export default function TaskDetails() {
   const [showFundingForm, setShowFundingForm] = useState(false);
   const [pictures, setPictures] = useState([]);
   const [currentPictureIndex, setCurrentPictureIndex] = useState(0);
-  
+
   useEffect(() => {
     fetchTaskData();
   }, [id]);
-  
+
   useEffect(() => {
     // Fetch blockchain balance if account is connected
     const fetchBlockchainBalance = async () => {
@@ -55,24 +57,24 @@ export default function TaskDetails() {
         }
       }
     };
-    
+
     fetchBlockchainBalance();
   }, [account, task, id, getTaskBalance]);
-  
+
   const fetchTaskData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch task details
       const taskRes = await axios.get(`/api/tasks/${id}`);
       setTask(taskRes.data);
-      
+
       // Fetch charity details
       if (taskRes.data.charity_id) {
         const charityRes = await axios.get(`/api/charities/${taskRes.data.charity_id}`);
         setCharity(charityRes.data);
       }
-      
+
       // Fetch task pictures
       try {
         const picturesRes = await axios.get(`/api/tasks/${id}/pictures`);
@@ -81,7 +83,7 @@ export default function TaskDetails() {
         console.log('Pictures endpoint not available yet');
         setPictures([]);
       }
-      
+
       // Mock milestones data (in a real app, this would come from the API)
       setMilestones([
         {
@@ -95,10 +97,10 @@ export default function TaskDetails() {
           completion_date: '2023-02-01',
           blockchain_tx_hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
           deliverables: [
-            { 
-              type: 'document', 
-              name: 'Project Plan.pdf', 
-              file_path: '/documents/project_plan.pdf' 
+            {
+              type: 'document',
+              name: 'Project Plan.pdf',
+              file_path: '/documents/project_plan.pdf'
             }
           ]
         },
@@ -136,7 +138,7 @@ export default function TaskDetails() {
           deliverables: []
         }
       ]);
-      
+
     } catch (err) {
       setError('Failed to fetch task details');
       console.error('Error fetching task details:', err);
@@ -144,33 +146,33 @@ export default function TaskDetails() {
       setLoading(false);
     }
   };
-  
+
   const calculateProgress = () => {
     if (!task?.fund_targeted) return 0;
     return Math.min(100, (task.current_amount / task.fund_targeted) * 100);
   };
-  
+
   const canManageTask = () => {
     return organization?.id === charity?.organization_id;
   };
-  
+
   const handleVerifyMilestone = async (milestoneId) => {
     // In a real app, this would call the API to verify the milestone
     try {
       // Mock API call
       // await axios.post(`/api/milestones/${milestoneId}/verify`);
-      
+
       // Update local state
-      setMilestones(milestones.map(m => 
-        m.id === milestoneId 
+      setMilestones(milestones.map(m =>
+        m.id === milestoneId
           ? { ...m, status: 'completed', completion_date: new Date().toISOString().split('T')[0] }
           : m
       ));
-      
+
       // Show next milestone as in_progress if it exists
       const currentIndex = milestones.findIndex(m => m.id === milestoneId);
       if (currentIndex < milestones.length - 1) {
-        setMilestones(milestones.map((m, index) => 
+        setMilestones(milestones.map((m, index) =>
           index === currentIndex + 1
             ? { ...m, status: 'in_progress', start_date: new Date().toISOString().split('T')[0] }
             : m
@@ -180,7 +182,7 @@ export default function TaskDetails() {
       console.error('Error verifying milestone:', err);
     }
   };
-  
+
   const handleFundingSuccess = (data) => {
     // Update task with new funding amount
     setTask({
@@ -189,15 +191,15 @@ export default function TaskDetails() {
     });
     setShowFundingForm(false);
   };
-  
+
   const nextPicture = () => {
     setCurrentPictureIndex((currentPictureIndex + 1) % pictures.length);
   };
-  
+
   const prevPicture = () => {
     setCurrentPictureIndex((currentPictureIndex - 1 + pictures.length) % pictures.length);
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -205,7 +207,7 @@ export default function TaskDetails() {
       </div>
     );
   }
-  
+
   if (error || !task) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -221,7 +223,7 @@ export default function TaskDetails() {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-100 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -246,7 +248,7 @@ export default function TaskDetails() {
           <span className="mx-2">/</span>
           <span className="text-gray-900">{task.name}</span>
         </nav>
-        
+
         {/* Task Header */}
         <div className="bg-white shadow-sm rounded-lg overflow-hidden mb-6">
           {/* Task Image Carousel */}
@@ -257,7 +259,7 @@ export default function TaskDetails() {
                 alt={`Task image ${currentPictureIndex + 1}`}
                 className="w-full h-full object-cover"
               />
-              
+
               {pictures.length > 1 && (
                 <>
                   <button
@@ -276,7 +278,7 @@ export default function TaskDetails() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
-                  
+
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
                     {pictures.map((_, index) => (
                       <button
@@ -290,7 +292,7 @@ export default function TaskDetails() {
                   </div>
                 </>
               )}
-              
+
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
                 <h1 className="text-3xl font-bold text-white">{task.name}</h1>
                 {charity && (
@@ -302,7 +304,7 @@ export default function TaskDetails() {
               </div>
             </div>
           )}
-          
+
           <div className="p-6">
             {!pictures.length > 0 && (
               <div className="flex items-start justify-between mb-4">
@@ -317,12 +319,12 @@ export default function TaskDetails() {
                 </div>
               </div>
             )}
-            
+
             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6">
               <div className="flex-1">
                 <h3 className="text-lg font-medium text-gray-900">Description</h3>
                 <p className="mt-2 text-gray-600 whitespace-pre-line">{task.description}</p>
-                
+
                 <div className="mt-6">
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center">
@@ -342,14 +344,14 @@ export default function TaskDetails() {
                     ></div>
                   </div>
                 </div>
-                
+
                 {blockchainBalance !== null && (
                   <div className="mt-4 flex items-center">
                     <FaEthereum className="text-indigo-600 mr-2" />
                     <span className="text-gray-900">Blockchain Balance: Ξ{blockchainBalance}</span>
                   </div>
                 )}
-                
+
                 <div className="mt-6 flex flex-wrap gap-2">
                   <span className="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                     <FaEthereum className="mr-1 h-3 w-3" />
@@ -367,7 +369,7 @@ export default function TaskDetails() {
                   )}
                 </div>
               </div>
-              
+
               <div className="md:w-64 flex flex-col gap-4">
                 {!showFundingForm ? (
                   <button
@@ -385,7 +387,7 @@ export default function TaskDetails() {
                     Cancel
                   </button>
                 )}
-                
+
                 {charity && (
                   <Link
                     to={`/charities/${charity.id}`}
@@ -398,19 +400,19 @@ export default function TaskDetails() {
             </div>
           </div>
         </div>
-        
+
         {/* Funding Form (conditionally rendered) */}
         {showFundingForm && (
           <div className="mb-6">
-            <TaskFundingForm 
-              taskId={id} 
-              taskName={task.name} 
-              charityId={charity?.id} 
-              onSuccess={handleFundingSuccess} 
+            <TaskFundingForm
+              taskId={id}
+              taskName={task.name}
+              charityId={charity?.id}
+              onSuccess={handleFundingSuccess}
             />
           </div>
         )}
-        
+
         {/* Tabs Section */}
         <div className="bg-white shadow-sm rounded-lg">
           <div className="border-b border-gray-200">
@@ -450,13 +452,13 @@ export default function TaskDetails() {
               </button>
             </nav>
           </div>
-          
+
           <div className="p-6">
             {/* Details Tab */}
             {activeTab === 'details' && (
               <div>
                 <h2 className="text-lg font-medium text-gray-900 mb-6">Task Details</h2>
-                
+
                 <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                   <div className="sm:col-span-1">
                     <dt className="text-sm font-medium text-gray-500">Start Date</dt>
@@ -494,7 +496,7 @@ export default function TaskDetails() {
                       </span>
                     </dd>
                   </div>
-                  
+
                   {task.blockchain_address && (
                     <div className="sm:col-span-2">
                       <dt className="text-sm font-medium text-gray-500">Blockchain Address</dt>
@@ -513,12 +515,12 @@ export default function TaskDetails() {
                       </dd>
                     </div>
                   )}
-                  
+
                   <div className="sm:col-span-2">
                     <dt className="text-sm font-medium text-gray-500">Blockchain Transparency</dt>
                     <dd className="mt-1 text-sm text-gray-900 bg-indigo-50 p-4 rounded-md">
                       <p className="text-indigo-700">
-                        This task uses blockchain-based milestone funding to ensure transparency and accountability. 
+                        This task uses blockchain-based milestone funding to ensure transparency and accountability.
                         Funds are held in a smart contract and released only when milestones are verified as completed.
                       </p>
                       <div className="mt-3 flex items-center">
@@ -541,19 +543,32 @@ export default function TaskDetails() {
                 </dl>
               </div>
             )}
-            
+
             {/* Milestones Tab */}
             {activeTab === 'milestones' && (
               <div>
-                <MilestoneTracker 
-                  milestones={milestones} 
-                  taskId={id} 
-                  canVerify={canManageTask()} 
-                  onVerify={handleVerifyMilestone} 
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900">Task Milestones</h2>
+                  {user?.is_admin && task.verificationComplete && task.status === 'verified' && !task.funds_released && (
+                    <AdminFundReleaseButton
+                      type="task"
+                      id={id}
+                      onSuccess={(data) => {
+                        setTask({...task, funds_released: true, transaction_hash: data.transaction_hash});
+                        toast.success('Funds released successfully to charity wallet');
+                      }}
+                    />
+                  )}
+                </div>
+                <MilestoneTracker
+                  milestones={milestones}
+                  taskId={id}
+                  canVerify={canManageTask()}
+                  onVerify={handleVerifyMilestone}
                 />
               </div>
             )}
-            
+
             {/* Transactions Tab */}
             {activeTab === 'transactions' && (
               <div>
@@ -566,4 +581,4 @@ export default function TaskDetails() {
       </div>
     </div>
   );
-} 
+}

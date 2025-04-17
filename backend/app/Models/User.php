@@ -32,6 +32,7 @@ class User extends Authenticatable
         'phone_number',
         'gmail',
         'wallet_address',
+        'is_admin',
         'frame_color_code'
     ];
 

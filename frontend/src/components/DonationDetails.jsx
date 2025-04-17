@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import AdminFundReleaseButton from './AdminFundReleaseButton';
 import {
   FaArrowLeft,
   FaCheckCircle,
@@ -118,23 +119,7 @@ export default function DonationDetails() {
     }
   };
 
-  const handleComplete = async () => {
-    if (!window.confirm('Are you sure you want to release the funds?')) return;
 
-    try {
-      setStatusLoading(true);
-      const response = await axios.post(`/donations/${donation.id}`, {
-        action: 'complete'
-      });
-      setDonation(response.data.donation);
-      toast.success('Funds released successfully');
-    } catch (err) {
-      console.error('Error releasing funds:', err);
-      toast.error('Failed to release funds');
-    } finally {
-      setStatusLoading(false);
-    }
-  };
 
   const handleStatusChange = async (newStatus) => {
     try {
@@ -748,12 +733,13 @@ export default function DonationDetails() {
               </div>
 
               {user?.is_admin && (
-                <button
-                  onClick={handleComplete}
-                  className="mt-4 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600"
-                >
-                  Release Funds
-                </button>
+                <AdminFundReleaseButton
+                  type="donation"
+                  id={id}
+                  onSuccess={(data) => {
+                    setDonation({...donation, status: 'completed', completed_at: new Date().toISOString(), transfer_transaction_hash: data.transaction_hash});
+                  }}
+                />
               )}
             </div>
           )}

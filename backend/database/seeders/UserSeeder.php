@@ -41,6 +41,7 @@ class UserSeeder extends Seeder
             'phone_number' => '0123456789',
             'gmail' => 'admin@trustchain.com',
             'wallet_address' => $walletAddresses['admin'],
+            'is_admin' => true,
             'frame_color_code' => '#FF5733',
             'created_at' => now()->subMonths(6),
             'updated_at' => now()->subMonths(6)
@@ -125,7 +126,7 @@ class UserSeeder extends Seeder
         foreach ($users as $index => $userData) {
             // Create with varying timestamps to simulate users joining over time
             $createdAt = now()->subDays(rand(7, 180));
-            
+
             User::create([
                 'ic_number' => $userData['ic_number'],
                 'name' => $userData['name'],
@@ -141,4 +142,4 @@ class UserSeeder extends Seeder
             ]);
         }
     }
-} 
+}

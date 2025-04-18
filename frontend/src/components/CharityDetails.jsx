@@ -7,6 +7,7 @@ import { formatImageUrl, getFileType, setupGlobalImageErrorHandler } from '../ut
 import { motion, AnimatePresence } from 'framer-motion';
 import DonationForm from './DonationForm';
 import BackButton from './BackToHistory';
+import CharityTransactions from './CharityTransactions';
 import {
   FaChartBar,
   FaTasks,
@@ -70,14 +71,21 @@ const getFileIcon = (fileType) => {
   return <FaFileAlt className="text-gray-500 text-xl" />;
 };
 
-const formatCurrency = (amount) => {
-  if (!amount) return '0.00';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
+const formatCurrency = (amount, currencyType = 'SCROLL') => {
+  if (!amount) return '0.000';
+
+  // Format based on currency type
+  if (currencyType === 'USD' || currencyType === 'MYR') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  } else {
+    // For cryptocurrency (SCROLL, ETH, etc.)
+    return `${parseFloat(amount).toFixed(3)} ${currencyType}`;
+  }
 };
 
 // Add this helper function at the top of your file
@@ -140,7 +148,7 @@ const FundingProgress = ({ current, target, donorCount, endDate, className = "" 
           <div className="flex items-center space-x-2">
             <FaCoins className="text-yellow-600" />
             <span className="font-medium text-gray-900">
-              {current} SCROLL / {target} SCROLL
+              {parseFloat(current).toFixed(3)} <span className="text-indigo-600">SCROLL</span> / {parseFloat(target).toFixed(3)} <span className="text-indigo-600">SCROLL</span>
             </span>
           </div>
         </div>
@@ -1579,233 +1587,13 @@ export default function CharityDetails() {
               className="bg-white rounded-xl shadow-sm overflow-hidden"
             >
               <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
                   <FaExchangeAlt className="mr-3 text-indigo-500" />
                   Financial Transactions
                 </h2>
 
-                {/* Data source filter - Update the UI */}
-                <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="font-medium text-gray-700 flex items-center">
-                      <FaFilter className="mr-2 text-indigo-500" />
-                      <span>Filter by:</span>
-                    </div>
-                    <div className="flex-grow">
-                      <div className="flex gap-3 flex-wrap">
-                        <button
-                          onClick={() => {
-                            setCurrentDataSource('all');
-                            loadDataBySource('all');
-                          }}
-                          disabled={filterLoading && currentDataSource === 'all'}
-                          className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                            currentDataSource === 'all'
-                              ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                          } transition-colors duration-200`}
-                        >
-                          {filterLoading && currentDataSource === 'all' ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent mr-2"></div>
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <FaExchangeAlt className="mr-2" />
-                              All Transactions
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setCurrentDataSource('donations');
-                            loadDataBySource('donations');
-                          }}
-                          disabled={filterLoading && currentDataSource === 'donations'}
-                          className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                            currentDataSource === 'donations'
-                              ? 'bg-green-100 text-green-700 border border-green-300'
-                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                          } transition-colors duration-200`}
-                        >
-                          {filterLoading && currentDataSource === 'donations' ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent mr-2"></div>
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <FaHandHoldingHeart className="mr-2" />
-                              Donations Only
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setCurrentDataSource('combined');
-                            loadDataBySource('combined');
-                          }}
-                          disabled={filterLoading && currentDataSource === 'combined'}
-                          className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                            currentDataSource === 'combined'
-                              ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                          } transition-colors duration-200`}
-                        >
-                          {filterLoading && currentDataSource === 'combined' ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <FaChartBar className="mr-2" />
-                              Combined Activities
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    {currentUser && (
-                      <button
-                        onClick={() => loadDataBySource(currentDataSource)}
-                        disabled={filterLoading}
-                        className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                          filterLoading ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none'
-                        } transition-colors duration-200`}
-                      >
-                        {filterLoading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <FaSync className="mr-2" />
-                            Refresh
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Update empty state message based on current data source */}
-                {transactionsList.length === 0 && (
-                  <div className="bg-gray-50 rounded-xl p-8 text-center mt-4">
-                    <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {currentDataSource === 'donations'
-                        ? "No Donations Found"
-                        : currentDataSource === 'combined'
-                          ? "No Financial Activities Found"
-                          : "No Transactions Found"}
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      {currentDataSource === 'donations'
-                        ? "This charity hasn't received any donations yet."
-                        : currentDataSource === 'combined'
-                          ? "There are no financial activities recorded for this charity."
-                          : "This charity hasn't processed any transactions yet."}
-                    </p>
-                    <button
-                      onClick={() => setShowDonationModal(true)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 transition-colors duration-200"
-                    >
-                      <FaHandHoldingHeart className="mr-2" />
-                      Make First Donation
-                    </button>
-                  </div>
-                )}
-
-                {/* Transaction table - now visible to all users */}
-                {transactionsList.length > 0 && (
-                  <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Transaction ID
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Type
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Amount
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {(Array.isArray(transactionsList) ? transactionsList : []).map((transaction, index) => {
-                              if (!transaction) return null; // Skip null or undefined transactions
-
-                              const transactionId = transaction.id || transaction.transaction_hash || index;
-                              return (
-                                <tr key={transactionId} className="hover:bg-gray-50 transition-colors duration-150">
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {formatDate(transaction.created_at || new Date())}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                                    {(() => {
-                                      const id = transaction.transaction_hash || transaction.id;
-                                      if (!id) return 'N/A';
-                                      return typeof id === 'string' ? id.slice(0, 8) + '...' : `#${id}`;
-                                    })()}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                      ${transaction.type === 'donation' ? 'bg-green-100 text-green-800' :
-                                        transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' :
-                                        'bg-blue-100 text-blue-800'}`}>
-                                      {transaction.type === 'donation' && <FaHandHoldingHeart className="mr-1" />}
-                                      {transaction.type === 'withdrawal' && <FaMoneyBillWave className="mr-1" />}
-                                      {(!transaction.type || transaction.type === 'transaction') && <FaExchangeAlt className="mr-1" />}
-                                      {transaction.type?.charAt(0).toUpperCase() + transaction.type?.slice(1) || 'Transaction'}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {transaction.amount ?
-                                      <span className="font-mono">
-                                        {transaction.amount} {transaction.currency_type || transaction.is_blockchain ? 'ETH' : 'USD'}
-                                      </span> : 'N/A'}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
-                                      {getStatusIcon(transaction.status)}
-                                      {formatStatus(transaction.status)}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <button
-                                      onClick={() => {
-                                        // Navigate to the appropriate details page based on transaction type
-                                        const path = transaction.type === 'donation'
-                                          ? `/donations/${transaction.id}`
-                                          : `/transactions/${transaction.id}`;
-                                        navigate(path);
-                                      }}
-                                      className="text-indigo-600 hover:text-indigo-900 font-medium transition-colors duration-200"
-                                    >
-                                      View Details
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                )}
+                {/* Use the new CharityTransactions component */}
+                <CharityTransactions charityId={id} />
               </div>
             </motion.div>
           )}

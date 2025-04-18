@@ -20,7 +20,10 @@ import {
   FaTimes,
   FaSlidersH,
   FaChevronDown,
-  FaLayerGroup
+  FaLayerGroup,
+  FaExternalLinkAlt,
+  FaEye,
+  FaExchangeAlt
 } from 'react-icons/fa';
 import Pagination from './Pagination';
 
@@ -74,6 +77,12 @@ export default function TransactionList() {
     { value: 'donations', label: 'Donations' },
     { value: 'combined', label: 'All' }
   ];
+
+  // Function to refresh only the transaction data
+  const refreshTransactionData = () => {
+    setLoading(true);
+    fetchTransactions();
+  };
 
   useEffect(() => {
     // Calculate active filters count
@@ -145,11 +154,9 @@ export default function TransactionList() {
       } else {
         // General endpoints - this is where we're seeing the 405 error
         if (dataSource === 'donations') {
-          // Try using a different endpoint or method to get donations
-          // Option 1: Use transactions endpoint with a type filter
-          endpoint = '/transactions';
-          queryParams.append('type', 'donation');
-          setDebugInfo(prev => ({ ...prev, dataSourceType: 'donations-via-transactions' }));
+          // Use the donations endpoint directly
+          endpoint = '/donations';
+          setDebugInfo(prev => ({ ...prev, dataSourceType: 'donations-direct' }));
         } else if (dataSource === 'combined') {
           endpoint = '/transactions';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'combined' }));
@@ -171,25 +178,17 @@ export default function TransactionList() {
       setDebugInfo(prev => ({ ...prev, lastResponse: response.data }));
 
       // Special handling for combined data source
-      if (dataSource === 'combined' && !charityId) {
-        // For global combined view without a charity ID, we'll just show transactions
-        // since we're getting a 405 error when trying to access donations endpoint
-        console.log('Using transactions data for combined view due to API limitations');
-        const responseData = extractDataFromResponse(response.data);
-        setTransactions(responseData);
-        updatePaginationFromResponse(response.data, responseData);
-        setLoading(false);
-        return;
-      } else if (dataSource === 'combined' && charityId) {
+      if (dataSource === 'combined') {
+        // For combined view (global or charity-specific), use a consistent approach
         try {
-          // If we need to manually combine data from multiple sources
+          // First get transactions data
           const transactionsData = extractDataFromResponse(response.data);
 
           // Now fetch donations data
-          const donationsEndpoint = `/charities/${charityId}/donations`;
-
+          const donationsEndpoint = charityId ? `/charities/${charityId}/donations` : '/donations';
           console.log(`Also fetching donations from: ${donationsEndpoint}`);
-          // Don't pass the source parameter to donations endpoint
+
+          // Use the same pagination parameters for both requests
           const donationsParams = new URLSearchParams({
             page: pagination.currentPage,
             per_page: pagination.itemsPerPage
@@ -200,29 +199,66 @@ export default function TransactionList() {
 
           const donationsData = extractDataFromResponse(donationsResponse.data);
 
+          // Process donations data to ensure it has the right format
+          const processedDonations = donationsData.map(donation => {
+            // Make sure each donation has a source field
+            if (!donation.source) {
+              donation.source = 'Donation';
+            }
+            return donation;
+          });
+
+          // Get total counts from both responses for accurate pagination
+          const transactionsTotalItems = response.data.total || transactionsData.length;
+          const donationsTotalItems = donationsResponse.data.total || donationsData.length;
+          const totalItems = transactionsTotalItems + donationsTotalItems;
+
+          // Calculate how many items to take from each source to maintain consistent pagination
+          const itemsPerPage = pagination.itemsPerPage;
+          const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+          console.log('Pagination info:', {
+            transactionsTotalItems,
+            donationsTotalItems,
+            totalItems,
+            itemsPerPage,
+            totalPages,
+            currentPage: pagination.currentPage
+          });
+
           // Combine both datasets
-          const combinedData = [...transactionsData, ...donationsData];
-          console.log(`Combined ${transactionsData.length} transactions with ${donationsData.length} donations:`, combinedData);
+          const combinedData = [...transactionsData, ...processedDonations];
+          console.log(`Combined ${transactionsData.length} transactions with ${processedDonations.length} donations:`, combinedData);
 
           // Sort by date
           const sortedData = combinedData.sort((a, b) =>
             new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0)
           );
 
-          setTransactions(sortedData);
+          // Take only the items for the current page
+          const startIndex = 0;
+          const endIndex = Math.min(sortedData.length, itemsPerPage);
+          const paginatedData = sortedData.slice(startIndex, endIndex);
 
-          // Update pagination manually
+          setTransactions(paginatedData);
+
+          // Update pagination with accurate counts
           setPagination(prev => ({
             ...prev,
-            totalItems: sortedData.length,
-            totalPages: Math.ceil(sortedData.length / prev.itemsPerPage),
+            totalItems: totalItems,
+            totalPages: totalPages,
           }));
 
           setLoading(false);
           return;
         } catch (combineError) {
           console.error('Error combining data sources:', combineError);
-          // Fall through to normal processing if combining fails
+          // Fall back to just showing transactions if combining fails
+          const responseData = extractDataFromResponse(response.data);
+          setTransactions(responseData);
+          updatePaginationFromResponse(response.data, responseData);
+          setLoading(false);
+          return;
         }
       }
 
@@ -263,17 +299,20 @@ export default function TransactionList() {
 
     // Handle paginated response
     if (responseData.data && Array.isArray(responseData.data)) {
+      console.log('Extracted paginated data:', responseData.data.length, 'items');
       return responseData.data;
     }
 
     // Handle direct array response
     if (Array.isArray(responseData)) {
+      console.log('Extracted array data:', responseData.length, 'items');
       return responseData;
     }
 
     // Try to find an array in the response object
     for (const key in responseData) {
       if (Array.isArray(responseData[key])) {
+        console.log(`Extracted data from key '${key}':`, responseData[key].length, 'items');
         return responseData[key];
       }
     }
@@ -395,32 +434,50 @@ export default function TransactionList() {
   };
 
   const getTypeLabel = (item) => {
+    // Check if this is a donation record from the donations table
+    if (item.source === 'Donation' || item.donor_message || item.cause_id || item.currency_type) {
+      return 'Donation';
+    }
+
+    // Check transaction type
     if (item.type) {
       return item.type.charAt(0).toUpperCase() + item.type.slice(1);
     } else if (item.task_proof) {
       return 'Task';
-    } else if (item.donor_message || item.cause_id) {
-      return 'Donation';
     } else {
       return 'Transaction';
     }
   };
 
   const formatAmount = (amount, currencyType) => {
-    if (!amount) return '$0.00';
+    if (!amount) return '0.000';
 
-    const formattedAmount = `$${parseFloat(amount).toFixed(2)}`;
-    return currencyType ? `${formattedAmount} (${currencyType})` : formattedAmount;
+    // Default to SCROLL for blockchain transactions
+    const currency = currencyType || 'SCROLL';
+
+    // Format based on currency type
+    if (currency === 'USD' || currency === 'MYR') {
+      return `$${parseFloat(amount).toFixed(2)} ${currency}`;
+    } else {
+      // For cryptocurrency (SCROLL, ETH, etc.)
+      return `${parseFloat(amount).toFixed(3)} ${currency}`;
+    }
   };
 
   const getSourceLabel = (item) => {
     if (!item) return 'Unknown';
 
+    // Explicitly check for donation source
+    if (item.source === 'Donation') {
+      return 'Donation';
+    }
+
+    // Check other source indicators
     if (item.source) {
       return item.source;
     } else if (item.is_blockchain) {
       return 'Blockchain';
-    } else if (item.donor_message || item.cause_id || item.donor_id) {
+    } else if (item.donor_message || item.cause_id || item.donor_id || item.currency_type) {
       return 'Donation';
     } else if (item.transaction_hash) {
       return 'Blockchain';
@@ -430,21 +487,33 @@ export default function TransactionList() {
   };
 
   const getDetailsUrl = (item) => {
-    if (!item || !item.id) {
-      console.warn('Cannot generate details URL for item:', item);
+    if (!item) {
+      console.warn('Cannot generate details URL for undefined item');
       return '/transactions';
     }
 
-    const sourceType = getSourceLabel(item).toLowerCase();
+    // Check if this is a donation record
+    if (item.source === 'Donation' || getSourceLabel(item).toLowerCase() === 'donation') {
+      // Use the donation ID if available
+      const donationId = item.id || (item.donation ? item.donation.id : null);
+      if (donationId) {
+        return `/donations/${donationId}`;
+      }
+    }
 
-    // Handle special cases
-    if (sourceType === 'blockchain') {
-      return `/blockchain-transactions/${item.id}`;
-    } else if (sourceType === 'donation') {
-      return `/donations/${item.id}`;
-    } else {
+    // Handle blockchain transactions
+    if (getSourceLabel(item).toLowerCase() === 'blockchain' && item.transaction_hash) {
+      return `/blockchain-transactions/${item.id || item.transaction_hash}`;
+    }
+
+    // Default to transaction details if we have an ID
+    if (item.id) {
       return `/transactions/${item.id}`;
     }
+
+    // Fallback
+    console.warn('Could not determine details URL for item:', item);
+    return '/transactions';
   };
 
   // Add a debug panel that only shows in development mode
@@ -512,13 +581,32 @@ export default function TransactionList() {
         <div className="relative z-10">
           <h1 className="text-3xl font-bold flex items-center">
             <FaHistory className="mr-3" />
-            Transactions
+            {viewType === 'charity' ? 'Charity Transactions' : 'All Transactions'}
           </h1>
           <p className="mt-2 text-indigo-100 max-w-xl">
             {viewType === 'charity'
-              ? 'View and manage charity-specific financial transactions.'
-              : 'Track all transaction activities across the platform.'}
+              ? 'View all financial transactions for this specific charity.'
+              : 'Track all donation and verification transactions across the platform.'}
+            <span className="ml-2 bg-white bg-opacity-20 px-2 py-1 rounded text-sm">
+              Currently viewing: {dataSource === 'transactions' ? 'Transactions only' :
+                               dataSource === 'donations' ? 'Donations only' :
+                               'All financial activities'}
+            </span>
           </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
+              <FaHandHoldingHeart className="text-white mr-2" />
+              <span className="text-white font-medium">Donations</span>
+            </div>
+            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
+              <FaCheckCircle className="text-white mr-2" />
+              <span className="text-white font-medium">Verifications</span>
+            </div>
+            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
+              <FaExchangeAlt className="text-white mr-2" />
+              <span className="text-white font-medium">Fund Transfers</span>
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -691,10 +779,21 @@ export default function TransactionList() {
         className="mb-6"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center">
-            {pagination.totalItems} {pagination.totalItems === 1 ? 'Transaction' : 'Transactions'} Found
-            {searchTerm && <span className="ml-2 text-gray-500 text-base font-normal">for "{searchTerm}"</span>}
-          </h2>
+          <div className="flex items-center">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
+              {pagination.totalItems} {pagination.totalItems === 1 ? 'Transaction' : 'Transactions'} Found
+              {searchTerm && <span className="ml-2 text-gray-500 text-base font-normal">for "{searchTerm}"</span>}
+            </h2>
+            <button
+              onClick={refreshTransactionData}
+              className={`ml-4 px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center ${loading ? 'bg-gray-200 text-gray-600' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+              title="Refresh data"
+              disabled={loading}
+            >
+              <FaSync className={`${loading ? "animate-spin" : ""} mr-1`} />
+              <span className="text-sm">{loading ? "Refreshing..." : "Refresh"}</span>
+            </button>
+          </div>
 
           {/* Active filters */}
           {activeFiltersCount > 0 && (
@@ -735,7 +834,7 @@ export default function TransactionList() {
                     Date
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ID
+                    Transaction Hash
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
@@ -747,10 +846,10 @@ export default function TransactionList() {
                     Status
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Source
+                    Charity
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Details
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -777,13 +876,26 @@ export default function TransactionList() {
                       transition={{ delay: index * 0.03 }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A'}
+                        {item.created_at ? new Date(item.created_at).toLocaleDateString() + ' ' + new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                        {item.transaction_hash ? item.transaction_hash.slice(0, 8) : item.id || 'N/A'}
+                        {item.transaction_hash ? (
+                          <a
+                            href={`https://sepolia.scrollscan.com/tx/${item.transaction_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
+                          >
+                            {item.transaction_hash.slice(0, 10)}...{item.transaction_hash.slice(-8)}
+                            <FaExternalLinkAlt className="ml-1 h-3 w-3" />
+                          </a>
+                        ) : (item.id ? `ID: ${item.id}` : 'N/A')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getTypeLabel(item)}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'donation' ? 'bg-blue-100 text-blue-800' : item.type === 'fund_release' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
+                          {item.type === 'donation' ? <FaHandHoldingHeart className="mr-1" /> : item.type === 'fund_release' ? <FaExchangeAlt className="mr-1" /> : <FaMoneyBillWave className="mr-1" />}
+                          {getTypeLabel(item)}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {formatAmount(item.amount, item.currency_type)}
@@ -795,20 +907,55 @@ export default function TransactionList() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getSourceLabel(item)}
+                        {item.charity ? (
+                          <a
+                            href={`/charities/${item.charity_id}`}
+                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
+                          >
+                            {item.charity.name || `Charity #${item.charity_id}`}
+                          </a>
+                        ) : item.charity_id ? (
+                          <a
+                            href={`/charities/${item.charity_id}`}
+                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
+                          >
+                            Charity #{item.charity_id}
+                          </a>
+                        ) : item.cause_id ? (
+                          <a
+                            href={`/charities/${item.cause_id}`}
+                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
+                          >
+                            Charity #{item.cause_id}
+                          </a>
+                        ) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => {
-                            // Safely navigate to the details page based on item type
-                            const detailsUrl = getDetailsUrl(item);
-                            console.log('Navigating to:', detailsUrl);
-                            navigate(detailsUrl);
-                          }}
-                          className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
-                        >
-                          View Details
-                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              // Safely navigate to the details page based on item type
+                              const detailsUrl = getDetailsUrl(item);
+                              console.log('Navigating to:', detailsUrl);
+                              navigate(detailsUrl);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
+                          >
+                            <FaEye className="mr-1" />
+                            Details
+                          </button>
+                          {item.transaction_hash && (
+                            <a
+                              href={`https://sepolia.scrollscan.com/tx/${item.transaction_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-600 hover:text-green-900 transition-colors duration-150 flex items-center"
+                            >
+                              <FaGlobe className="mr-1" />
+                              Explorer
+                            </a>
+                          )}
+                        </div>
                       </td>
                     </motion.tr>
                   );

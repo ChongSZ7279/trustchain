@@ -62,21 +62,13 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
     return `/${path}`;
   };
 
-  // Log image paths for debugging
-  useEffect(() => {
-    console.log('Organization cover image path:', organization.cover_image_path);
-    console.log('Organization logo path:', organization.logo);
-  }, [organization]);
-
   // Check follow status when component mounts
   useEffect(() => {
     // Only check follow status if user is logged in and not in dashboard
     if (currentUser && !isOrganizationUser() && !inDashboard) {
       const checkFollowStatus = async () => {
         try {
-          console.log(`Checking follow status for organization ${organization.id}`);
           const response = await axios.get(`/organizations/${organization.id}/follow-status`);
-          console.log('Follow status response:', response.data);
           
           if (response.data && response.data.is_following !== undefined) {
             setIsFollowing(response.data.is_following);
@@ -85,7 +77,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
             }
           }
         } catch (error) {
-          console.error('Error checking follow status:', error);
+          console.error('Error checking follow status:', error.message);
         }
       };
       
@@ -112,10 +104,8 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
 
     try {
       setIsLoading(true);
-      console.log(`Making request to: /organizations/${organization.id}/follow`);
       
       const response = await axios.post(`/organizations/${organization.id}/follow`);
-      console.log('Follow response:', response.data);
       
       // Update the UI based on the response
       setIsFollowing(response.data.is_following);
@@ -126,7 +116,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
         'Successfully unfollowed organization'
       );
     } catch (error) {
-      console.error('Error toggling follow status:', error);
+      console.error('Error toggling follow status:', error.message);
       toast.error(error.response?.data?.message || 'Failed to follow organization');
     } finally {
       setIsLoading(false);
@@ -176,6 +166,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
             className="w-full h-full object-cover rounded-lg"
             src={formatImageUrl(organization.cover_image_path)}
             alt={`${organization.name} cover`}
+            loading="lazy"
             onError={(e) => {
               console.error('Failed to load cover image:', organization.cover_image_path);
               setCoverImageError(true);
@@ -202,6 +193,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
                   className="h-full w-full object-cover"
                   src={formatImageUrl(organization.logo)}
                   alt={organization.name}
+                  loading="lazy"
                   onError={(e) => {
                     console.error('Failed to load logo image:', organization.logo);
                     setLogoImageError(true);

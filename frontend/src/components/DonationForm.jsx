@@ -485,20 +485,29 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (SCROLL)
+                Amount
               </label>
-              <input
-                type="number"
-                id="donationAmount"
-                placeholder="0.1"
-                step="0.01"
-                min="0.0001"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-                disabled={processingDonation || !walletConnected}
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  id="donationAmount"
+                  placeholder="0.001"
+                  step="0.001"
+                  min="0.001"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 pr-20 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+                  disabled={processingDonation || !walletConnected}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <div className="flex items-center text-gray-500 font-medium">
+                    <FaEthereum className="mr-1 text-indigo-500" />
+                    <span>SCROLL</span>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Minimum donation: 0.001 SCROLL</p>
             </div>
 
             <div>
@@ -584,19 +593,28 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
 
           <div>
             <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-              Amount (USD)
+              Amount
             </label>
-            <input
-              type="number"
-              id="donationAmount"
-              placeholder="0.00"
-              step="0.01"
-              min="0.10"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-            />
+            <div className="relative">
+              <input
+                type="number"
+                id="donationAmount"
+                placeholder="10.00"
+                step="0.01"
+                min="0.10"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+                className="w-full px-4 py-2 pr-16 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <div className="flex items-center text-gray-500 font-medium">
+                  <FaDollarSign className="mr-1 text-green-500" />
+                  <span>USD</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">Will be converted to SCROLL for donation</p>
           </div>
 
           <div>

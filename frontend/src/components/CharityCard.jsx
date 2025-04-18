@@ -24,7 +24,8 @@ import {
   FaFileWord,
   FaEye,
   FaUserCheck,
-  FaUserPlus
+  FaUserPlus,
+  FaCoins
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
@@ -75,21 +76,13 @@ export default function CharityCard({ charity, inDashboard = false }) {
     return `/${path}`;
   };
 
-  // Log image paths for debugging
-  useEffect(() => {
-    console.log('Charity image path:', charity.picture_path);
-    console.log('Formatted charity image URL:', formatImageUrl(charity.picture_path));
-  }, [charity]);
-
   // Check follow status when component mounts
   useEffect(() => {
     // Only check follow status if user is logged in and not in dashboard
     if (currentUser && !isOrganizationUser() && !inDashboard) {
       const checkFollowStatus = async () => {
         try {
-          console.log(`Checking follow status for charity ${charity.id}`);
           const response = await axios.get(`/charities/${charity.id}/follow-status`);
-          console.log('Follow status response:', response.data);
 
           if (response.data && response.data.is_following !== undefined) {
             setIsFollowing(response.data.is_following);
@@ -98,7 +91,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
             }
           }
         } catch (error) {
-          console.error('Error checking follow status:', error);
+          console.error('Error checking follow status:', error.message);
         }
       };
 
@@ -127,7 +120,6 @@ export default function CharityCard({ charity, inDashboard = false }) {
       setIsLoading(true);
       // Fix the API endpoint - remove the /api prefix
       const response = await axios.post(`/charities/${charity.id}/follow`);
-      console.log('Follow response:', response.data);
 
       // Update the UI based on the response
       setIsFollowing(response.data.is_following);
@@ -138,7 +130,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
         'Successfully unfollowed charity'
       );
     } catch (error) {
-      console.error('Error toggling follow status:', error);
+      console.error('Error toggling follow status:', error.message);
       toast.error(error.response?.data?.message || 'Failed to follow charity');
     } finally {
       setIsLoading(false);
@@ -177,6 +169,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
             <img
               src={formatImageUrl(charity.picture_path)}
               alt={charity.name}
+              loading="lazy"
               className="w-full h-full object-cover rounded-lg"
               onError={(e) => {
                 console.error('Failed to load charity image:', charity.picture_path);
@@ -224,8 +217,11 @@ export default function CharityCard({ charity, inDashboard = false }) {
             ></div>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span>{fundsRaised} SCROLL raised</span>
-            <span>Goal: {fundingGoal} SCROLL</span>
+            <span className="flex items-center">
+              <FaCoins className="text-yellow-500 mr-1 h-3 w-3" />
+              <span>{parseFloat(fundsRaised).toFixed(3)} <span className="text-indigo-600 font-medium">SCROLL</span></span>
+            </span>
+            <span>Goal: {parseFloat(fundingGoal).toFixed(3)} <span className="text-indigo-600 font-medium">SCROLL</span></span>
           </div>
 
           {charity.is_fully_funded && (

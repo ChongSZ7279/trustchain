@@ -73,7 +73,7 @@ export default function OrganizationList() {
       // Build query parameters
       const params = new URLSearchParams({
         page: currentPage,
-        per_page: 12
+        per_page: 12 // Consider reducing to 9 for initial load
       });
       
       if (searchTerm) {
@@ -95,12 +95,16 @@ export default function OrganizationList() {
       params.append('min_fund', fundRange.min);
       params.append('max_fund', fundRange.max);
       
-      const response = await axios.get(`/organizations?${params.toString()}`);
-      setOrganizations(response.data.data);
-      setTotalPages(response.data.last_page);
-      setTotalItems(response.data.total);
+      const response = await axios.get(`/organizations?${params.toString()}`, {
+        timeout: 15000, // Increase timeout for slower connections
+      });
+      
+      // Process the response immediately
+      setOrganizations(response.data.data || []);
+      setTotalPages(response.data.last_page || 1);
+      setTotalItems(response.data.total || 0);
     } catch (err) {
-      console.error('Error fetching organizations:', err);
+      console.error('Error fetching organizations:', err.message);
       setError(
         err.response?.data?.message || 
         'Failed to fetch organizations. Please try again later.'

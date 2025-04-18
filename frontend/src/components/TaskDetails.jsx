@@ -330,7 +330,7 @@ export default function TaskDetails() {
                     <div className="flex items-center">
                       <FaMoneyBillWave className="text-gray-400 mr-2" />
                       <span className="text-gray-900 font-medium">
-                        ${task.current_amount} raised of ${task.fund_targeted} goal
+                        {parseFloat(task.current_amount).toFixed(3)} <span className="text-indigo-600">SCROLL</span> raised of {parseFloat(task.fund_targeted).toFixed(3)} <span className="text-indigo-600">SCROLL</span> goal
                       </span>
                     </div>
                     <span className="text-sm font-medium text-gray-500">

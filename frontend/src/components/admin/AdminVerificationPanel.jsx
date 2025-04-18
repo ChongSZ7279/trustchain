@@ -12,7 +12,8 @@ import {
   FaSearch,
   FaSyncAlt,
   FaTasks,
-  FaHandHoldingHeart
+  FaHandHoldingHeart,
+  FaDatabase
 } from 'react-icons/fa';
 
 export default function AdminVerificationPanel() {
@@ -24,6 +25,7 @@ export default function AdminVerificationPanel() {
   const [activeTab, setActiveTab] = useState('tasks');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('pending');
+  const [syncingDonations, setSyncingDonations] = useState(false);
 
   // Redirect if not admin
   useEffect(() => {
@@ -96,6 +98,33 @@ export default function AdminVerificationPanel() {
     };
 
     fetchData();
+  };
+
+  // Function to sync donations with transactions
+  const handleSyncDonations = async () => {
+    try {
+      setSyncingDonations(true);
+      toast.loading('Syncing donations with transactions...');
+
+      const response = await axios.post('/sync-donations');
+
+      if (response.data.success) {
+        toast.dismiss();
+        toast.success(`Donations synced successfully! Total: ${response.data.stats.total}, Success: ${response.data.stats.success}, Failed: ${response.data.stats.failed}`);
+
+        // Refresh the donations list
+        handleRefresh();
+      } else {
+        toast.dismiss();
+        toast.error('Failed to sync donations: ' + response.data.message);
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Error syncing donations: ' + (error.response?.data?.message || error.message));
+      console.error('Error syncing donations:', error);
+    } finally {
+      setSyncingDonations(false);
+    }
   };
 
   // Debug function to test API directly
@@ -185,6 +214,23 @@ export default function AdminVerificationPanel() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Admin Verification Panel</h1>
           <div className="flex space-x-2">
+            <button
+              onClick={handleSyncDonations}
+              disabled={syncingDonations}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncingDonations ? (
+                <>
+                  <FaDatabase className="animate-pulse mr-2" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <FaDatabase className="mr-2" />
+                  Sync Donations
+                </>
+              )}
+            </button>
             <button
               onClick={handleDebugTest}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

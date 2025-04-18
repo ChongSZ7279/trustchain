@@ -142,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Public endpoints for donations
+Route::get('/donations', [DonationController::class, 'index']);
 Route::post('/donations', [DonationController::class, 'store']);
 
 // Public blockchain donation endpoint for unauthenticated donations
@@ -155,6 +156,9 @@ Route::post('/simple-donation', [DonationController::class, 'storeSimpleDonation
 
 // Direct donation endpoint using raw SQL
 Route::post('/direct-donation', [DonationController::class, 'directDonation']);
+
+// Sync donations with transactions
+Route::post('/sync-donations', [DonationController::class, 'syncDonations'])->middleware('auth:sanctum');
 
 // Test route for donations without auth
 Route::post('/charities/{id}/donations/test', [DonationController::class, 'testDonation']);

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { FaShieldAlt } from 'react-icons/fa';
 
 export default function Navbar() {
   const { currentUser, accountType, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+
+  // Check if the current user is an admin
+  const isAdmin = currentUser?.is_admin === 1 || currentUser?.is_admin === true;
 
   // Handle scroll effect
   useEffect(() => {
@@ -21,7 +25,7 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
+
   const isActive = (path) => {
     if (path === '/') {
       return location.pathname === '/';
@@ -125,6 +129,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                {/* Dashboard Link */}
                 <Link
                   to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
                   className="text-indigo-600 hover:text-indigo-800 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 hover:bg-indigo-50 flex items-center gap-1"
@@ -138,6 +143,17 @@ export default function Navbar() {
                   </svg>
                   Dashboard
                 </Link>
+
+                {/* Admin Verification Link - Only shown to admins */}
+                {isAdmin && (
+                  <Link
+                    to="/admin/verification"
+                    className="text-purple-600 hover:text-purple-800 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 hover:bg-purple-50 flex items-center gap-1"
+                  >
+                    <FaShieldAlt className="w-4 h-4" />
+                    Verification Panel
+                  </Link>
+                )}
                 <button
                   onClick={logout}
                   className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
@@ -254,6 +270,7 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="mt-6 px-3 space-y-3">
+              {/* Dashboard Link */}
               <Link
                 to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
                 className={`block w-full text-center px-4 py-2 text-base font-medium rounded-md transition-colors duration-200 ${
@@ -265,6 +282,22 @@ export default function Navbar() {
               >
                 Dashboard
               </Link>
+
+              {/* Admin Verification Link - Only shown to admins */}
+              {isAdmin && (
+                <Link
+                  to="/admin/verification"
+                  className={`block w-full text-center px-4 py-2 text-base font-medium rounded-md transition-colors duration-200 flex items-center justify-center gap-2 ${
+                    isActive('/admin/verification')
+                      ? 'bg-purple-50 text-purple-600'
+                      : 'text-purple-600 hover:bg-purple-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <FaShieldAlt className="w-4 h-4" />
+                  Verification Panel
+                </Link>
+              )}
               <button
                 onClick={() => {
                   logout();

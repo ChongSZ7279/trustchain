@@ -74,17 +74,6 @@ export default function CharityList() {
     
     fetchCharities();
   }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
-  
-  // Add debug logging for filter state changes
-  useEffect(() => {
-    console.log('Current filter state:', {
-      searchTerm,
-      selectedCategories,
-      selectedStatuses,
-      fundRange,
-      currentPage
-    });
-  }, [searchTerm, selectedCategories, selectedStatuses, fundRange, currentPage]);
 
   const fetchCharities = async () => {
     try {
@@ -122,45 +111,24 @@ export default function CharityList() {
         params.append('max_fund', fundRange.max);
       }
       
-      console.log('Fetching charities with params:', params.toString());
-      
       // Make API call with filters
       const response = await axios.get(`/charities?${params.toString()}`, {
-        timeout: 10000,
+        timeout: 15000, // Increase timeout 
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       });
       
-      console.log('Charities response:', response.data);
-      console.log('Total charities:', response.data.total);
-      console.log('Current page:', response.data.current_page);
-      console.log('Last page:', response.data.last_page);
-      console.log('Per page:', response.data.per_page);
-      console.log('Data count:', response.data.data.length);
-      console.log('Data items:', response.data.data);
-      
-      setCharities(response.data.data);
-      setTotalPages(response.data.last_page);
-      setTotalItems(response.data.total);
+      setCharities(response.data.data || []);
+      setTotalPages(response.data.last_page || 1);
+      setTotalItems(response.data.total || 0);
     } catch (err) {
-      console.error('Error fetching charities:', err);
+      console.error('Error fetching charities:', err.message);
       
-      // More detailed error logging
-      if (err.response) {
-        console.error('Error response data:', err.response.data);
-        console.error('Error response status:', err.response.status);
-        console.error('Error response headers:', err.response.headers);
-        
-        setError(`Failed to fetch charities: ${err.response.status} ${err.response.statusText}`);
-      } else if (err.request) {
-        console.error('No response received:', err.request);
-        setError('Failed to fetch charities: No response from server');
-      } else {
-        console.error('Error message:', err.message);
-        setError(`Failed to fetch charities: ${err.message}`);
-      }
+      // More focused error handling
+      setError(err.response?.data?.message || 'Failed to fetch charities. Please try again.');
+      setCharities([]);
     } finally {
       setLoading(false);
     }
@@ -521,8 +489,8 @@ export default function CharityList() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {charities.map((charity, index) => {
-              // Debug log each charity before rendering
-              console.log(`Rendering charity ${index}:`, charity);
+              // Remove debug logging
+              // console.log(`Rendering charity ${index}:`, charity);
               
               // Make sure charity has an ID
               if (!charity.id) {

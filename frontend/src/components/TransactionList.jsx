@@ -23,7 +23,10 @@ import {
   FaLayerGroup,
   FaExternalLinkAlt,
   FaEye,
-  FaExchangeAlt
+  FaExchangeAlt,
+  FaSort,
+  FaArrowUp,
+  FaArrowDown
 } from 'react-icons/fa';
 import Pagination from './Pagination';
 
@@ -62,6 +65,12 @@ export default function TransactionList() {
     lastEndpoint: '',
     lastResponse: null,
     dataSourceType: ''
+  });
+
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({
+    key: 'created_at',
+    direction: 'desc'
   });
 
   // Status options for filter
@@ -399,6 +408,43 @@ export default function TransactionList() {
     }
   };
 
+  // Handle sorting when a column header is clicked
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+
+    // Sort the transactions based on the selected key and direction
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      // Handle different data types appropriately
+      if (key === 'created_at') {
+        return direction === 'asc'
+          ? new Date(a.created_at || 0) - new Date(b.created_at || 0)
+          : new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      }
+
+      if (key === 'amount') {
+        return direction === 'asc'
+          ? parseFloat(a.amount || 0) - parseFloat(b.amount || 0)
+          : parseFloat(b.amount || 0) - parseFloat(a.amount || 0);
+      }
+
+      // For string comparisons (type, status, etc.)
+      const aValue = a[key] || '';
+      const bValue = b[key] || '';
+
+      if (direction === 'asc') {
+        return aValue.toString().localeCompare(bValue.toString());
+      } else {
+        return bValue.toString().localeCompare(aValue.toString());
+      }
+    });
+
+    setTransactions(sortedTransactions);
+  };
+
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
 
@@ -493,7 +539,12 @@ export default function TransactionList() {
     }
 
     // Check if this is a donation record
-    if (item.source === 'Donation' || getSourceLabel(item).toLowerCase() === 'donation') {
+    if (item.source === 'Donation' ||
+        getSourceLabel(item).toLowerCase() === 'donation' ||
+        item.type === 'donation' ||
+        item.donor_message ||
+        item.donor_id ||
+        item.cause_id) {
       // Use the donation ID if available
       const donationId = item.id || (item.donation ? item.donation.id : null);
       if (donationId) {
@@ -501,9 +552,10 @@ export default function TransactionList() {
       }
     }
 
-    // Handle blockchain transactions
+    // Handle blockchain transactions - use regular transaction URL with ID
     if (getSourceLabel(item).toLowerCase() === 'blockchain' && item.transaction_hash) {
-      return `/blockchain-transactions/${item.id || item.transaction_hash}`;
+      // Use the transaction ID if available, otherwise use the hash
+      return `/transactions/${item.id || item.transaction_hash}`;
     }
 
     // Default to transaction details if we have an ID
@@ -514,6 +566,32 @@ export default function TransactionList() {
     // Fallback
     console.warn('Could not determine details URL for item:', item);
     return '/transactions';
+  };
+
+  // Get the appropriate details button text based on item type
+  const getDetailsButtonText = (item) => {
+    // Check if this is a donation
+    if (item.source === 'Donation' ||
+        getSourceLabel(item).toLowerCase() === 'donation' ||
+        item.type === 'donation' ||
+        item.donor_message ||
+        item.donor_id ||
+        item.cause_id) {
+      return 'Donation';
+    }
+
+    // Check if this is a blockchain transaction
+    if (getSourceLabel(item).toLowerCase() === 'blockchain' && item.transaction_hash) {
+      return 'Transaction';
+    }
+
+    // Check for fund release transactions
+    if (item.type === 'fund_release') {
+      return 'Fund Transfer Details';
+    }
+
+    // Default
+    return 'Transaction Details';
   };
 
   // Add a debug panel that only shows in development mode
@@ -587,25 +665,18 @@ export default function TransactionList() {
             {viewType === 'charity'
               ? 'View all financial transactions for this specific charity.'
               : 'Track all donation and verification transactions across the platform.'}
-            <span className="ml-2 bg-white bg-opacity-20 px-2 py-1 rounded text-sm">
-              Currently viewing: {dataSource === 'transactions' ? 'Transactions only' :
-                               dataSource === 'donations' ? 'Donations only' :
-                               'All financial activities'}
-            </span>
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
-              <FaHandHoldingHeart className="text-white mr-2" />
-              <span className="text-white font-medium">Donations</span>
-            </div>
-            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
-              <FaCheckCircle className="text-white mr-2" />
-              <span className="text-white font-medium">Verifications</span>
-            </div>
-            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
+            <a
+              href="https://coinmarketcap.com/currencies/ethereum/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center hover:bg-opacity-30 transition-all duration-200"
+            >
               <FaExchangeAlt className="text-white mr-2" />
-              <span className="text-white font-medium">Fund Transfers</span>
-            </div>
+              <span className="text-white font-medium">1 SCROLL ≈ $2500 USD ≈ RM10500 MYR</span>
+              <FaExternalLinkAlt className="text-white ml-2 h-3 w-3" />
+            </a>
           </div>
         </div>
       </motion.div>
@@ -627,7 +698,7 @@ export default function TransactionList() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={handleSearchKeyPress}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchKeyPress(e)}
                 onFocus={() => setSearchFocus(true)}
                 onBlur={() => setSearchFocus(false)}
                 placeholder="Search transactions..."
@@ -795,27 +866,7 @@ export default function TransactionList() {
             </button>
           </div>
 
-          {/* Active filters */}
-          {activeFiltersCount > 0 && (
-            <div className="mt-2 sm:mt-0 flex items-center text-sm text-gray-500">
-              <span className="mr-2">Active Filters:</span>
-              {filters.status && (
-                <span className="mr-2">Status: {filters.status}</span>
-              )}
-              {(filters.dateRange.start || filters.dateRange.end) && (
-                <span className="mr-2">Date range</span>
-              )}
-              {dataSource !== 'transactions' && (
-                <span className="mr-2">Source: {dataSource}</span>
-              )}
-              <button
-                onClick={resetFilters}
-                className="ml-2 text-indigo-600 hover:text-indigo-800 font-medium"
-              >
-                Clear All
-              </button>
-            </div>
-          )}
+          {/* Active filters removed for cleaner UI */}
         </div>
       </motion.div>
 
@@ -831,22 +882,76 @@ export default function TransactionList() {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    <div className="flex items-center cursor-pointer" onClick={() => handleSort('created_at')}>
+                      <span>Date</span>
+                      {sortConfig.key === 'created_at' ? (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                        </span>
+                      ) : (
+                        <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Transaction Hash
+                    <div className="flex items-center cursor-pointer" onClick={() => handleSort('transaction_hash')}>
+                      <span>Transaction Hash</span>
+                      {sortConfig.key === 'transaction_hash' ? (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                        </span>
+                      ) : (
+                        <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
+                    <div className="flex items-center cursor-pointer" onClick={() => handleSort('type')}>
+                      <span>Type</span>
+                      {sortConfig.key === 'type' ? (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                        </span>
+                      ) : (
+                        <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    <div className="flex items-center cursor-pointer" onClick={() => handleSort('amount')}>
+                      <span>Amount</span>
+                      {sortConfig.key === 'amount' ? (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                        </span>
+                      ) : (
+                        <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    <div className="flex items-center cursor-pointer" onClick={() => handleSort('status')}>
+                      <span>Status</span>
+                      {sortConfig.key === 'status' ? (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                        </span>
+                      ) : (
+                        <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Charity
+                    <div className="flex items-center cursor-pointer" onClick={() => handleSort('charity_id')}>
+                      <span>Charity</span>
+                      {sortConfig.key === 'charity_id' ? (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                        </span>
+                      ) : (
+                        <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -942,19 +1047,8 @@ export default function TransactionList() {
                             className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
                           >
                             <FaEye className="mr-1" />
-                            Details
+                            {getDetailsButtonText(item)}
                           </button>
-                          {item.transaction_hash && (
-                            <a
-                              href={`https://sepolia.scrollscan.com/tx/${item.transaction_hash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-green-600 hover:text-green-900 transition-colors duration-150 flex items-center"
-                            >
-                              <FaGlobe className="mr-1" />
-                              Explorer
-                            </a>
-                          )}
                         </div>
                       </td>
                     </motion.tr>
@@ -997,7 +1091,7 @@ export default function TransactionList() {
                   className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                 >
                   <FaTimes className="mr-2" />
-                  Clear All Filters
+                  Reset All Filters
                 </button>
               </div>
             )}

@@ -496,7 +496,7 @@ export default function DonationDetails() {
           )}
 
           {/* Impact Section */}
-          {(donation.status === 'completed' || donation.status === 'pending' || donation.status === 'confirmed') && (
+          {(donation.status === 'completed' || donation.status === 'pending' || donation.status === 'confirmed' || donation.status === 'verified') && (
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Your Impact</h3>
               <div className="mt-4">
@@ -519,23 +519,130 @@ export default function DonationDetails() {
 
                 {/* Impact Metrics */}
                 <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-700 mb-4">People Helped by Your Donation</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Real Impact of Your Donation</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
-                      <span className="text-2xl font-bold text-indigo-600">{Math.floor(donation.amount * 2.5)}</span>
-                      <p className="text-xs text-gray-500 mt-1">People Helped</p>
+                      <span className="text-2xl font-bold text-indigo-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected) :
+                          Math.floor(donation.amount * 2.5)}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">People Directly Helped</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
-                      <span className="text-2xl font-bold text-green-600">{Math.floor(donation.amount / 10)}</span>
+                      <span className="text-2xl font-bold text-green-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 0.4) :
+                          Math.floor(donation.amount / 10)}
+                      </span>
                       <p className="text-xs text-gray-500 mt-1">Children Supported</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
-                      <span className="text-2xl font-bold text-blue-600">{Math.floor(donation.amount / 20)}</span>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 0.2) :
+                          Math.floor(donation.amount / 20)}
+                      </span>
                       <p className="text-xs text-gray-500 mt-1">Families Assisted</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
-                      <span className="text-2xl font-bold text-purple-600">{Math.floor(donation.amount / 5)}</span>
+                      <span className="text-2xl font-bold text-purple-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 3) :
+                          Math.floor(donation.amount / 5)}
+                      </span>
                       <p className="text-xs text-gray-500 mt-1">Meals Provided</p>
+                    </div>
+                  </div>
+                  {donation.charity?.people_affected && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      This charity aims to help {donation.charity.people_affected.toLocaleString()} people in total.
+                      Your donation contributes to {((donation.amount / donation.charity.fund_targeted) * 100).toFixed(2)}% of their funding goal.
+                    </p>
+                  )}
+                </div>
+
+                {/* Donation Flow Visualization */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Donation Journey</h4>
+                  <div className="relative">
+                    {/* Progress bar */}
+                    <div className="hidden sm:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gray-200"></div>
+
+                    {/* Steps */}
+                    <div className="relative space-y-8">
+                      {/* Step 1: Donation Made */}
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-4 sm:mr-8">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${donation.status ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <FaHandHoldingHeart className="h-5 w-5" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">Donation Made</div>
+                            <p className="mt-1 text-sm text-gray-500">
+                              You donated {donation.amount} {donation.currency_type} to {donation.charity?.name}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-400">{formatDate(donation.created_at)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 2: Verification */}
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-4 sm:mr-8">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${donation.status === 'verified' || donation.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <FaCheckCircle className="h-5 w-5" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">Task Verification</div>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {donation.status === 'verified' || donation.status === 'completed'
+                                ? 'The charity has verified task completion with proof documents'
+                                : 'Waiting for the charity to verify task completion'}
+                            </p>
+                            {donation.verified_at && (
+                              <p className="mt-1 text-xs text-gray-400">{formatDate(donation.verified_at)}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 3: Fund Transfer */}
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-4 sm:mr-8">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${donation.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <FaExchangeAlt className="h-5 w-5" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">Funds Released</div>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {donation.status === 'completed'
+                                ? 'Funds have been transferred to the charity wallet'
+                                : 'Funds will be transferred to the charity after admin verification'}
+                            </p>
+                            {donation.completed_at && (
+                              <p className="mt-1 text-xs text-gray-400">{formatDate(donation.completed_at)}</p>
+                            )}
+                            {donation.transfer_transaction_hash && (
+                              <a
+                                href={`${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${donation.transfer_transaction_hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-flex items-center text-xs text-indigo-600 hover:text-indigo-800"
+                              >
+                                View transfer transaction
+                                <FaExternalLinkAlt className="ml-1 h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -544,29 +651,56 @@ export default function DonationDetails() {
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Projects & Activities</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* We're using placeholder images if real images are not available */}
-                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                      <img
-                        src={donation.charity?.project_images?.[0] || `https://source.unsplash.com/random/600x400/?charity,help,${donation.charity?.name?.split(' ')[0]}`}
-                        alt="Charity Project"
-                        className="w-full h-48 object-cover"
-                      />
-                      <div className="p-3 bg-white">
-                        <h5 className="text-sm font-medium text-gray-800">Food Distribution Program</h5>
-                        <p className="text-xs text-gray-500 mt-1">Providing essential nutrition to families in need</p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                      <img
-                        src={donation.charity?.project_images?.[1] || `https://source.unsplash.com/random/600x400/?volunteer,${donation.charity?.name?.split(' ')[0]}`}
-                        alt="Charity Project"
-                        className="w-full h-48 object-cover"
-                      />
-                      <div className="p-3 bg-white">
-                        <h5 className="text-sm font-medium text-gray-800">Community Support Initiative</h5>
-                        <p className="text-xs text-gray-500 mt-1">Building stronger communities through education and support</p>
-                      </div>
-                    </div>
+                    {donation.charity?.tasks && donation.charity.tasks.length > 0 ? (
+                      // Show actual task pictures if available
+                      donation.charity.tasks.slice(0, 2).map((task, index) => (
+                        <div key={index} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={task.pictures && task.pictures.length > 0
+                              ? formatImageUrl(task.pictures[0].path)
+                              : `https://source.unsplash.com/random/600x400/?charity,${index}`}
+                            alt={task.name}
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-3 bg-white">
+                            <h5 className="text-sm font-medium text-gray-800">{task.name}</h5>
+                            <p className="text-xs text-gray-500 mt-1">{task.description.substring(0, 60)}...</p>
+                            <Link
+                              to={`/tasks/${task.id}`}
+                              className="mt-2 inline-block text-xs text-indigo-600 hover:text-indigo-800"
+                            >
+                              View task details
+                            </Link>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      // Fallback to placeholder images
+                      <>
+                        <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={`https://source.unsplash.com/random/600x400/?charity,help,${donation.charity?.name?.split(' ')[0]}`}
+                            alt="Charity Project"
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-3 bg-white">
+                            <h5 className="text-sm font-medium text-gray-800">Food Distribution Program</h5>
+                            <p className="text-xs text-gray-500 mt-1">Providing essential nutrition to families in need</p>
+                          </div>
+                        </div>
+                        <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={`https://source.unsplash.com/random/600x400/?volunteer,${donation.charity?.name?.split(' ')[0]}`}
+                            alt="Charity Project"
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-3 bg-white">
+                            <h5 className="text-sm font-medium text-gray-800">Community Support Initiative</h5>
+                            <p className="text-xs text-gray-500 mt-1">Building stronger communities through education and support</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -575,18 +709,18 @@ export default function DonationDetails() {
                   <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Goal Progress</h4>
                   <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-medium text-gray-700">Monthly Fundraising Goal</span>
+                      <span className="text-xs font-medium text-gray-700">Fundraising Goal</span>
                       <span className="text-xs font-medium text-gray-700">
-                        ${donation.charity?.current_fundraising || Math.floor(donation.amount * 5)} of ${donation.charity?.fundraising_goal || 5000}
+                        {donation.amount} {donation.currency_type} of {donation.charity?.fund_targeted || 10} {donation.currency_type}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div
                         className="bg-indigo-600 h-2.5 rounded-full"
-                        style={{ width: `${Math.min(100, ((donation.charity?.current_fundraising || Math.floor(donation.amount * 5)) / (donation.charity?.fundraising_goal || 5000)) * 100)}%` }}
+                        style={{ width: `${Math.min(100, ((donation.amount) / (donation.charity?.fund_targeted || 10)) * 100)}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">Your donation helps us reach our monthly goal to serve more people in need.</p>
+                    <p className="text-xs text-gray-500 mt-2">Your donation helps us reach our funding goal to serve more people in need.</p>
                   </div>
                 </div>
 
@@ -744,38 +878,7 @@ export default function DonationDetails() {
             </div>
           )}
 
-          {/* Donation Completed Section */}
-          {donation.status === 'completed' && (
-            <div className="mt-8 border-t">
-              <div className="bg-green-50 p-4 rounded">
-                <h3 className="text-lg font-semibold text-green-800 mb-2">
-                  Donation Completed
-                </h3>
-                <p className="text-green-700">
-                  Funds were released on {formatDate(donation.completed_at)}
-                </p>
-
-                {donation.transfer_transaction_hash && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Transfer Transaction:</span>
-                    </p>
-                    <p className="text-xs break-all mt-1">
-                      <a
-                        href={`${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${donation.transfer_transaction_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center text-blue-600 hover:text-blue-800"
-                      >
-                        {donation.transfer_transaction_hash.slice(0, 6)}...{donation.transfer_transaction_hash.slice(-4)}
-                        <FaExternalLinkAlt className="ml-2" />
-                      </a>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Donation Completed Section - Now handled in the Donation Journey visualization */}
         </div>
       </div>
     </div>

@@ -27,6 +27,9 @@ class VerificationTestSeeder extends Seeder
         $this->createPendingDonations();
         $this->createVerifiedTasks();
         $this->createPendingTasks();
+
+        // Create fund release transactions for some verified tasks
+        $this->createFundReleaseTransactions();
     }
 
     /**
@@ -171,6 +174,71 @@ class VerificationTestSeeder extends Seeder
             ]);
 
             echo "Created pending task #{$task->id} for charity {$charity->name}\n";
+        }
+    }
+
+    /**
+     * Create fund release transactions for verified tasks
+     */
+    private function createFundReleaseTransactions(): void
+    {
+        // Get some verified tasks
+        $verifiedTasks = Task::where('status', 'verified')
+            ->take(2)
+            ->get();
+
+        if ($verifiedTasks->isEmpty()) {
+            echo "No verified tasks found for fund release transactions\n";
+            return;
+        }
+
+        // Smart contract address on Scroll Sepolia
+        $contractAddress = "0x7867fC939F10377E309a3BF55bfc194F672B0E84";
+
+        // Get admin user
+        $adminUser = User::where('is_admin', true)->first();
+
+        if (!$adminUser) {
+            // Create an admin user if none exists
+            $adminUser = User::first();
+            if ($adminUser) {
+                $adminUser->is_admin = true;
+                $adminUser->save();
+            } else {
+                echo "No users found for fund release transactions\n";
+                return;
+            }
+        }
+
+        foreach ($verifiedTasks as $task) {
+            // Mark the task as having funds released
+            $task->funds_released = true;
+            $task->save();
+
+            // Get the charity
+            $charity = Charity::find($task->charity_id);
+            if (!$charity) continue;
+
+            // Create a transaction hash
+            $txHash = '0x' . Str::random(40);
+
+            // Create the fund release transaction
+            $transaction = Transaction::create([
+                'user_ic' => $adminUser->ic_number,
+                'charity_id' => $charity->id,
+                'task_id' => $task->id,
+                'amount' => $task->fund_targeted * 0.9, // 90% of the targeted amount
+                'type' => 'fund_release',
+                'status' => 'completed',
+                'transaction_hash' => $txHash,
+                'contract_address' => $contractAddress,
+                'message' => 'Funds released after task verification by admin',
+                'anonymous' => false,
+                'created_at' => now()->subHours(rand(1, 48)),
+                'updated_at' => now()->subHours(rand(1, 48)),
+            ]);
+
+            echo "Created fund release transaction #{$transaction->id} for task #{$task->id} to charity #{$charity->id}\n";
         }
     }
 }

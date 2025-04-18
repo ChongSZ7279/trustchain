@@ -219,7 +219,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           <div className="flex justify-between text-sm mt-1">
             <span className="flex items-center">
               <FaCoins className="text-yellow-500 mr-1 h-3 w-3" />
-              <span>{parseFloat(fundsRaised).toFixed(3)} <span className="text-indigo-600 font-medium">SCROLL</span></span>
+              <span>{parseFloat(fundsRaised).toFixed(3)}</span>
             </span>
             <span>Goal: {parseFloat(fundingGoal).toFixed(3)} <span className="text-indigo-600 font-medium">SCROLL</span></span>
           </div>

@@ -17,16 +17,19 @@ class TransactionSeeder extends Seeder
      */
     public function run(): void
     {
-        // Smart contract address on your local chain
-        $contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
-        
+        // Smart contract address on Scroll Sepolia testnet
+        $contractAddress = "0x7867fC939F10377E309a3BF55bfc194F672B0E84";
+
         // Generate transactions based on donations
         $this->generateDonationTransactions($contractAddress);
-        
+
         // Generate transactions for tasks
         $this->generateTaskTransactions($contractAddress);
+
+        // Generate fund release transactions after task verification
+        $this->generateFundReleaseTransactions($contractAddress);
     }
-    
+
     /**
      * Generate transactions from completed donations
      */
@@ -34,7 +37,7 @@ class TransactionSeeder extends Seeder
     {
         // Get all completed donations
         $donations = Donation::where('status', 'completed')->get();
-        
+
         foreach ($donations as $donation) {
             // Create transaction record
             Transaction::create([
@@ -52,7 +55,7 @@ class TransactionSeeder extends Seeder
             ]);
         }
     }
-    
+
     /**
      * Generate transactions for completed tasks
      */
@@ -60,34 +63,34 @@ class TransactionSeeder extends Seeder
     {
         // Get completed tasks
         $completedTasks = Task::where('status', 'completed')->get();
-        
+
         // Get users to assign as donors for task funding
         $users = User::where('ic_number', '!=', '991234567890')->get();
-        
+
         foreach ($completedTasks as $task) {
             // Get the charity for this task
             $charity = Charity::find($task->charity_id);
-            
+
             // Generate 3-5 transactions per completed task from different users
             $transactionCount = rand(3, 5);
             $totalAmount = $task->fund_targeted;
-            
+
             // Generate random amounts that sum to the total
             $amounts = $this->generateRandomAmounts($totalAmount, $transactionCount);
-            
+
             for ($i = 0; $i < $transactionCount; $i++) {
                 // Select a random user
                 $user = $users->random();
-                
+
                 // Generate a timestamp within the last 90 days
                 $createdAt = now()->subDays(rand(7, 90));
-                
+
                 // Create unique transaction hash
                 $txHash = '0x' . Str::random(40);
-                
+
                 // Determine if transaction is anonymous (15% chance)
                 $isAnonymous = (rand(0, 100) < 15);
-                
+
                 // Task support messages
                 $messages = [
                     'Supporting this important task!',
@@ -97,7 +100,7 @@ class TransactionSeeder extends Seeder
                     'This task will make a real difference.',
                     null
                 ];
-                
+
                 Transaction::create([
                     'user_ic' => $user->ic_number,
                     'charity_id' => $charity->id,
@@ -115,7 +118,72 @@ class TransactionSeeder extends Seeder
             }
         }
     }
-    
+
+    /**
+     * Generate fund release transactions after task verification
+     */
+    private function generateFundReleaseTransactions(string $contractAddress): void
+    {
+        // Get verified tasks with funds_released = true
+        $verifiedTasks = Task::where('status', 'verified')
+            ->where('funds_released', true)
+            ->get();
+
+        // If no verified tasks exist, create some for testing
+        if ($verifiedTasks->isEmpty()) {
+            // Get some completed tasks and mark them as verified with funds released
+            $tasksToVerify = Task::where('status', 'completed')
+                ->take(3)
+                ->get();
+
+            foreach ($tasksToVerify as $task) {
+                $task->status = 'verified';
+                $task->funds_released = true;
+                $task->save();
+
+                $verifiedTasks->push($task);
+            }
+        }
+
+        // Admin user for fund releases
+        $adminUser = User::where('ic_number', '991234567890')->first();
+
+        if (!$adminUser) {
+            // Use any user if admin not found
+            $adminUser = User::first();
+        }
+
+        foreach ($verifiedTasks as $task) {
+            // Get the charity for this task
+            $charity = Charity::find($task->charity_id);
+
+            if (!$charity) continue;
+
+            // Create a fund release transaction
+            $releaseAmount = $task->fund_targeted * 0.8; // 80% of targeted funds as an example
+            $txHash = '0x' . Str::random(40);
+            $createdAt = now()->subDays(rand(1, 30));
+
+            Transaction::create([
+                'user_ic' => $adminUser->ic_number,
+                'charity_id' => $charity->id,
+                'task_id' => $task->id,
+                'amount' => $releaseAmount,
+                'type' => 'fund_release',
+                'status' => 'completed',
+                'transaction_hash' => $txHash,
+                'contract_address' => $contractAddress,
+                'message' => 'Funds released after task verification',
+                'anonymous' => false,
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt
+            ]);
+
+            // Log for debugging
+            echo "Created fund release transaction for task #{$task->id} to charity #{$charity->id}\n";
+        }
+    }
+
     /**
      * Generate random amounts that sum to a target value
      */
@@ -123,24 +191,24 @@ class TransactionSeeder extends Seeder
     {
         $amounts = [];
         $remainingTotal = $total;
-        
+
         for ($i = 0; $i < $count - 1; $i++) {
             // Calculate a random portion of the remaining total
             $maxPortion = min(0.7, 1 - (($count - $i - 1) * 0.1)); // Ensure we leave enough for remaining transactions
             $portion = mt_rand(10, $maxPortion * 100) / 100; // Random between 0.1 and maxPortion
-            
+
             $amount = round($remainingTotal * $portion, 2);
             $amounts[] = $amount;
-            
+
             $remainingTotal -= $amount;
         }
-        
+
         // Add the final amount to make sure they sum exactly to the total
         $amounts[] = round($remainingTotal, 2);
-        
+
         // Shuffle the amounts
         shuffle($amounts);
-        
+
         return $amounts;
     }
-} 
+}

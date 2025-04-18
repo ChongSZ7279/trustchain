@@ -42,7 +42,7 @@ class Task extends Model
     {
         return $this->belongsTo(Charity::class);
     }
-    
+
     /**
      * Get the pictures for the task.
      */
@@ -60,4 +60,12 @@ class Task extends Model
     {
         return $this->verificationComplete() && $this->status === self::STATUS_VERIFIED;
     }
-} 
+
+    /**
+     * Get the transactions associated with this task.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+}

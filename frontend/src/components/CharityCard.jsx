@@ -4,16 +4,16 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { formatImageUrl, getFileType } from '../utils/helpers';
-import { 
-  FaHeart, 
-  FaTag, 
-  FaCheckCircle, 
-  FaExclamationTriangle, 
-  FaMoneyBillWave, 
-  FaChartBar, 
-  FaCalendarAlt, 
-  FaUsers, 
-  FaExternalLinkAlt, 
+import {
+  FaHeart,
+  FaTag,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaMoneyBillWave,
+  FaChartBar,
+  FaCalendarAlt,
+  FaUsers,
+  FaExternalLinkAlt,
   FaEdit,
   FaChevronDown,
   FaChevronUp,
@@ -45,36 +45,36 @@ export default function CharityCard({ charity, inDashboard = false }) {
   const [followerCount, setFollowerCount] = useState(charity.follower_count || 0);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  
+
   // Function to check if the user is an organization
   const isOrganizationUser = () => {
     // More thorough check for organization status
-    return accountType === 'organization' || 
+    return accountType === 'organization' ||
            currentUser?.account_type === 'organization' ||
            currentUser?.is_organization === true;
   };
-  
+
   // Helper function to format image URL
   const formatImageUrl = (path) => {
     if (!path) return null;
-    
+
     // If it's already a full URL
     if (path.startsWith('http')) return path;
-    
+
     // For storage paths like "organization_covers/filename.jpg"
-    if (path.includes('organization_covers/') || 
-        path.includes('organization_logos/') || 
+    if (path.includes('organization_covers/') ||
+        path.includes('organization_logos/') ||
         path.includes('charity_pictures/')) {
       return `/storage/${path}`;
     }
-    
+
     // If path starts with a slash, it's already a relative path
     if (path.startsWith('/')) return path;
-    
+
     // Otherwise, add a slash to make it a relative path from the root
     return `/${path}`;
   };
-  
+
   // Log image paths for debugging
   useEffect(() => {
     console.log('Charity image path:', charity.picture_path);
@@ -90,7 +90,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           console.log(`Checking follow status for charity ${charity.id}`);
           const response = await axios.get(`/charities/${charity.id}/follow-status`);
           console.log('Follow status response:', response.data);
-          
+
           if (response.data && response.data.is_following !== undefined) {
             setIsFollowing(response.data.is_following);
             if (response.data.follower_count !== undefined) {
@@ -101,7 +101,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           console.error('Error checking follow status:', error);
         }
       };
-      
+
       checkFollowStatus();
     }
   }, [currentUser, charity.id, inDashboard]);
@@ -128,13 +128,13 @@ export default function CharityCard({ charity, inDashboard = false }) {
       // Fix the API endpoint - remove the /api prefix
       const response = await axios.post(`/charities/${charity.id}/follow`);
       console.log('Follow response:', response.data);
-      
+
       // Update the UI based on the response
       setIsFollowing(response.data.is_following);
       setFollowerCount(response.data.follower_count || followerCount);
-      
-      toast.success(response.data.is_following ? 
-        'Successfully followed charity' : 
+
+      toast.success(response.data.is_following ?
+        'Successfully followed charity' :
         'Successfully unfollowed charity'
       );
     } catch (error) {
@@ -148,9 +148,9 @@ export default function CharityCard({ charity, inDashboard = false }) {
   // Support both field naming conventions (fund_received/fund_targeted and funds_raised/funding_goal)
   const fundsRaised = charity.funds_raised || charity.fund_received || 0;
   const fundingGoal = charity.funding_goal || charity.fund_targeted || 0;
-  
-  const progressPercentage = fundingGoal > 0 
-    ? Math.min(100, (fundsRaised / fundingGoal) * 100) 
+
+  const progressPercentage = fundingGoal > 0
+    ? Math.min(100, (fundsRaised / fundingGoal) * 100)
     : 0;
 
   return (
@@ -165,7 +165,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
       >
       {/* Cover Image */}
       <div className="relative p-4">
-        <div 
+        <div
           className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden relative"
           style={{ boxShadow: "6px 6px 10px rgba(0, 0, 0, 0.2)" }}
         >
@@ -185,19 +185,19 @@ export default function CharityCard({ charity, inDashboard = false }) {
             />
           )}
         </div>
-        
+
       </div>
-      
+
       {/* Charity Info */}
       <div className="p-4 flex-grow">
         <div className="flex flex-col">
           <h3 className="text-xl font-bold text-gray-900 mb-2">{charity.name}</h3>
-          
+
           <div className="flex flex-wrap gap-2 mb-2">
             <span className="px-3 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-800">
               {charity.category || 'CATEGORY'}
             </span>
-            
+
             {charity.is_verified ? (
               <span className="px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 flex items-center">
                 <FaCheckCircle className="mr-1" /> VERIFIED
@@ -210,7 +210,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           </div>
 
         </div>
-        
+
         {/* Fund Progress */}
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
@@ -218,16 +218,16 @@ export default function CharityCard({ charity, inDashboard = false }) {
             <span>{progressPercentage.toFixed(0)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-indigo-600 h-2.5 rounded-full" 
+            <div
+              className="bg-indigo-600 h-2.5 rounded-full"
               style={{ width: `${progressPercentage}%` }}
             ></div>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span>{fundsRaised} ETH raised</span>
-            <span>Goal: {fundingGoal} ETH</span>
+            <span>{fundsRaised} SCROLL raised</span>
+            <span>Goal: {fundingGoal} SCROLL</span>
           </div>
-          
+
           {charity.is_fully_funded && (
             <div className="mt-2 text-green-600 text-sm font-semibold">
               Fully Funded! 🎉
@@ -286,7 +286,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
               )}
             </button>
           )}
-          
+
           {/* Show a static "Following" indicator when in dashboard */}
           {inDashboard && (
             <div className="text-sm flex items-center text-indigo-600">
@@ -298,4 +298,4 @@ export default function CharityCard({ charity, inDashboard = false }) {
     </Link>
     </motion.div>
   );
-} 
+}

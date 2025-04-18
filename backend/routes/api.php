@@ -555,6 +555,7 @@ Route::get('/admin/verification/tasks', [AdminVerificationController::class, 'ge
 Route::get('/admin/verification/donations', [AdminVerificationController::class, 'getDonations']);
 Route::get('/admin/verification/stats', [AdminVerificationController::class, 'getStats']);
 Route::post('/admin/verification/donations/{id}/verify', [AdminVerificationController::class, 'verifyDonation']);
+Route::post('/admin/verification/tasks/{id}/verify', [AdminVerificationController::class, 'verifyTask']);
 
 // Add these routes
 Route::get('/blockchain/donation-count', [BlockchainController::class, 'getDonationCount']);

@@ -485,7 +485,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (Scroll ETH)
+                Amount (SCROLL)
               </label>
               <input
                 type="number"

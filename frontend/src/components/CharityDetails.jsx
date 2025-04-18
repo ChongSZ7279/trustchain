@@ -140,7 +140,7 @@ const FundingProgress = ({ current, target, donorCount, endDate, className = "" 
           <div className="flex items-center space-x-2">
             <FaCoins className="text-yellow-600" />
             <span className="font-medium text-gray-900">
-              {formatCurrency(current)} / {formatCurrency(target)}
+              {current} SCROLL / {target} SCROLL
             </span>
           </div>
         </div>

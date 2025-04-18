@@ -127,14 +127,13 @@ export default function DonationVerificationCard({ donation, onStatusUpdate }) {
 
             {donation.status === 'verified' && (
               <div className="mt-4">
-                <AdminFundReleaseButton
-                  type="donation"
-                  id={donation.id}
-                  onSuccess={(data) => {
-                    onStatusUpdate(donation.id, 'completed');
-                    toast.success('Funds released successfully to charity wallet');
-                  }}
-                />
+                <div className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600">
+                  <FaExclamationTriangle className="mr-2" />
+                  Awaiting Task Verification
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Funds will be released when a task is verified
+                </p>
               </div>
             )}
           </div>

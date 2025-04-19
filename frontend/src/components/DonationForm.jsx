@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaWallet, FaExclamationTriangle, FaExchangeAlt, FaEthereum } from 'react-icons/fa';
+import { FaTimes, FaWallet, FaExclamationTriangle, FaExchangeAlt, FaEthereum, FaCreditCard, FaDollarSign } from 'react-icons/fa';
 import Web3 from 'web3';
 import { useNavigate } from 'react-router-dom';
 import { initWeb3, donateToCharity, isWalletConnected, switchToScroll } from '../utils/contractInteraction';
@@ -7,6 +7,8 @@ import { processDonation } from '../services/donationService';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
 import FiatToScrollPaymentWrapper from './FiatToScrollPaymentForm';
 import FiatToScrollExplainer from './FiatToScrollExplainer';
+import MoonPayIntegration from './MoonPayIntegration';
+import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 const DonationForm = ({ charityId, onDonate, loading = false }) => {
@@ -19,7 +21,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [walletConnected, setWalletConnected] = useState(false);
   const [processingDonation, setProcessingDonation] = useState(false);
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain' or 'fiat_to_scroll'
+  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'fiat_to_scroll', or 'moonpay'
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   useEffect(() => {
@@ -371,34 +373,47 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       {/* Payment Method Selection */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Choose Payment Method</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => setPaymentMethod('blockchain')}
-            className={`p-4 border rounded-lg flex items-center justify-center transition-all ${
+            className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
               paymentMethod === 'blockchain'
                 ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-center">
+            <div className="flex items-center mb-1">
               <FaEthereum className={`mr-1 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
               <span className={`text-xs font-bold ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`}>SCROLL</span>
             </div>
-            <span className={`font-medium ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Scroll
+            <span className={`font-medium text-sm ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-700'}`}>
+              Wallet
             </span>
           </button>
           <button
             onClick={() => setPaymentMethod('fiat_to_scroll')}
-            className={`p-4 border rounded-lg flex items-center justify-center transition-all ${
+            className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
               paymentMethod === 'fiat_to_scroll'
                 ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >
-            <FaExchangeAlt className={`mr-2 ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-400'}`} />
-            <span className={`font-medium ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Fiat to Scroll
+            <FaExchangeAlt className={`mb-1 ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <span className={`font-medium text-sm ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-700'}`}>
+              Card
+            </span>
+          </button>
+          <button
+            onClick={() => setPaymentMethod('moonpay')}
+            className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
+              paymentMethod === 'moonpay'
+                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+            }`}
+          >
+            <FaCreditCard className={`mb-1 ${paymentMethod === 'moonpay' ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <span className={`font-medium text-sm ${paymentMethod === 'moonpay' ? 'text-indigo-600' : 'text-gray-700'}`}>
+              MoonPay
             </span>
           </button>
         </div>
@@ -587,7 +602,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </div>
           </form>
         </>
-      ) : (
+      ) : paymentMethod === 'fiat_to_scroll' ? (
         <div className="space-y-5">
           <FiatToScrollExplainer />
 
@@ -662,6 +677,108 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               onSuccess={handleFiatToScrollSuccess}
               onError={handleFiatToScrollError}
             />
+          )}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="bg-indigo-50 p-4 rounded-lg mb-4">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-medium text-indigo-800 flex items-center">
+                <FaCreditCard className="mr-2" />
+                MoonPay Integration
+              </h3>
+              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                Demo Mode
+              </span>
+            </div>
+            <p className="text-indigo-700 text-sm">
+              MoonPay allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
+              Your funds will be converted to SCROLL and donated directly to the charity.
+            </p>
+            <p className="text-indigo-700 text-xs mt-2 italic">
+              Note: This is a simulated MoonPay experience for demonstration purposes.
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="moonpayDonationAmount" className="block text-sm font-medium text-gray-700 mb-1">
+              Amount
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                id="moonpayDonationAmount"
+                placeholder="10.00"
+                step="0.01"
+                min="5.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+                className="w-full px-4 py-2 pr-16 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <div className="flex items-center text-gray-500 font-medium">
+                  <FaDollarSign className="mr-1 text-green-500" />
+                  <span>USD</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">Minimum donation: $5.00 USD</p>
+          </div>
+
+          <div>
+            <label htmlFor="moonpayDonationMessage" className="block text-sm font-medium text-gray-700 mb-1">
+              Message (Optional)
+            </label>
+            <textarea
+              id="moonpayDonationMessage"
+              placeholder="Add a message with your donation"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+              rows="3"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  id="isAnonymousMoonpay"
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="isAnonymousMoonpay" className="font-medium text-gray-700">
+                  Make my donation anonymous
+                </label>
+                <p className="text-gray-500 text-xs mt-1">
+                  Your identity will not be shown publicly with your donation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {amount && parseFloat(amount) >= 5.0 && (
+            <MoonPayIntegration
+              amount={parseFloat(amount)}
+              charityId={charityId}
+              message={message}
+              isAnonymous={isAnonymous}
+              onSuccess={handleFiatToScrollSuccess}
+              onError={handleFiatToScrollError}
+            />
+          )}
+
+          {amount && parseFloat(amount) > 0 && parseFloat(amount) < 5.0 && (
+            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+              <p className="text-yellow-700 text-sm">
+                MoonPay requires a minimum donation of $5.00 USD. Please increase your donation amount to continue.
+              </p>
+            </div>
           )}
         </div>
       )}

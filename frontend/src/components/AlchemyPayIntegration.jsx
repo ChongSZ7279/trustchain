@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { MoonPayBuyWidget, MoonPayProvider } from '@moonpay/moonpay-react';
-import { FaSpinner, FaCreditCard } from 'react-icons/fa';
+import { FaSpinner, FaCreditCard, FaExchangeAlt, FaEthereum } from 'react-icons/fa';
 import axios from 'axios';
 import API_BASE_URL from '../config/api';
 import { toast } from 'react-hot-toast';
-import MockMoonPayWidget from './MockMoonPayWidget';
+import MockAlchemyPayWidget from './MockAlchemyPayWidget';
 
-const MoonPayIntegration = ({
+const AlchemyPayIntegration = ({
   amount,
   charityId,
   message = '',
@@ -16,37 +15,29 @@ const MoonPayIntegration = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [widgetLoading, setWidgetLoading] = useState(true);
-  // Use MoonPay's official test API key
-  const [moonpayApiKey, setMoonpayApiKey] = useState('pk_test_GuiwqtgmYRgQrDui8ws97odTqUWj7');
-
-  // Set to false to use the real MoonPay widget instead of the mock
-  const [useMockWidget, setUseMockWidget] = useState(false);
-
+  
+  // Use Alchemy Pay's test API key
+  const [alchemyPayApiKey, setAlchemyPayApiKey] = useState('your_alchemy_pay_test_api_key');
+  
+  // Set to true to use the mock widget during development
+  const [useMockWidget, setUseMockWidget] = useState(true);
+  
   // Check if we're in development mode
   const isDevelopment = import.meta.env.MODE === 'development' || !import.meta.env.PROD;
 
   useEffect(() => {
     // Show the widget when the component mounts
     setVisible(true);
-
-    // Set a timeout to hide the loading indicator after a reasonable time
-    // This is a fallback in case the widget doesn't trigger onSuccess or onError
-    const loadingTimer = setTimeout(() => {
-      setWidgetLoading(false);
-    }, 5000);
-
-    return () => clearTimeout(loadingTimer);
   }, []);
 
-  // Handle successful transaction from MoonPay
-  const handleMoonPaySuccess = async (data) => {
-    console.log('MoonPay transaction successful:', data);
+  // Handle successful transaction from Alchemy Pay
+  const handleAlchemyPaySuccess = async (data) => {
+    console.log('Alchemy Pay transaction successful:', data);
     setProcessing(true);
 
     try {
       // Extract transaction data
-      const transactionHash = data.transactionId || `moonpay-${Date.now()}`;
+      const transactionHash = data.transactionId || `alchemypay-${Date.now()}`;
 
       // Create a donation record in the database
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -69,9 +60,9 @@ const MoonPayIntegration = ({
         message: message || '',
         test_mode: true,
         is_fiat: true,
-        currency_type: 'SCROLL',
+        currency_type: 'ETH', // Initially ETH, will be bridged to SCROLL
         is_anonymous: isAnonymous,
-        payment_method: 'moonpay',
+        payment_method: 'alchemypay',
         ...(!isLoggedIn ? {
           user_email: localStorage.getItem('guest_email') || 'guest@example.com',
           user_name: localStorage.getItem('guest_name') || 'Guest User'
@@ -98,7 +89,7 @@ const MoonPayIntegration = ({
         throw new Error(response.data.error || 'Failed to record donation');
       }
     } catch (error) {
-      console.error('Error processing MoonPay donation:', error);
+      console.error('Error processing Alchemy Pay donation:', error);
       if (onError) {
         onError(error);
       }
@@ -109,9 +100,9 @@ const MoonPayIntegration = ({
     }
   };
 
-  // Handle errors from MoonPay
-  const handleMoonPayError = (error) => {
-    console.error('MoonPay error:', error);
+  // Handle errors from Alchemy Pay
+  const handleAlchemyPayError = (error) => {
+    console.error('Alchemy Pay error:', error);
 
     // More detailed error logging
     if (error && error.message) {
@@ -123,21 +114,16 @@ const MoonPayIntegration = ({
     }
 
     // Show more specific error message to user
-    let errorMessage = 'MoonPay transaction failed. Please try again.';
+    let errorMessage = 'Alchemy Pay transaction failed. Please try again.';
 
     if (error && error.message) {
-      errorMessage = `MoonPay error: ${error.message}`;
+      errorMessage = `Alchemy Pay error: ${error.message}`;
     }
 
     toast.error(errorMessage);
 
     if (onError) {
       onError(error);
-    }
-
-    // Don't hide the widget on all errors
-    if (error && error.message && error.message.includes('widget closed')) {
-      setVisible(false);
     }
   };
 
@@ -169,22 +155,22 @@ const MoonPayIntegration = ({
           )}
 
           {useMockWidget ? (
-            <MockMoonPayWidget
+            <MockAlchemyPayWidget
               amount={amount}
               baseCurrencyCode="usd"
               defaultCurrencyCode="eth"
-              onSuccess={handleMoonPaySuccess}
-              onError={handleMoonPayError}
+              onSuccess={handleAlchemyPaySuccess}
+              onError={handleAlchemyPayError}
             />
           ) : (
             <div className="p-6 border border-gray-200 rounded-lg bg-white">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">Continue with MoonPay</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">Continue with Alchemy Pay</h3>
                 <p className="text-gray-600">
-                  You'll be redirected to MoonPay to complete your purchase of ${amount} USD worth of ETH.
+                  You'll be redirected to Alchemy Pay to complete your purchase of ${amount} USD worth of ETH.
                 </p>
               </div>
-
+              
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <div className="flex items-center mb-2">
                   <FaCreditCard className="text-indigo-600 mr-2" />
@@ -196,37 +182,38 @@ const MoonPayIntegration = ({
                   <p><span className="font-medium">Mode:</span> Test Transaction</p>
                 </div>
               </div>
-
+              
               <button
                 onClick={() => {
-                  // Create MoonPay URL
-                  const moonpayUrl = new URL('https://buy-sandbox.moonpay.com');
-                  moonpayUrl.searchParams.append('apiKey', moonpayApiKey);
-                  moonpayUrl.searchParams.append('currencyCode', 'eth');
-                  moonpayUrl.searchParams.append('baseCurrencyAmount', amount);
-                  moonpayUrl.searchParams.append('walletAddress', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e');
-                  moonpayUrl.searchParams.append('externalCustomerId', `trustchain-${Date.now()}`);
-                  moonpayUrl.searchParams.append('redirectURL', window.location.href);
-
-                  // Open MoonPay in new window
-                  window.open(moonpayUrl.toString(), '_blank');
-
+                  // Create Alchemy Pay URL - this is a placeholder, replace with actual implementation
+                  const alchemyPayUrl = new URL('https://checkout-test.alchemypay.org');
+                  alchemyPayUrl.searchParams.append('apiKey', alchemyPayApiKey);
+                  alchemyPayUrl.searchParams.append('fiatAmount', amount);
+                  alchemyPayUrl.searchParams.append('fiatCurrency', 'USD');
+                  alchemyPayUrl.searchParams.append('cryptoCurrency', 'ETH');
+                  alchemyPayUrl.searchParams.append('walletAddress', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e');
+                  alchemyPayUrl.searchParams.append('orderId', `trustchain-${Date.now()}`);
+                  alchemyPayUrl.searchParams.append('redirectUrl', window.location.href);
+                  
+                  // Open Alchemy Pay in new window
+                  window.open(alchemyPayUrl.toString(), '_blank');
+                  
                   // Show processing state
                   setProcessing(true);
-
+                  
                   // After 3 seconds, show a message about checking for the transaction
                   setTimeout(() => {
-                    toast.success('Please complete your purchase on MoonPay. Return to this page after completion.');
+                    toast.success('Please complete your purchase on Alchemy Pay. Return to this page after completion.');
                     setProcessing(false);
                   }, 3000);
                 }}
                 className="w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Continue to MoonPay
+                Continue to Alchemy Pay
               </button>
-
+              
               <p className="text-xs text-gray-500 mt-4 text-center">
-                You will be redirected to MoonPay's secure payment page in a new window.
+                You will be redirected to Alchemy Pay's secure payment page in a new window.
               </p>
             </div>
           )}
@@ -236,4 +223,4 @@ const MoonPayIntegration = ({
   );
 };
 
-export default MoonPayIntegration;
+export default AlchemyPayIntegration;

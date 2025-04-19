@@ -7,7 +7,7 @@ import { processDonation } from '../services/donationService';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
 import FiatToScrollPaymentWrapper from './FiatToScrollPaymentForm';
 import FiatToScrollExplainer from './FiatToScrollExplainer';
-import MoonPayIntegration from './MoonPayIntegration';
+import AlchemyPayIntegration from './AlchemyPayIntegration';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -21,7 +21,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [walletConnected, setWalletConnected] = useState(false);
   const [processingDonation, setProcessingDonation] = useState(false);
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'fiat_to_scroll', or 'moonpay'
+  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'fiat_to_scroll', or 'alchemypay'
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   useEffect(() => {
@@ -404,16 +404,16 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </span>
           </button>
           <button
-            onClick={() => setPaymentMethod('moonpay')}
+            onClick={() => setPaymentMethod('alchemypay')}
             className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
-              paymentMethod === 'moonpay'
+              paymentMethod === 'alchemypay'
                 ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >
-            <FaCreditCard className={`mb-1 ${paymentMethod === 'moonpay' ? 'text-indigo-600' : 'text-gray-400'}`} />
-            <span className={`font-medium text-sm ${paymentMethod === 'moonpay' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              MoonPay
+            <FaCreditCard className={`mb-1 ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <span className={`font-medium text-sm ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-700'}`}>
+              Alchemy Pay
             </span>
           </button>
         </div>
@@ -679,21 +679,21 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             />
           )}
         </div>
-      ) : (
+      ) : paymentMethod === 'alchemypay' ? (
         <div className="space-y-5">
           <div className="bg-indigo-50 p-4 rounded-lg mb-4">
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-medium text-indigo-800 flex items-center">
                 <FaCreditCard className="mr-2" />
-                MoonPay Integration
+                Alchemy Pay Integration
               </h3>
               <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                 Test Mode
               </span>
             </div>
             <p className="text-indigo-700 text-sm">
-              MoonPay allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
-              You'll be redirected to MoonPay's secure payment page to complete your purchase.
+              Alchemy Pay allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
+              You'll be redirected to Alchemy Pay's secure payment page to complete your purchase.
             </p>
             <p className="text-indigo-700 text-xs mt-2">
               <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
@@ -701,13 +701,13 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           </div>
 
           <div>
-            <label htmlFor="moonpayDonationAmount" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="alchemypayDonationAmount" className="block text-sm font-medium text-gray-700 mb-1">
               Amount
             </label>
             <div className="relative">
               <input
                 type="number"
-                id="moonpayDonationAmount"
+                id="alchemypayDonationAmount"
                 placeholder="10.00"
                 step="0.01"
                 min="5.00"
@@ -727,11 +727,11 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           </div>
 
           <div>
-            <label htmlFor="moonpayDonationMessage" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="alchemypayDonationMessage" className="block text-sm font-medium text-gray-700 mb-1">
               Message (Optional)
             </label>
             <textarea
-              id="moonpayDonationMessage"
+              id="alchemypayDonationMessage"
               placeholder="Add a message with your donation"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -744,7 +744,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             <div className="flex items-start">
               <div className="flex items-center h-5">
                 <input
-                  id="isAnonymousMoonpay"
+                  id="isAnonymousAlchemypay"
                   type="checkbox"
                   checked={isAnonymous}
                   onChange={(e) => setIsAnonymous(e.target.checked)}
@@ -752,7 +752,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 />
               </div>
               <div className="ml-3 text-sm">
-                <label htmlFor="isAnonymousMoonpay" className="font-medium text-gray-700">
+                <label htmlFor="isAnonymousAlchemypay" className="font-medium text-gray-700">
                   Make my donation anonymous
                 </label>
                 <p className="text-gray-500 text-xs mt-1">
@@ -763,7 +763,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           </div>
 
           {amount && parseFloat(amount) >= 5.0 && (
-            <MoonPayIntegration
+            <AlchemyPayIntegration
               amount={parseFloat(amount)}
               charityId={charityId}
               message={message}
@@ -776,12 +776,12 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           {amount && parseFloat(amount) > 0 && parseFloat(amount) < 5.0 && (
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
               <p className="text-yellow-700 text-sm">
-                MoonPay requires a minimum donation of $5.00 USD. Please increase your donation amount to continue.
+                Alchemy Pay requires a minimum donation of $5.00 USD. Please increase your donation amount to continue.
               </p>
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

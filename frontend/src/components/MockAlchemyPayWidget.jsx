@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaCreditCard, FaLock, FaCheckCircle, FaSpinner } from 'react-icons/fa';
 
-const MockMoonPayWidget = ({
+const MockAlchemyPayWidget = ({
   amount,
   baseCurrencyCode = 'usd',
   defaultCurrencyCode = 'eth',
@@ -63,7 +63,7 @@ const MockMoonPayWidget = ({
       // Simulate successful transaction
       if (onSuccess) {
         onSuccess({
-          transactionId: `mock-moonpay-${Date.now()}`,
+          transactionId: `mock-alchemypay-${Date.now()}`,
           amount: parseFloat(amount),
           currency: defaultCurrencyCode,
           status: 'completed'
@@ -115,7 +115,7 @@ const MockMoonPayWidget = ({
           <div className="bg-indigo-100 p-2 rounded-full mr-2">
             <FaCreditCard className="text-indigo-600" />
           </div>
-          <span className="font-medium text-gray-800">MoonPay Test Mode</span>
+          <span className="font-medium text-gray-800">Alchemy Pay Test Mode</span>
         </div>
         <div className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
           Simulated
@@ -125,7 +125,7 @@ const MockMoonPayWidget = ({
       <div className="mb-4">
         <div className="bg-blue-50 p-3 rounded-md mb-4">
           <p className="text-blue-700 text-sm">
-            <strong>Test Mode:</strong> This is a simulated MoonPay widget for development. No real transactions will be processed.
+            <strong>Test Mode:</strong> This is a simulated Alchemy Pay widget for development. No real transactions will be processed.
           </p>
         </div>
 
@@ -242,4 +242,4 @@ const MockMoonPayWidget = ({
   );
 };
 
-export default MockMoonPayWidget;
+export default MockAlchemyPayWidget;

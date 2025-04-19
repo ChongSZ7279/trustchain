@@ -956,7 +956,7 @@ export default function CharityDetails() {
         >
 
           {/* Charity Info Section - Improved UI with status-based styling */}
-          <div className={`p-8 relative -mt-20 rounded-xl shadow-lg ${charity?.is_verified ? 'bg-green-50/30' : 'bg-amber-50/30'}`} style={{ zIndex: 3 }}>
+          <div className={`p-8 relative rounded-xl shadow-lg ${charity?.is_verified ? 'bg-green-50/30' : 'bg-amber-50/30'}`} style={{ zIndex: 3 }}>
             {/* Status Banner */}
             <div className={`absolute top-0 right-0 left-0 h-2 rounded-t-xl ${charity?.is_verified ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-to-r from-amber-400 to-yellow-300'}`}></div>
 

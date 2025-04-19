@@ -7,7 +7,6 @@ import BackButton from './BackToHistory';
 import CharityCard from './CharityCard';
 import {
   FaBuilding,
-  FaUsers,
   FaAddressCard,
   FaFileAlt,
   FaEdit,
@@ -173,25 +172,12 @@ export default function OrganizationDetails() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center bg-white p-8 rounded-xl shadow-md max-w-md mx-4"
+          className="text-center"
         >
           <div className="flex flex-col items-center">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200"></div>
-              <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
-                <div className="h-10 w-10 rounded-full bg-indigo-600"></div>
-              </div>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-800 mt-6 mb-2">Loading Organization</h3>
-            <p className="text-gray-600">Fetching organization details...</p>
-            <div className="mt-4 w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-indigo-600 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 1.5, ease: "easeInOut" }}
-              />
-            </div>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading organization details...</p>
+            <p className="text-gray-500 text-sm mt-2">This may take a moment</p>
           </div>
         </motion.div>
       </div>
@@ -238,101 +224,69 @@ export default function OrganizationDetails() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-50"
+      className="min-h-screen"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
-        <BackButton />
-      </div>
+      <BackButton />
 
-      {/* Organization Header Card */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+      {/* Organization Profile Card */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white rounded-xl shadow-md overflow-hidden"
+          className="bg-white rounded-xl shadow-sm overflow-hidden"
         >
-          {/* Cover Image Banner */}
-          <div className="relative h-40 md:h-56 w-full overflow-hidden">
-            <div className={`absolute inset-0 bg-gray-200 ${imageLoading.cover ? 'animate-pulse' : ''}`}></div>
-            {orgData.cover_image_path ? (
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${getImageUrl(orgData.cover_image_path)})`,
-                  zIndex: 1
-                }}
-              ></div>
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center" style={{ zIndex: 1 }}>
-                <div className="text-white text-opacity-30 font-bold text-4xl">{orgData.name?.substring(0, 2).toUpperCase() || 'ORG'}</div>
-              </div>
-            )}
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" style={{ zIndex: 2 }}></div>
-          </div>
-
-          {/* Organization Info Section */}
-          <div className="relative px-6 pt-4 pb-6 md:px-8 md:pb-8">
-            {/* Logo - Positioned to overlap with cover image */}
-            <div className="absolute -top-16 left-6 md:left-8 z-10">
-              <div className={`h-24 w-24 md:h-28 md:w-28 rounded-xl overflow-hidden border-4 border-white shadow-lg transition-opacity duration-300 ${imageLoading.logo ? 'animate-pulse bg-gray-200' : ''}`}>
-                <img
-                  src={getImageUrl(orgData.logo) || 'https://via.placeholder.com/128'}
-                  alt={orgData.name}
-                  className="h-full w-full object-cover"
-                  onLoad={() => setImageLoading(prev => ({ ...prev, logo: false }))}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/128';
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Organization Info with right padding to avoid overlapping with logo */}
-            <div className="mt-12 md:mt-14 md:ml-32">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                  {orgData.category || 'CATEGORY'}
-                </span>
-                {orgData.is_verified ? (
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center">
-                    <FaCheckCircle className="mr-1" />
-                    VERIFIED
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center">
-                    <FaExclamationTriangle className="mr-1" />
-                    PENDING VERIFICATION
-                  </span>
-                )}
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 flex items-center">
-                  <FaUsers className="mr-1" />
-                  {followerCount || 0} Followers
-                </span>
+          <div className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              {/* Logo */}
+              <div className="relative flex-shrink-0">
+                <div className={`h-24 w-24 md:h-28 md:w-28 border-2 border-blue-100 rounded-lg overflow-hidden transition-opacity duration-300 ${imageLoading.logo ? 'animate-pulse bg-gray-200' : ''}`}>
+                  <img
+                    src={getImageUrl(orgData.logo) || 'https://via.placeholder.com/128'}
+                    alt={orgData.name}
+                    className="h-full w-full object-cover"
+                    onLoad={() => setImageLoading(prev => ({ ...prev, logo: false }))}
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/128';
+                    }}
+                  />
+                </div>
               </div>
 
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{orgData.name}</h1>
+              {/* Organization Info */}
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="px-3 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-800">
+                    {orgData.category || 'CATEGORY'}
+                    </span>
+                    {orgData.is_verified ? (
+                    <span className="px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                      <FaCheckCircle className="inline-block mr-1" />
+                      VERIFIED
+                      </span>
+                    ) : (
+                    <span className="px-3 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <FaExclamationTriangle className="inline-block mr-1" />
+                      PENDING
+                      </span>
+                    )}
+                  </div>
 
-              <div className="flex items-center text-gray-600 text-sm mb-4">
-                <FaMapMarkerAlt className="mr-2 text-gray-500" />
-                <span className="line-clamp-1">{orgData.register_address || 'No address provided'}</span>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{orgData.name.toUpperCase()}</h1>
+
+                <div className="flex items-center text-gray-600 text-sm">
+                    <FaMapMarkerAlt className="mr-2 text-gray-500" />
+                  <span>{orgData.register_address || 'No address provided'}</span>
+                  </div>
               </div>
 
-              {/* Description */}
-              <div className="text-gray-600 mb-6 max-w-3xl">
-                <p className="line-clamp-3">
-                  {orgData.description?.substring(0, 300) + (orgData.description?.length > 300 ? '...' : '') || 'No description provided.'}
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3">
+              {/* Actions */}
+              <div className="flex gap-3 mt-4 md:mt-0">
                 {/* Only show follow button for non-organization users */}
                 {!isOrganizationUser() && (
                   <button
                     onClick={toggleFollow}
                     disabled={isFollowLoading}
-                    className={`px-5 py-2 rounded-lg font-medium text-sm transition-all duration-200 shadow-sm ${
+                    className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-200 ${
                       isFollowing
                         ? 'bg-gray-100 text-indigo-600 hover:bg-gray-200 border border-indigo-600'
                         : 'bg-indigo-600 text-white hover:bg-indigo-700'
@@ -346,13 +300,13 @@ export default function OrganizationDetails() {
                 <div className="relative">
                   <button
                     onClick={handleShare}
-                    className="px-5 py-2 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 shadow-sm"
+                    className="px-4 py-2 rounded-md font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
                   >
                     <FaShare className="inline-block mr-2" />
                     Share
                   </button>
                   {showShareTooltip && (
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-gray-800 text-white text-xs py-2 px-3 rounded-md z-10 shadow-lg">
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-gray-800 text-white text-xs py-1 px-2 rounded z-10">
                       Link copied to clipboard!
                     </div>
                   )}
@@ -361,12 +315,50 @@ export default function OrganizationDetails() {
                 {canEditOrganization() && (
                   <Link
                     to={`/organizations/${id}/edit`}
-                    className="px-5 py-2 rounded-lg font-medium text-sm bg-green-600 text-white hover:bg-green-700 transition-all duration-200 shadow-sm"
+                    className="px-4 py-2 rounded-md font-medium text-sm bg-green-600 border border-gray-300 text-white hover:bg-green-700 transition-all duration-200 text-center"
                   >
                     <FaEdit className="inline-block mr-2" />
-                    Edit Organization
+                    Edit
                   </Link>
                 )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Cover Image with Description */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl shadow-sm overflow-hidden"
+        >
+          <div className="relative h-64 md:h-72 rounded-xl overflow-hidden">
+            {/* Cover Image with Loading State */}
+            <div className={`absolute inset-0 bg-gray-200 ${imageLoading.cover ? 'animate-pulse' : ''}`}></div>
+            {orgData.cover_image_path ? (
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                  backgroundImage: `url(${getImageUrl(orgData.cover_image_path)})`,
+                  zIndex: 1
+                }}
+              ></div>
+            ) : (
+              <div className="absolute inset-0 bg-gray-300 flex items-center justify-center" style={{ zIndex: 1 }}>
+                <p className="text-gray-500">No cover image available</p>
+              </div>
+            )}
+            {/* Text Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent flex items-center" style={{ zIndex: 2 }}>
+              <div className="p-6 text-white max-w-lg">
+                <div className="prose prose-invert max-w-none">
+                  <p className="text-gray-200">
+                    {orgData.objectives || orgData.description?.substring(0, 200) + (orgData.description?.length > 200 ? '...' : '') || 'No description provided.'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

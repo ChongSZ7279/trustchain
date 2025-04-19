@@ -5,9 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { initWeb3, donateToCharity, isWalletConnected, switchToScroll } from '../utils/contractInteraction';
 import { processDonation } from '../services/donationService';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
-import FiatToScrollPaymentWrapper from './FiatToScrollPaymentForm';
-import FiatToScrollExplainer from './FiatToScrollExplainer';
 import AlchemyPayIntegration from './AlchemyPayIntegration';
+import TransakIntegration from './TransakIntegration';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -21,7 +20,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [walletConnected, setWalletConnected] = useState(false);
   const [processingDonation, setProcessingDonation] = useState(false);
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'fiat_to_scroll', or 'alchemypay'
+  const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'transak', or 'alchemypay'
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   useEffect(() => {
@@ -391,16 +390,16 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </span>
           </button>
           <button
-            onClick={() => setPaymentMethod('fiat_to_scroll')}
+            onClick={() => setPaymentMethod('transak')}
             className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
-              paymentMethod === 'fiat_to_scroll'
+              paymentMethod === 'transak'
                 ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >
-            <FaExchangeAlt className={`mb-1 ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-400'}`} />
-            <span className={`font-medium text-sm ${paymentMethod === 'fiat_to_scroll' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Card
+            <FaExchangeAlt className={`mb-1 ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-400'}`} />
+            <span className={`font-medium text-sm ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-700'}`}>
+              Transak
             </span>
           </button>
           <button
@@ -602,9 +601,26 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </div>
           </form>
         </>
-      ) : paymentMethod === 'fiat_to_scroll' ? (
+      ) : paymentMethod === 'transak' ? (
         <div className="space-y-5">
-          <FiatToScrollExplainer />
+          <div className="bg-indigo-50 p-4 rounded-lg mb-4">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-medium text-indigo-800 flex items-center">
+                <FaExchangeAlt className="mr-2" />
+                Transak Integration
+              </h3>
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                Test Mode
+              </span>
+            </div>
+            <p className="text-indigo-700 text-sm">
+              Transak allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
+              You'll be redirected to Transak's secure payment page to complete your purchase.
+            </p>
+            <p className="text-indigo-700 text-xs mt-2">
+              <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
+            </p>
+          </div>
 
           <div>
             <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
@@ -650,7 +666,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             <div className="flex items-start">
               <div className="flex items-center h-5">
                 <input
-                  id="isAnonymousFiat"
+                  id="isAnonymousTransak"
                   type="checkbox"
                   checked={isAnonymous}
                   onChange={(e) => setIsAnonymous(e.target.checked)}
@@ -658,7 +674,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 />
               </div>
               <div className="ml-3 text-sm">
-                <label htmlFor="isAnonymousFiat" className="font-medium text-gray-700">
+                <label htmlFor="isAnonymousTransak" className="font-medium text-gray-700">
                   Make my donation anonymous
                 </label>
                 <p className="text-gray-500 text-xs mt-1">
@@ -669,7 +685,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           </div>
 
           {amount && parseFloat(amount) > 0 && (
-            <FiatToScrollPaymentWrapper
+            <TransakIntegration
               amount={parseFloat(amount)}
               charityId={charityId}
               message={message}

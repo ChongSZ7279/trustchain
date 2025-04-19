@@ -1,0 +1,23 @@
+/* MoonPay Widget Styles */
+
+.moonpay-widget-container {
+  position: relative;
+  min-height: 600px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.moonpay-widget-container iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  border-radius: 8px !important;
+}
+
+/* Fix for mobile devices */
+@media (max-width: 768px) {
+  .moonpay-widget-container {
+    min-height: 700px;
+  }
+}

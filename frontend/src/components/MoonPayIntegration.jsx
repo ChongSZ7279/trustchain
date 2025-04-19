@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MoonPayBuyWidget } from '@moonpay/moonpay-react';
-import { FaSpinner } from 'react-icons/fa';
+import { MoonPayBuyWidget, MoonPayProvider } from '@moonpay/moonpay-react';
+import { FaSpinner, FaCreditCard } from 'react-icons/fa';
 import axios from 'axios';
 import API_BASE_URL from '../config/api';
 import { toast } from 'react-hot-toast';
@@ -16,6 +16,7 @@ const MoonPayIntegration = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [widgetLoading, setWidgetLoading] = useState(true);
   // Use MoonPay's official test API key
   const [moonpayApiKey, setMoonpayApiKey] = useState('pk_test_GuiwqtgmYRgQrDui8ws97odTqUWj7');
 
@@ -28,6 +29,14 @@ const MoonPayIntegration = ({
   useEffect(() => {
     // Show the widget when the component mounts
     setVisible(true);
+
+    // Set a timeout to hide the loading indicator after a reasonable time
+    // This is a fallback in case the widget doesn't trigger onSuccess or onError
+    const loadingTimer = setTimeout(() => {
+      setWidgetLoading(false);
+    }, 5000);
+
+    return () => clearTimeout(loadingTimer);
   }, []);
 
   // Handle successful transaction from MoonPay
@@ -103,11 +112,33 @@ const MoonPayIntegration = ({
   // Handle errors from MoonPay
   const handleMoonPayError = (error) => {
     console.error('MoonPay error:', error);
+
+    // More detailed error logging
+    if (error && error.message) {
+      console.error('Error message:', error.message);
+    }
+
+    if (error && error.code) {
+      console.error('Error code:', error.code);
+    }
+
+    // Show more specific error message to user
+    let errorMessage = 'MoonPay transaction failed. Please try again.';
+
+    if (error && error.message) {
+      errorMessage = `MoonPay error: ${error.message}`;
+    }
+
+    toast.error(errorMessage);
+
     if (onError) {
       onError(error);
     }
-    toast.error('MoonPay transaction failed. Please try again.');
-    setVisible(false);
+
+    // Don't hide the widget on all errors
+    if (error && error.message && error.message.includes('widget closed')) {
+      setVisible(false);
+    }
   };
 
   return (
@@ -146,19 +177,58 @@ const MoonPayIntegration = ({
               onError={handleMoonPayError}
             />
           ) : (
-            <MoonPayBuyWidget
-              variant="embedded"
-              baseCurrencyCode="usd"
-              baseCurrencyAmount={amount}
-              defaultCurrencyCode="eth" // Using ETH as Scroll might not be directly available in MoonPay sandbox
-              colorCode="#6366F1" // Indigo color to match the app's theme
-              showWalletAddressForm={true}
-              onSuccess={handleMoonPaySuccess}
-              onError={handleMoonPayError}
-              visible={visible}
-              apiKey={moonpayApiKey}
-              testMode={true} // Force test mode
-            />
+            <div className="p-6 border border-gray-200 rounded-lg bg-white">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">Continue with MoonPay</h3>
+                <p className="text-gray-600">
+                  You'll be redirected to MoonPay to complete your purchase of ${amount} USD worth of ETH.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <div className="flex items-center mb-2">
+                  <FaCreditCard className="text-indigo-600 mr-2" />
+                  <span className="font-medium">Transaction Details</span>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <p><span className="font-medium">Amount:</span> ${amount} USD</p>
+                  <p><span className="font-medium">Currency:</span> ETH (Ethereum)</p>
+                  <p><span className="font-medium">Mode:</span> Test Transaction</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  // Create MoonPay URL
+                  const moonpayUrl = new URL('https://buy-sandbox.moonpay.com');
+                  moonpayUrl.searchParams.append('apiKey', moonpayApiKey);
+                  moonpayUrl.searchParams.append('currencyCode', 'eth');
+                  moonpayUrl.searchParams.append('baseCurrencyAmount', amount);
+                  moonpayUrl.searchParams.append('walletAddress', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e');
+                  moonpayUrl.searchParams.append('externalCustomerId', `trustchain-${Date.now()}`);
+                  moonpayUrl.searchParams.append('redirectURL', window.location.href);
+
+                  // Open MoonPay in new window
+                  window.open(moonpayUrl.toString(), '_blank');
+
+                  // Show processing state
+                  setProcessing(true);
+
+                  // After 3 seconds, show a message about checking for the transaction
+                  setTimeout(() => {
+                    toast.success('Please complete your purchase on MoonPay. Return to this page after completion.');
+                    setProcessing(false);
+                  }, 3000);
+                }}
+                className="w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Continue to MoonPay
+              </button>
+
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                You will be redirected to MoonPay's secure payment page in a new window.
+              </p>
+            </div>
           )}
         </div>
       )}

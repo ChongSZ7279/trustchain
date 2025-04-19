@@ -687,16 +687,16 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 <FaCreditCard className="mr-2" />
                 MoonPay Integration
               </h3>
-              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
-                Demo Mode
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                Test Mode
               </span>
             </div>
             <p className="text-indigo-700 text-sm">
               MoonPay allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
-              Your funds will be converted to SCROLL and donated directly to the charity.
+              You'll be redirected to MoonPay's secure payment page to complete your purchase.
             </p>
-            <p className="text-indigo-700 text-xs mt-2 italic">
-              Note: This is a simulated MoonPay experience for demonstration purposes.
+            <p className="text-indigo-700 text-xs mt-2">
+              <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
             </p>
           </div>
 

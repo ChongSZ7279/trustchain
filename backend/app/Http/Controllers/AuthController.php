@@ -191,7 +191,7 @@ class AuthController extends Controller
             'facebook' => 'nullable|string|max:255',
             'instagram' => 'nullable|string|max:255',
             'wallet_address' => 'nullable|string|max:255',
-            'representative_id' => 'required|string|max:100',
+            'representative_id' => 'required|string|max:100|exists:users,ic_number',
             'description' => 'required|string',
             'objectives' => 'required|string',
             'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',

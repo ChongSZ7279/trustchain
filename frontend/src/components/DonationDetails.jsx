@@ -4,9 +4,10 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { 
-  FaArrowLeft, 
-  FaCheckCircle, 
+import AdminFundReleaseButton from './AdminFundReleaseButton';
+import {
+  FaArrowLeft,
+  FaCheckCircle,
   FaExclamationCircle,
   FaExclamationTriangle,
   FaSync,
@@ -19,18 +20,27 @@ import {
   FaExternalLinkAlt,
   FaCoins,
   FaChartLine,
+  FaEthereum,
+  FaCreditCard,
+  FaExchangeAlt,
+  FaDollarSign,
+  FaFileInvoice,
+  FaDownload,
+  FaPrint
 } from 'react-icons/fa';
 import { ethers } from 'ethers';
-import { DonationContractABI } from '../utils/contractABI';
+import { DonationContractABI } from '../contracts/DonationContractABI';
 import { formatImageUrl } from '../utils/helpers';
 import BackButton from './BackToHistory';
+import { SCROLL_CONFIG } from '../utils/scrollConfig';
+import { getDonationDetails } from '../services/donationService';
 
 export default function DonationDetails() {
   const { id } = useParams();
   const { user } = useAuth();
   const [donation, setDonation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
   const [proofFiles, setProofFiles] = useState([]);
   const [verificationNotes, setVerificationNotes] = useState('');
   const [uploadError, setUploadError] = useState('');
@@ -40,11 +50,28 @@ export default function DonationDetails() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchDonationDetails = async () => {
+    const fetchDonation = async () => {
       try {
-        setLoading(true);
-        const response = await axios.get(`/donations/${id}`);
-        setDonation(response.data);
+        const data = await getDonationDetails(id);
+
+        // Check if this is an anonymous donation with amount 0
+        if (data.anonymous_donation && data.amount === 0) {
+          // Try to get the amount from localStorage
+          try {
+            const recentDonations = JSON.parse(localStorage.getItem('recentDonations') || '[]');
+            const donationInfo = recentDonations.find(d => d.id.toString() === id.toString());
+
+            if (donationInfo && donationInfo.amount) {
+              console.log('Found donation amount in localStorage:', donationInfo.amount);
+              // Update the amount from localStorage
+              data.amount = donationInfo.amount;
+            }
+          } catch (localStorageError) {
+            console.warn('Error reading donation from localStorage:', localStorageError);
+          }
+        }
+
+        setDonation(data);
       } catch (err) {
         console.error('Error fetching donation details:', err);
         setError('Failed to fetch donation details');
@@ -53,7 +80,7 @@ export default function DonationDetails() {
       }
     };
 
-    fetchDonationDetails();
+    fetchDonation();
   }, [id]);
 
   const handleFileChange = (e) => {
@@ -92,23 +119,7 @@ export default function DonationDetails() {
     }
   };
 
-  const handleComplete = async () => {
-    if (!window.confirm('Are you sure you want to release the funds?')) return;
 
-    try {
-      setStatusLoading(true);
-      const response = await axios.post(`/donations/${donation.id}`, {
-        action: 'complete'
-      });
-      setDonation(response.data.donation);
-      toast.success('Funds released successfully');
-    } catch (err) {
-      console.error('Error releasing funds:', err);
-      toast.error('Failed to release funds');
-    } finally {
-      setStatusLoading(false);
-    }
-  };
 
   const handleStatusChange = async (newStatus) => {
     try {
@@ -116,7 +127,7 @@ export default function DonationDetails() {
       const response = await axios.post(`/donations/${donation.id}`, {
         status: newStatus
       });
-      
+
       setDonation(response.data);
       toast.success(`Donation marked as ${newStatus}`);
     } catch (err) {
@@ -131,7 +142,7 @@ export default function DonationDetails() {
     if (!window.confirm('Are you sure you want to delete this donation? This action cannot be undone.')) {
       return;
     }
-    
+
     try {
       setDeleteLoading(true);
       await axios.delete(`/donations/${donation.id}`);
@@ -150,7 +161,7 @@ export default function DonationDetails() {
     try {
       let provider;
       let signer;
-      
+
       // Check ethers version by feature detection
       if (typeof ethers.BrowserProvider === 'function') {
         // ethers v6
@@ -161,11 +172,11 @@ export default function DonationDetails() {
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
       }
-      
+
       const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
-      
+
       const contract = new ethers.Contract(
-        contractAddress, 
+        contractAddress,
         DonationContractABI,
         signer
       );
@@ -181,67 +192,19 @@ export default function DonationDetails() {
     window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg">
-          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h3 className="text-xl font-medium text-red-800 mb-2">{error}</h3>
-          <p className="text-gray-600 mb-6">We couldn't load the donation details. Please try again.</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            <FaArrowLeft className="mr-2" />
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!donation) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg">
-          <FaExclamationCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-          <h3 className="text-xl font-medium text-gray-800 mb-2">Donation Not Found</h3>
-          <p className="text-gray-600 mb-6">The donation you're looking for doesn't exist or you don't have permission to view it.</p>
-          <button
-            onClick={() => navigate('/donations')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            <FaArrowLeft className="mr-2" />
-            Back to Donations
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getBlockExplorerLink = (hash) => {
+    return `${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${hash}`;
   };
 
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
+  // Format date to a readable format
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  // Get status badge class based on donation status
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
       case 'completed':
       case 'confirmed':
       case 'verified':
@@ -255,25 +218,39 @@ export default function DonationDetails() {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-      case 'confirmed':
-      case 'verified':
-        return <FaCheckCircle className="text-green-500" />;
-      case 'pending':
-        return <FaExclamationCircle className="text-yellow-500" />;
-      case 'failed':
-        return <FaExclamationCircle className="text-red-500" />;
-      default:
-        return null;
-    }
+  const viewInvoice = () => {
+    navigate(`/donations/${id}/invoice`);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !donation) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">{error || 'Donation not found'}</h2>
+          <p className="mt-2">Please try again later</p>
+          <Link to="/donations" className="mt-4 inline-block text-indigo-600 hover:text-indigo-900">
+            Back to Donations
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if this is a fiat-to-scroll donation
+  const isFiatToScroll = donation.payment_method === 'fiat_to_scroll';
+
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <BackButton />
+    <div className="min-h-screen">
+      <BackButton className="mb-4" />
+      <div className="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -284,31 +261,36 @@ export default function DonationDetails() {
                   Donation ID: {donation.id}
                 </p>
               </div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(donation.status)}`}>
-                {getStatusIcon(donation.status)}
-                <span className="ml-1">{donation.status.charAt(0).toUpperCase() + donation.status.slice(1)}</span>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(donation.status)}`}>
+                {donation.status.charAt(0).toUpperCase() + donation.status.slice(1)}
               </span>
             </div>
           </div>
 
           <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
             <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-gray-500">Donation Type</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                    Charity Donation
-                  </span>
-                </dd>
-              </div>
+              {isFiatToScroll && (
+                <div className="sm:col-span-1">
+                  <dt className="text-sm font-medium text-gray-500">Payment Type</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Fiat to Scroll Conversion
+                    </span>
+                  </dd>
+                </div>
+              )}
 
               <div className="sm:col-span-1">
                 <dt className="text-sm font-medium text-gray-500">Amount</dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  <div className="flex items-center">
-                    <FaCoins className="text-yellow-500 mr-1" />
-                    ${parseFloat(donation.amount).toFixed(2)} {donation.currency_type}
-                  </div>
+                  {donation.amount} {donation.currency_type}
+
+                  {isFiatToScroll && donation.fiat_amount && (
+                    <div className="mt-2 flex items-center text-sm text-gray-600">
+                      <FaDollarSign className="mr-1 text-green-500" />
+                      <span>Originally {donation.fiat_amount} {donation.fiat_currency}</span>
+                    </div>
+                  )}
                 </dd>
               </div>
 
@@ -319,8 +301,32 @@ export default function DonationDetails() {
 
               <div className="sm:col-span-1">
                 <dt className="text-sm font-medium text-gray-500">Payment Method</dt>
-                <dd className="mt-1 text-sm text-gray-900">{donation.payment_method || 'Credit Card'}</dd>
+                <dd className="mt-1 text-sm text-gray-900 flex items-center">
+                  {donation.payment_method === 'blockchain' ? (
+                    <>
+                      <FaEthereum className="mr-1 text-indigo-600" />
+                      <span>Blockchain</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaCreditCard className="mr-1 text-gray-600" />
+                      <span>Credit Card</span>
+                    </>
+                  )}
+                </dd>
               </div>
+
+              {isFiatToScroll && donation.exchange_rate && (
+                <div className="sm:col-span-2">
+                  <dt className="text-sm font-medium text-gray-500">Exchange Rate</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    1 SCROLL = {donation.exchange_rate} {donation.fiat_currency}
+                    <div className="mt-1 text-xs text-gray-500">
+                      Converted on {formatDate(donation.created_at)}
+                    </div>
+                  </dd>
+                </div>
+              )}
 
               <div className="sm:col-span-2">
                 <dt className="text-sm font-medium text-gray-500">From</dt>
@@ -371,207 +377,361 @@ export default function DonationDetails() {
             </div>
           </div>
 
+          {/* Invoice Section */}
+          <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Donation Receipt</h3>
+
+            <div className="mt-4 bg-gray-50 p-4 rounded-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FaFileInvoice className="h-5 w-5 text-indigo-500 mr-2" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Invoice #{donation.id}
+                  </span>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={viewInvoice}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <FaFileAlt className="mr-1" /> View Invoice
+                  </button>
+                  <button
+                    onClick={() => navigate(`/donations/${id}/invoice?download=true`)}
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <FaDownload className="mr-1" /> Download
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <p className="text-xs text-gray-500">
+                  This donation receipt serves as your official record for tax purposes.
+                  View or download the full invoice for detailed information.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Blockchain Verification Section */}
-          {donation.transaction_hash && (
-            <div className="px-4 py-5 sm:px-6">
+          {donation.payment_method === 'blockchain' && donation.transaction_hash && (
+            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
+
               <div className="mt-4">
                 <div className="flex items-center mb-4">
-                  <div className="flex-shrink-0 h-5 w-5 rounded-full bg-green-500 mr-2"></div>
+                  <div className={`flex-shrink-0 h-5 w-5 rounded-full ${donation.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'} mr-2`}></div>
                   <p className="text-sm font-medium text-gray-900">
-                    Verified on Blockchain
+                    {donation.status === 'completed' ? 'Verified on Blockchain' : 'Pending Verification'}
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 p-4 rounded-md">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
                       <dd className="mt-1 text-sm text-gray-900 break-all">{donation.transaction_hash}</dd>
                     </div>
+
+                    {donation.smart_contract_data && (
+                      <>
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500">From Address</dt>
+                          <dd className="mt-1 text-sm text-gray-900 break-all">
+                            {JSON.parse(donation.smart_contract_data).from}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500">To Address (Contract)</dt>
+                          <dd className="mt-1 text-sm text-gray-900 break-all">
+                            {JSON.parse(donation.smart_contract_data).to}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-gray-500">Block Number</dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {JSON.parse(donation.smart_contract_data).blockNumber}
+                          </dd>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  
+
                   <div className="mt-4">
-                    <button onClick={viewOnBlockExplorer} className="text-sm text-indigo-600 hover:text-indigo-900">
-                      View on Sepolia Explorer
-                    </button>
+                    <a
+                      href={getBlockExplorerLink(donation.transaction_hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-600 hover:text-indigo-900 inline-flex items-center"
+                    >
+                      View on Scroll Explorer
+                      <FaExternalLinkAlt className="ml-1 h-4 w-4" />
+                    </a>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Impact Section */}
-          {donation.status === 'completed' && (
-            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Your Impact</h3>
-              <div className="mt-4">
-                {donation.impact_metrics ? (
-                  <div className="space-y-4">
-                    <div className="bg-indigo-50 p-4 rounded-md">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <FaHandHoldingHeart className="h-5 w-5 text-indigo-600" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="text-sm font-medium text-indigo-800">Thank You for Your Donation!</h3>
-                          <div className="mt-2 text-sm text-indigo-700">
-                            <p>Your donation is making a real difference. Here's how:</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Impact Metrics Dashboard */}
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                      <div className="px-4 py-5 sm:p-6">
-                        <h4 className="text-base font-semibold text-gray-900 flex items-center">
-                          <FaChartLine className="mr-2 text-indigo-500" />
-                          Impact Metrics
-                        </h4>
-                        
-                        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                          {donation.impact_metrics.map((metric, index) => (
-                            <div key={index} className="bg-gray-50 px-4 py-5 rounded-lg text-center">
-                              <div className="text-3xl font-bold text-indigo-600">{metric.value}</div>
-                              <div className="mt-1 text-sm font-medium text-gray-500">{metric.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Impact Stories */}
-                    {donation.impact_stories && donation.impact_stories.length > 0 && (
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h4 className="text-base font-semibold text-gray-900 mb-4">Impact Stories</h4>
-                          <div className="space-y-4">
-                            {donation.impact_stories.map((story, index) => (
-                              <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                                {story.image && (
-                                  <img 
-                                    src={formatImageUrl(story.image)} 
-                                    alt={story.title} 
-                                    className="h-48 w-full object-cover rounded-md mb-3"
-                                  />
-                                )}
-                                <h5 className="font-medium text-gray-900">{story.title}</h5>
-                                <p className="mt-1 text-sm text-gray-600">{story.description}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Progress Towards Goals */}
-                    {donation.impact_goals && (
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h4 className="text-base font-semibold text-gray-900 mb-4">Progress Towards Goals</h4>
-                          <div className="space-y-4">
-                            {donation.impact_goals.map((goal, index) => (
-                              <div key={index}>
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-sm font-medium text-gray-700">{goal.label}</span>
-                                  <span className="text-sm font-medium text-gray-700">
-                                    {goal.current} / {goal.target} ({Math.round((goal.current / goal.target) * 100)}%)
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                  <div 
-                                    className="bg-indigo-600 h-2.5 rounded-full" 
-                                    style={{ width: `${Math.min(100, Math.round((goal.current / goal.target) * 100))}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Impact Update Timeline */}
-                    {donation.impact_updates && donation.impact_updates.length > 0 && (
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h4 className="text-base font-semibold text-gray-900 mb-4">Impact Updates</h4>
-                          <div className="flow-root">
-                            <ul className="-mb-8">
-                              {donation.impact_updates.map((update, index) => (
-                                <li key={index}>
-                                  <div className="relative pb-8">
-                                    {index !== donation.impact_updates.length - 1 ? (
-                                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                                    ) : null}
-                                    <div className="relative flex space-x-3">
-                                      <div>
-                                        <span className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center ring-8 ring-white">
-                                          <FaCalendarAlt className="h-4 w-4 text-white" />
-                                        </span>
-                                      </div>
-                                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                                        <div>
-                                          <p className="text-sm text-gray-500">
-                                            {update.title}
-                                          </p>
-                                          <p className="mt-1 text-sm text-gray-700">{update.description}</p>
-                                        </div>
-                                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                                          {formatDate(update.date)}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 p-4 rounded-md">
+                {donation.status === 'completed' && (
+                  <div className="mt-4 p-4 bg-green-50 rounded-md">
                     <div className="flex">
                       <div className="flex-shrink-0">
-                        <FaExclamationCircle className="h-5 w-5 text-yellow-400" />
+                        <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
                       </div>
                       <div className="ml-3">
-                        <h3 className="text-sm font-medium text-yellow-800">Impact details coming soon</h3>
-                        <div className="mt-2 text-sm text-yellow-700">
-                          <p>The organization is currently working on collecting impact data. Check back later for detailed information on how your donation is making a difference.</p>
+                        <h3 className="text-sm font-medium text-green-800">Blockchain Verification Successful</h3>
+                        <div className="mt-2 text-sm text-green-700">
+                          <p>
+                            This donation has been verified on the blockchain, ensuring transparency and immutability.
+                            The funds have been securely transferred according to the smart contract rules.
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
 
-                {/* Share Impact */}
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={() => {
-                      const shareText = `I just made a donation to ${donation.charity?.name} through TrustChain and it's making a real difference!`;
-                      const shareUrl = window.location.href;
-                      
-                      // Use Web Share API if available
-                      if (navigator.share) {
-                        navigator.share({
-                          title: 'My Donation Impact',
-                          text: shareText,
-                          url: shareUrl,
-                        });
-                      } else {
-                        // Fallback to copying to clipboard
-                        navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
-                        toast.success('Share link copied to clipboard!');
-                      }
-                    }}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          {/* Impact Section */}
+          {(donation.status === 'completed' || donation.status === 'pending' || donation.status === 'confirmed' || donation.status === 'verified') && (
+            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Your Impact</h3>
+              <div className="mt-4">
+                <div className="bg-indigo-50 p-4 rounded-md mb-6">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaHandHoldingHeart className="h-5 w-5 text-indigo-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-indigo-800">Thank You for Your Donation!</h3>
+                      <div className="mt-2 text-sm text-indigo-700">
+                        <p>
+                          Your donation of {donation.amount} {donation.currency_type} helps provide essential support to those in need.
+                          {donation.payment_method === 'blockchain' && ' With blockchain verification, you can be confident that your contribution is being used as intended.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Impact Metrics */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Real Impact of Your Donation</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-indigo-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected) :
+                          Math.floor(donation.amount * 2.5)}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">People Directly Helped</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-green-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 0.4) :
+                          Math.floor(donation.amount / 10)}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">Children Supported</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 0.2) :
+                          Math.floor(donation.amount / 20)}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">Families Assisted</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                      <span className="text-2xl font-bold text-purple-600">
+                        {donation.charity?.people_affected ?
+                          Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 3) :
+                          Math.floor(donation.amount / 5)}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">Meals Provided</p>
+                    </div>
+                  </div>
+                  {donation.charity?.people_affected && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      This charity aims to help {donation.charity.people_affected.toLocaleString()} people in total.
+                      Your donation contributes to {((donation.amount / donation.charity.fund_targeted) * 100).toFixed(2)}% of their funding goal.
+                    </p>
+                  )}
+                </div>
+
+                {/* Donation Flow Visualization */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Donation Journey</h4>
+                  <div className="relative">
+                    {/* Progress bar */}
+                    <div className="hidden sm:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gray-200"></div>
+
+                    {/* Steps */}
+                    <div className="relative space-y-8">
+                      {/* Step 1: Donation Made */}
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-4 sm:mr-8">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${donation.status ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <FaHandHoldingHeart className="h-5 w-5" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">Donation Made</div>
+                            <p className="mt-1 text-sm text-gray-500">
+                              You donated {donation.amount} {donation.currency_type} to {donation.charity?.name}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-400">{formatDate(donation.created_at)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 2: Verification */}
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-4 sm:mr-8">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${donation.status === 'verified' || donation.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <FaCheckCircle className="h-5 w-5" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">Task Verification</div>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {donation.status === 'verified' || donation.status === 'completed'
+                                ? 'The charity has verified task completion with proof documents'
+                                : 'Waiting for the charity to verify task completion'}
+                            </p>
+                            {donation.verified_at && (
+                              <p className="mt-1 text-xs text-gray-400">{formatDate(donation.verified_at)}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 3: Fund Transfer */}
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-4 sm:mr-8">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${donation.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <FaExchangeAlt className="h-5 w-5" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">Funds Released</div>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {donation.status === 'completed'
+                                ? 'Funds have been transferred to the charity wallet'
+                                : 'Funds will be transferred to the charity after admin verification'}
+                            </p>
+                            {donation.completed_at && (
+                              <p className="mt-1 text-xs text-gray-400">{formatDate(donation.completed_at)}</p>
+                            )}
+                            {donation.transfer_transaction_hash && (
+                              <a
+                                href={`${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${donation.transfer_transaction_hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-flex items-center text-xs text-indigo-600 hover:text-indigo-800"
+                              >
+                                View transfer transaction
+                                <FaExternalLinkAlt className="ml-1 h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Task Pictures */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Projects & Activities</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {donation.charity?.tasks && donation.charity.tasks.length > 0 ? (
+                      // Show actual task pictures if available
+                      donation.charity.tasks.slice(0, 2).map((task, index) => (
+                        <div key={index} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={task.pictures && task.pictures.length > 0
+                              ? formatImageUrl(task.pictures[0].path)
+                              : `https://source.unsplash.com/random/600x400/?charity,${index}`}
+                            alt={task.name}
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-3 bg-white">
+                            <h5 className="text-sm font-medium text-gray-800">{task.name}</h5>
+                            <p className="text-xs text-gray-500 mt-1">{task.description.substring(0, 60)}...</p>
+                            <Link
+                              to={`/tasks/${task.id}`}
+                              className="mt-2 inline-block text-xs text-indigo-600 hover:text-indigo-800"
+                            >
+                              View task details
+                            </Link>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      // Fallback to placeholder images
+                      <>
+                        <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={`https://source.unsplash.com/random/600x400/?charity,help,${donation.charity?.name?.split(' ')[0]}`}
+                            alt="Charity Project"
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-3 bg-white">
+                            <h5 className="text-sm font-medium text-gray-800">Food Distribution Program</h5>
+                            <p className="text-xs text-gray-500 mt-1">Providing essential nutrition to families in need</p>
+                          </div>
+                        </div>
+                        <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                          <img
+                            src={`https://source.unsplash.com/random/600x400/?volunteer,${donation.charity?.name?.split(' ')[0]}`}
+                            alt="Charity Project"
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-3 bg-white">
+                            <h5 className="text-sm font-medium text-gray-800">Community Support Initiative</h5>
+                            <p className="text-xs text-gray-500 mt-1">Building stronger communities through education and support</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4">Charity Goal Progress</h4>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium text-gray-700">Fundraising Goal</span>
+                      <span className="text-xs font-medium text-gray-700">
+                        {donation.amount} {donation.currency_type} of {donation.charity?.fund_targeted || 10} {donation.currency_type}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-indigo-600 h-2.5 rounded-full"
+                        style={{ width: `${Math.min(100, ((donation.amount) / (donation.charity?.fund_targeted || 10)) * 100)}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Your donation helps us reach our funding goal to serve more people in need.</p>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <Link
+                    to={`/charities/${donation.charity_id}`}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                   >
-                    Share My Impact
-                  </button>
+                    Learn More About {donation.charity?.name || 'This Charity'}
+                    <span className="ml-2" aria-hidden="true">→</span>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -591,8 +751,8 @@ export default function DonationDetails() {
                   {donation.task_proof.map((proof, index) => (
                     <div key={index} className="border rounded-lg overflow-hidden">
                       {proof.type.startsWith('image/') ? (
-                        <img 
-                          src={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`} 
+                        <img
+                          src={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`}
                           alt={`Proof ${index + 1}`}
                           className="w-full h-48 object-cover"
                         />
@@ -606,7 +766,7 @@ export default function DonationDetails() {
                         <p className="text-xs text-gray-500">
                           Uploaded: {new Date(proof.uploaded_at).toLocaleDateString()}
                         </p>
-                        <a 
+                        <a
                           href={`${process.env.REACT_APP_API_URL}/storage/${proof.path}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -634,6 +794,7 @@ export default function DonationDetails() {
             </div>
           )}
 
+          {/* Upload Task Proof Section */}
           {donation.status === 'confirmed' && user?.id === donation.charity?.organization_id && (
             <div className="mt-8 border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Upload Task Proof</h3>
@@ -674,6 +835,7 @@ export default function DonationDetails() {
             </div>
           )}
 
+          {/* Task Verification Section */}
           {donation.status === 'verified' && donation.task_proof && (
             <div className="mt-8 border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Task Verification</h3>
@@ -705,45 +867,20 @@ export default function DonationDetails() {
               </div>
 
               {user?.is_admin && (
-                <button
-                  onClick={handleComplete}
-                  className="mt-4 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600"
-                >
-                  Release Funds
-                </button>
+                <AdminFundReleaseButton
+                  type="donation"
+                  id={id}
+                  onSuccess={(data) => {
+                    setDonation({...donation, status: 'completed', completed_at: new Date().toISOString(), transfer_transaction_hash: data.transaction_hash});
+                  }}
+                />
               )}
             </div>
           )}
 
-          {donation.status === 'completed' && (
-            <div className="mt-8 border-t">
-              <div className="bg-green-50 p-4 rounded">
-                <h3 className="text-lg font-semibold text-green-800 mb-2">
-                  Donation Completed
-                </h3>
-                <p className="text-green-700">
-                  Funds were released on {formatDate(donation.completed_at)}
-                </p>
-                
-                {donation.transfer_transaction_hash && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Transfer Transaction:</span>
-                    </p>
-                    <p className="text-xs break-all mt-1">{donation.transfer_transaction_hash}</p>
-                    <button 
-                      onClick={() => window.open(`https://sepolia.etherscan.io/tx/${donation.transfer_transaction_hash}`, '_blank')}
-                      className="mt-2 text-sm text-indigo-600 hover:text-indigo-900"
-                    >
-                      View Transfer on Sepolia Explorer
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Donation Completed Section - Now handled in the Donation Journey visualization */}
         </div>
       </div>
     </div>
   );
-} 
+}

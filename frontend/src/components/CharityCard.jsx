@@ -4,16 +4,16 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { formatImageUrl, getFileType } from '../utils/helpers';
-import { 
-  FaHeart, 
-  FaTag, 
-  FaCheckCircle, 
-  FaExclamationTriangle, 
-  FaMoneyBillWave, 
-  FaChartBar, 
-  FaCalendarAlt, 
-  FaUsers, 
-  FaExternalLinkAlt, 
+import {
+  FaHeart,
+  FaTag,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaMoneyBillWave,
+  FaChartBar,
+  FaCalendarAlt,
+  FaUsers,
+  FaExternalLinkAlt,
   FaEdit,
   FaChevronDown,
   FaChevronUp,
@@ -24,7 +24,8 @@ import {
   FaFileWord,
   FaEye,
   FaUserCheck,
-  FaUserPlus
+  FaUserPlus,
+  FaCoins
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
@@ -38,40 +39,65 @@ const getFileIcon = (fileType) => {
 
 export default function CharityCard({ charity, inDashboard = false }) {
   const navigate = useNavigate();
-  const { organization, currentUser } = useAuth();
+  const auth = useAuth();
+  const { currentUser, accountType } = auth;
   const [showDetails, setShowDetails] = useState(false);
   const [isFollowing, setIsFollowing] = useState(inDashboard || charity.is_following || false);
   const [followerCount, setFollowerCount] = useState(charity.follower_count || 0);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  
-  
+
+  // Function to check if the user is an organization
+  const isOrganizationUser = () => {
+    // More thorough check for organization status
+    return accountType === 'organization' ||
+           currentUser?.account_type === 'organization' ||
+           currentUser?.is_organization === true;
+  };
+
   // Helper function to format image URL
   const formatImageUrl = (path) => {
     if (!path) return null;
-    
+
     // If it's already a full URL
     if (path.startsWith('http')) return path;
-    
+
     // For storage paths like "organization_covers/filename.jpg"
-    if (path.includes('organization_covers/') || 
-        path.includes('organization_logos/') || 
+    if (path.includes('organization_covers/') ||
+        path.includes('organization_logos/') ||
         path.includes('charity_pictures/')) {
       return `/storage/${path}`;
     }
-    
+
     // If path starts with a slash, it's already a relative path
     if (path.startsWith('/')) return path;
-    
+
     // Otherwise, add a slash to make it a relative path from the root
     return `/${path}`;
   };
-  
-  // Log image paths for debugging
+
+  // Check follow status when component mounts
   useEffect(() => {
-    console.log('Charity image path:', charity.picture_path);
-    console.log('Formatted charity image URL:', formatImageUrl(charity.picture_path));
-  }, [charity]);
+    // Only check follow status if user is logged in and not in dashboard
+    if (currentUser && !isOrganizationUser() && !inDashboard) {
+      const checkFollowStatus = async () => {
+        try {
+          const response = await axios.get(`/charities/${charity.id}/follow-status`);
+
+          if (response.data && response.data.is_following !== undefined) {
+            setIsFollowing(response.data.is_following);
+            if (response.data.follower_count !== undefined) {
+              setFollowerCount(response.data.follower_count);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking follow status:', error.message);
+        }
+      };
+
+      checkFollowStatus();
+    }
+  }, [currentUser, charity.id, inDashboard]);
 
   const toggleFollow = async () => {
     if (!currentUser) {
@@ -80,7 +106,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
     }
 
     // Hide follow button for organization users
-    if (currentUser.account_type === 'organization') {
+    if (isOrganizationUser()) {
       return;
     }
 
@@ -94,26 +120,29 @@ export default function CharityCard({ charity, inDashboard = false }) {
       setIsLoading(true);
       // Fix the API endpoint - remove the /api prefix
       const response = await axios.post(`/charities/${charity.id}/follow`);
-      console.log('Follow response:', response.data);
-      
+
       // Update the UI based on the response
       setIsFollowing(response.data.is_following);
       setFollowerCount(response.data.follower_count || followerCount);
-      
-      toast.success(response.data.is_following ? 
-        'Successfully followed charity' : 
+
+      toast.success(response.data.is_following ?
+        'Successfully followed charity' :
         'Successfully unfollowed charity'
       );
     } catch (error) {
-      console.error('Error toggling follow status:', error);
+      console.error('Error toggling follow status:', error.message);
       toast.error(error.response?.data?.message || 'Failed to follow charity');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const progressPercentage = charity.funding_goal > 0 
-    ? Math.min(100, (charity.funds_raised / charity.funding_goal) * 100) 
+  // Support both field naming conventions (fund_received/fund_targeted and funds_raised/funding_goal)
+  const fundsRaised = charity.funds_raised || charity.fund_received || 0;
+  const fundingGoal = charity.funding_goal || charity.fund_targeted || 0;
+
+  const progressPercentage = fundingGoal > 0
+    ? Math.min(100, (fundsRaised / fundingGoal) * 100)
     : 0;
 
   return (
@@ -122,9 +151,13 @@ export default function CharityCard({ charity, inDashboard = false }) {
       transition={{ duration: 0.2 }}
       className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
     >
+      <Link
+      to={`/charities/${charity.id}`}
+      className="flex flex-col h-full"
+      >
       {/* Cover Image */}
       <div className="relative p-4">
-        <div 
+        <div
           className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden relative"
           style={{ boxShadow: "6px 6px 10px rgba(0, 0, 0, 0.2)" }}
         >
@@ -136,6 +169,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
             <img
               src={formatImageUrl(charity.picture_path)}
               alt={charity.name}
+              loading="lazy"
               className="w-full h-full object-cover rounded-lg"
               onError={(e) => {
                 console.error('Failed to load charity image:', charity.picture_path);
@@ -144,37 +178,19 @@ export default function CharityCard({ charity, inDashboard = false }) {
             />
           )}
         </div>
-        
-        {/* Like button positioned on the top right */}
-        <div className="absolute top-4 right-4">
-          <button
-            onClick={toggleFollow}
-            disabled={isLoading}
-            className={`p-2 rounded-full transition-colors shadow-md ${
-              isFollowing 
-                ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
-                : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
-            }`}
-          >
-            {isFollowing ? (
-              <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-            ) : (
-              <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-            )}
-          </button>
-        </div>
+
       </div>
-      
+
       {/* Charity Info */}
       <div className="p-4 flex-grow">
         <div className="flex flex-col">
           <h3 className="text-xl font-bold text-gray-900 mb-2">{charity.name}</h3>
-          
+
           <div className="flex flex-wrap gap-2 mb-2">
             <span className="px-3 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-800">
               {charity.category || 'CATEGORY'}
             </span>
-            
+
             {charity.is_verified ? (
               <span className="px-3 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 flex items-center">
                 <FaCheckCircle className="mr-1" /> VERIFIED
@@ -187,7 +203,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           </div>
 
         </div>
-        
+
         {/* Fund Progress */}
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
@@ -195,22 +211,33 @@ export default function CharityCard({ charity, inDashboard = false }) {
             <span>{progressPercentage.toFixed(0)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-indigo-600 h-2.5 rounded-full" 
+            <div
+              className="bg-indigo-600 h-2.5 rounded-full"
               style={{ width: `${progressPercentage}%` }}
             ></div>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span>{charity.funds_raised} ETH raised</span>
-            <span>Goal: {charity.funding_goal} ETH</span>
+            <span className="flex items-center">
+              <FaCoins className="text-yellow-500 mr-1 h-3 w-3" />
+              <span>{parseFloat(fundsRaised).toFixed(3)}</span>
+            </span>
+            <span>Goal: {parseFloat(fundingGoal).toFixed(3)} <span className="text-indigo-600 font-medium">SCROLL</span></span>
           </div>
-          
+
           {charity.is_fully_funded && (
             <div className="mt-2 text-green-600 text-sm font-semibold">
               Fully Funded! 🎉
             </div>
           )}
         </div>
+
+        {/* People Affected */}
+        {charity.people_affected > 0 && (
+          <div className="mt-4 flex items-center text-sm text-gray-700">
+            <FaUsers className="mr-2 text-indigo-500" />
+            <span>Helping approximately {parseInt(charity.people_affected).toLocaleString()} people</span>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -235,7 +262,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           )}
 
           {/* Only show follow button for non-organization users and not in dashboard */}
-          {currentUser && currentUser.account_type !== 'organization' && !inDashboard && (
+          {currentUser && !isOrganizationUser() && !inDashboard && (
             <button
               onClick={toggleFollow}
               className={`text-sm flex items-center transition-colors duration-200 ${
@@ -255,7 +282,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
               )}
             </button>
           )}
-          
+
           {/* Show a static "Following" indicator when in dashboard */}
           {inDashboard && (
             <div className="text-sm flex items-center text-indigo-600">
@@ -264,6 +291,7 @@ export default function CharityCard({ charity, inDashboard = false }) {
           )}
         </div>
       </div>
+    </Link>
     </motion.div>
   );
-} 
+}

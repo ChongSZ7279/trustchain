@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('currency_type'); // ETH, BTC, etc.
             $table->foreignId('cause_id')->constrained('charities')->onDelete('cascade');
             $table->string('status')->default('pending'); // pending, confirmed, verified, completed
+            $table->string('payment_method')->default('blockchain'); // blockchain, api, card
             $table->json('smart_contract_data')->nullable(); // Store smart contract details
             $table->text('donor_message')->nullable();
             $table->boolean('is_anonymous')->default(false);

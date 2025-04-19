@@ -267,8 +267,11 @@ export default function OrganizationEdit() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">Loading organization details...</p>
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading organization details...</p>
+            <p className="text-gray-500 text-sm mt-2">This may take a moment</p>
+          </div>
         </motion.div>
       </div>
     );
@@ -278,10 +281,11 @@ export default function OrganizationEdit() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-100"
+      className="min-h-screen"
     >
-      <BackButton />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <BackButton />  
+      
+      <div className="max-w-7xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
         {/* Enhanced Breadcrumb */}
 
         <motion.div 

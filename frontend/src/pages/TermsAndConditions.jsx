@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaBook, FaShieldAlt, FaHandshake, FaUserShield, FaArrowRight, FaCheck } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FaBook, 
+  FaShieldAlt, 
+  FaHandshake, 
+  FaUserShield, 
+  FaArrowRight, 
+  FaCheck,
+  FaCheckCircle,
+  FaHistory
+} from 'react-icons/fa';
 
 export default function TermsAndConditions() {
   const [activeSection, setActiveSection] = useState('terms');
@@ -18,169 +28,239 @@ export default function TermsAndConditions() {
   };
 
   const allSectionsRead = Object.values(readSections).every(value => value);
+  const readSectionsCount = Object.values(readSections).filter(Boolean).length;
+  const progressPercentage = (readSectionsCount / 3) * 100;
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-      {/* Sidebar with Glass Effect*/}
-      <aside className="w-72 bg-white/80 backdrop-blur-md shadow-lg rounded-lg overflow-y-auto p-6 fixed h-2/3">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex min-h-screen bg-gray-50"
+    >
+      {/* Sidebar with Glass Effect */}
+      <aside className="w-72 bg-white/80 backdrop-blur-md shadow-lg rounded-lg overflow-y-auto p-6 sticky top-6 self-start mx-6 my-6 h-auto">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Navigation</h2>
         <ul className="space-y-4">
-          <li>
+          <motion.li whileHover={{ x: 5 }} transition={{ type: 'spring', stiffness: 300 }}>
             <button 
               onClick={() => setActiveSection('terms')}
-              className={`w-full text-left flex items-center justify-between text-lg font-medium ${activeSection === 'terms' ? 'text-blue-600' : 'text-gray-700'} hover:text-blue-600 transition p-2 rounded-lg ${activeSection === 'terms' ? 'bg-blue-50' : ''}`}
+              className={`w-full text-left flex items-center justify-between text-lg font-medium ${activeSection === 'terms' ? 'text-indigo-600' : 'text-gray-700'} hover:text-indigo-600 transition p-2 rounded-lg ${activeSection === 'terms' ? 'bg-indigo-50' : ''}`}
             >
               <span><FaHandshake className="inline mr-2" /> Terms of Service</span>
-              {readSections.terms && <FaCheck className="text-green-500" />}
+              {readSections.terms && <FaCheckCircle className="text-green-500" />}
             </button>
-          </li>
-          <li>
+          </motion.li>
+          <motion.li whileHover={{ x: 5 }} transition={{ type: 'spring', stiffness: 300 }}>
             <button 
               onClick={() => setActiveSection('privacy')}
-              className={`w-full text-left flex items-center justify-between text-lg font-medium ${activeSection === 'privacy' ? 'text-blue-600' : 'text-gray-700'} hover:text-blue-600 transition p-2 rounded-lg ${activeSection === 'privacy' ? 'bg-blue-50' : ''}`}
+              className={`w-full text-left flex items-center justify-between text-lg font-medium ${activeSection === 'privacy' ? 'text-indigo-600' : 'text-gray-700'} hover:text-indigo-600 transition p-2 rounded-lg ${activeSection === 'privacy' ? 'bg-indigo-50' : ''}`}
             >
               <span><FaShieldAlt className="inline mr-2" /> Privacy Policy</span>
-              {readSections.privacy && <FaCheck className="text-green-500" />}
+              {readSections.privacy && <FaCheckCircle className="text-green-500" />}
             </button>
-          </li>
-          <li>
+          </motion.li>
+          <motion.li whileHover={{ x: 5 }} transition={{ type: 'spring', stiffness: 300 }}>
             <button 
               onClick={() => setActiveSection('security')}
-              className={`w-full text-left flex items-center justify-between text-lg font-medium ${activeSection === 'security' ? 'text-blue-600' : 'text-gray-700'} hover:text-blue-600 transition p-2 rounded-lg ${activeSection === 'security' ? 'bg-blue-50' : ''}`}
+              className={`w-full text-left flex items-center justify-between text-lg font-medium ${activeSection === 'security' ? 'text-indigo-600' : 'text-gray-700'} hover:text-indigo-600 transition p-2 rounded-lg ${activeSection === 'security' ? 'bg-indigo-50' : ''}`}
             >
               <span><FaUserShield className="inline mr-2" /> Data Security</span>
-              {readSections.security && <FaCheck className="text-green-500" />}
+              {readSections.security && <FaCheckCircle className="text-green-500" />}
             </button>
-          </li>
+          </motion.li>
         </ul>
 
         <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-blue-700">Reading Progress</h3>
+          <div className="bg-indigo-50 p-4 rounded-lg">
+            <h3 className="font-semibold text-indigo-700 flex items-center">
+              <FaHistory className="mr-2" /> Reading Progress
+            </h3>
             <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
-                style={{ width: `${(Object.values(readSections).filter(Boolean).length / 3) * 100}%` }}
-              ></div>
+              <motion.div 
+                className="bg-indigo-600 h-2.5 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercentage}%` }}
+                transition={{ duration: 0.5 }}
+              ></motion.div>
             </div>
             <p className="text-sm text-gray-600 mt-2">
-              {allSectionsRead ? 'All sections read!' : 'Please read all sections'}
+              {allSectionsRead ? 'All sections read!' : `${readSectionsCount}/3 sections read`}
             </p>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-10 ml-80">
-        {/* Header */}
-        <div className="bg-white shadow-md p-8 rounded-xl text-center">
-          <h1 className="text-4xl font-extrabold text-blue-700 flex items-center justify-center">
-            <FaBook className="mr-3 text-blue-500" /> Terms and Conditions
-          </h1>
-          <p className="mt-3 text-gray-600">Please read these terms carefully before using our platform.</p>
-        </div>
+      <main className="flex-1 overflow-y-auto p-6">
+        {/* Header with gradient background */}
+        <motion.div 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="relative rounded-xl bg-gradient-to-r from-indigo-700 to-purple-700 text-white p-8 mb-8 shadow-lg overflow-hidden"
+        >
+          {/* Abstract background shapes */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-64 h-64 rounded-full bg-white transform -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-white transform translate-x-1/3 translate-y-1/3"></div>
+          </div>
+          
+          <div className="relative z-10">
+            <h1 className="text-3xl font-bold flex items-center">
+              <FaBook className="mr-3" />
+              Terms and Conditions
+            </h1>
+            <p className="mt-2 text-indigo-100 max-w-xl">
+              Please read these terms carefully before using our platform. Your agreement is required to continue.
+            </p>
+          </div>
+        </motion.div>
 
         {/* Sections */}
-        <div className="mt-12 space-y-12">
+        <div className="mt-6 space-y-8">
           {/* Terms Section */}
-          <section 
-            id="terms" 
-            className={`bg-white p-8 shadow-lg rounded-xl transition-all duration-300 ${activeSection === 'terms' ? 'scale-100 opacity-100 border-l-4 border-blue-500' : 'scale-95 opacity-70'}`}
-          >
-            <h2 className="text-2xl font-bold text-blue-700 flex items-center mb-4">
-              <FaHandshake className="mr-2 text-blue-500" /> Terms of Service
-            </h2>
-            <div className="prose max-w-none text-gray-600">
-              <p>Welcome to TrustChain. By accessing our platform, you agree to these terms.</p>
-              <p className="mt-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
-              <p className="mt-4">Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
-            </div>
-            <button 
-              onClick={() => {
-                markAsRead('terms');
-                setActiveSection('privacy');
-              }}
-              className="mt-6 flex items-center text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition"
-            >
-              I've Read This Section <FaArrowRight className="ml-2" />
-            </button>
-          </section>
+          <AnimatePresence mode="wait">
+            {activeSection === 'terms' && (
+              <motion.section 
+                key="terms"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white p-8 shadow-lg rounded-xl border-l-4 border-indigo-500"
+              >
+                <h2 className="text-2xl font-bold text-indigo-700 flex items-center mb-4">
+                  <FaHandshake className="mr-2 text-indigo-500" /> Terms of Service
+                </h2>
+                <div className="prose max-w-none text-gray-600">
+                  <p>Welcome to TrustChain. By accessing our platform, you agree to these terms.</p>
+                  <p className="mt-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
+                  <p className="mt-4">Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
+                  <p className="mt-4">Nullam efficitur, odio ut tempor facilisis, lorem ipsum aliquet libero, vitae vestibulum ipsum augue id elit. Aenean facilisis, magna at tincidunt vehicula, tortor felis feugiat velit, et molestie dolor mi sit amet lectus.</p>
+                </div>
+                <motion.button 
+                  onClick={() => {
+                    markAsRead('terms');
+                    setActiveSection('privacy');
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="mt-6 flex items-center text-white bg-indigo-600 hover:bg-indigo-700 px-5 py-3 rounded-lg transition shadow-md"
+                >
+                  I've Read This Section <FaArrowRight className="ml-2" />
+                </motion.button>
+              </motion.section>
+            )}
 
-          {/* Privacy Section */}
-          <section 
-            id="privacy" 
-            className={`bg-white p-8 shadow-lg rounded-xl transition-all duration-300 ${activeSection === 'privacy' ? 'scale-100 opacity-100 border-l-4 border-blue-500' : 'scale-95 opacity-70'}`}
-          >
-            <h2 className="text-2xl font-bold text-blue-700 flex items-center mb-4">
-              <FaShieldAlt className="mr-2 text-blue-500" /> Privacy Policy
-            </h2>
-            <div className="prose max-w-none text-gray-600">
-              <p>Your privacy is important to us. This section explains how we collect and protect your data.</p>
-              <p className="mt-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
-              <p className="mt-4">Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
-            </div>
-            <button 
-              onClick={() => {
-                markAsRead('privacy');
-                setActiveSection('security');
-              }}
-              className="mt-6 flex items-center text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition"
-            >
-              I've Read This Section <FaArrowRight className="ml-2" />
-            </button>
-          </section>
+            {/* Privacy Section */}
+            {activeSection === 'privacy' && (
+              <motion.section 
+                key="privacy"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white p-8 shadow-lg rounded-xl border-l-4 border-indigo-500"
+              >
+                <h2 className="text-2xl font-bold text-indigo-700 flex items-center mb-4">
+                  <FaShieldAlt className="mr-2 text-indigo-500" /> Privacy Policy
+                </h2>
+                <div className="prose max-w-none text-gray-600">
+                  <p>Your privacy is important to us. This section explains how we collect and protect your data.</p>
+                  <p className="mt-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
+                  <p className="mt-4">Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
+                  <p className="mt-4">Nullam efficitur, odio ut tempor facilisis, lorem ipsum aliquet libero, vitae vestibulum ipsum augue id elit. Aenean facilisis, magna at tincidunt vehicula, tortor felis feugiat velit, et molestie dolor mi sit amet lectus.</p>
+                </div>
+                <motion.button 
+                  onClick={() => {
+                    markAsRead('privacy');
+                    setActiveSection('security');
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="mt-6 flex items-center text-white bg-indigo-600 hover:bg-indigo-700 px-5 py-3 rounded-lg transition shadow-md"
+                >
+                  I've Read This Section <FaArrowRight className="ml-2" />
+                </motion.button>
+              </motion.section>
+            )}
 
-          {/* Data Security Section */}
-          <section 
-            id="security" 
-            className={`bg-white p-8 shadow-lg rounded-xl transition-all duration-300 ${activeSection === 'security' ? 'scale-100 opacity-100 border-l-4 border-blue-500' : 'scale-95 opacity-70'}`}
-          >
-            <h2 className="text-2xl font-bold text-blue-700 flex items-center mb-4">
-              <FaUserShield className="mr-2 text-blue-500" /> Data Security
-            </h2>
-            <div className="prose max-w-none text-gray-600">
-              <p>We implement strict security measures to keep your data safe.</p>
-              <p className="mt-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
-              <p className="mt-4">Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
-            </div>
-            <button 
-              onClick={() => markAsRead('security')}
-              className="mt-6 flex items-center text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition"
-            >
-              I've Read This Section <FaCheck className="ml-2" />
-            </button>
-          </section>
+            {/* Data Security Section */}
+            {activeSection === 'security' && (
+              <motion.section 
+                key="security"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white p-8 shadow-lg rounded-xl border-l-4 border-indigo-500"
+              >
+                <h2 className="text-2xl font-bold text-indigo-700 flex items-center mb-4">
+                  <FaUserShield className="mr-2 text-indigo-500" /> Data Security
+                </h2>
+                <div className="prose max-w-none text-gray-600">
+                  <p>We implement strict security measures to keep your data safe.</p>
+                  <p className="mt-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
+                  <p className="mt-4">Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec euismod, nisl vel ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl sit amet nisl.</p>
+                  <p className="mt-4">Nullam efficitur, odio ut tempor facilisis, lorem ipsum aliquet libero, vitae vestibulum ipsum augue id elit. Aenean facilisis, magna at tincidunt vehicula, tortor felis feugiat velit, et molestie dolor mi sit amet lectus.</p>
+                </div>
+                <motion.button 
+                  onClick={() => markAsRead('security')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="mt-6 flex items-center text-white bg-indigo-600 hover:bg-indigo-700 px-5 py-3 rounded-lg transition shadow-md"
+                >
+                  I've Read This Section <FaCheck className="ml-2" />
+                </motion.button>
+              </motion.section>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Agreement Section */}
-        <div className={`mt-8 bg-white p-6 rounded-xl shadow-md transition-all duration-500 ${allSectionsRead ? 'opacity-100' : 'opacity-50'}`}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ 
+            opacity: allSectionsRead ? 1 : 0.5, 
+            y: 0,
+            scale: allSectionsRead ? 1 : 0.98
+          }}
+          transition={{ 
+            duration: 0.5,
+            delay: 0.1
+          }}
+          className="mt-8 bg-white p-6 rounded-xl shadow-md"
+        >
           <div className="flex items-center">
             <input 
               type="checkbox" 
               id="agree" 
-              className="h-5 w-5 text-blue-600 rounded"
+              className="h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
               disabled={!allSectionsRead}
             />
-            <label htmlFor="agree" className="ml-2 text-gray-700">
+            <label htmlFor="agree" className="ml-3 text-gray-700 font-medium">
               I have read and agree to the Terms and Conditions
             </label>
           </div>
-          <button 
-            className={`mt-4 w-full py-3 rounded-lg font-medium ${allSectionsRead ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+          <motion.button 
+            whileHover={allSectionsRead ? { scale: 1.02 } : {}}
+            whileTap={allSectionsRead ? { scale: 0.98 } : {}}
+            className={`mt-4 w-full py-3 rounded-lg font-medium text-center ${allSectionsRead ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
             disabled={!allSectionsRead}
           >
             Continue to Platform
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
 
         {/* Footer */}
-        <footer className="mt-16 bg-gray-50 p-4 text-center rounded-lg shadow-md">
-          <p className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</p>
-          <Link to="/contact" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+        <footer className="mt-16 bg-gray-50 p-6 rounded-lg shadow-md text-center">
+          <p className="text-sm text-gray-500">
+            Last updated: {new Date().toLocaleDateString()}
+          </p>
+          <Link to="/contact" className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
             Contact Us
           </Link>
         </footer>
       </main>
-    </div>
+    </motion.div>
   );
 }

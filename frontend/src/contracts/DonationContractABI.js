@@ -1,3 +1,4 @@
+// This ABI matches the DonationContract.sol in the mycontract/contracts directory
 export const DonationContractABI = [
   {
     "inputs": [],
@@ -14,6 +15,12 @@ export const DonationContractABI = [
         "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "charityId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "amount",
@@ -26,71 +33,8 @@ export const DonationContractABI = [
         "type": "string"
       }
     ],
-    "name": "DonationReceived",
+    "name": "DonationMade",
     "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "FundsWithdrawn",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "sender",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "description",
-        "type": "string"
-      }
-    ],
-    "name": "TransactionExecuted",
-    "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "message",
-        "type": "string"
-      }
-    ],
-    "name": "donate",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
   },
   {
     "inputs": [
@@ -105,25 +49,7 @@ export const DonationContractABI = [
         "type": "string"
       }
     ],
-    "name": "donateToCharity",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address payable",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "internalType": "string",
-        "name": "description",
-        "type": "string"
-      }
-    ],
-    "name": "executeTransaction",
+    "name": "donate",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -142,8 +68,14 @@ export const DonationContractABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getDonationCount",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "charityId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCharityDonations",
     "outputs": [
       {
         "internalType": "uint256",
@@ -157,45 +89,12 @@ export const DonationContractABI = [
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "startIndex",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "count",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "donor",
+        "type": "address"
       }
     ],
-    "name": "getDonationBatch",
-    "outputs": [
-      {
-        "internalType": "address[]",
-        "name": "donors",
-        "type": "address[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "timestamps",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "string[]",
-        "name": "messages",
-        "type": "string[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getTransactionCount",
+    "name": "getDonorTotalDonations",
     "outputs": [
       {
         "internalType": "uint256",
@@ -206,50 +105,7 @@ export const DonationContractABI = [
     "stateMutability": "view",
     "type": "function"
   },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "startIndex",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "count",
-        "type": "uint256"
-      }
-    ],
-    "name": "getTransactionBatch",
-    "outputs": [
-      {
-        "internalType": "address[]",
-        "name": "senders",
-        "type": "address[]"
-      },
-      {
-        "internalType": "address[]",
-        "name": "recipients",
-        "type": "address[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "timestamps",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "string[]",
-        "name": "descriptions",
-        "type": "string[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
+
   {
     "inputs": [],
     "name": "owner",
@@ -266,21 +122,8 @@ export const DonationContractABI = [
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
-    ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address payable",
-        "name": "to",
+        "name": "recipient",
         "type": "address"
       },
       {
@@ -289,16 +132,12 @@ export const DonationContractABI = [
         "type": "uint256"
       }
     ],
-    "name": "withdraw",
+    "name": "withdrawFunds",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
-  },
-  {
-    "stateMutability": "payable",
-    "type": "receive"
   }
 ];
 
-// Contract address - replace with your deployed contract address
-export const DonationContractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // Replace with your contract address 
+// Contract address - use the environment variable or fallback to a default
+export const DonationContractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || "0x5FbDB2315678afecb367f032d93F642f64180aa3";

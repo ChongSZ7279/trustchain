@@ -24,13 +24,22 @@ import { toast } from 'react-hot-toast';
 
 export default function OrganizationCard({ organization, inDashboard = false }) {
   const navigate = useNavigate();
-  const { currentUser, accountType } = useAuth();
+  const auth = useAuth();
+  const { currentUser, accountType } = auth;
   const [isFollowing, setIsFollowing] = useState(inDashboard || organization.is_following || false);
   const [followerCount, setFollowerCount] = useState(organization.follower_count || 0);
   const [showDetails, setShowDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [coverImageError, setCoverImageError] = useState(false);
   const [logoImageError, setLogoImageError] = useState(false);
+
+  // Function to check if the user is an organization
+  const isOrganizationUser = () => {
+    // More thorough check for organization status
+    return accountType === 'organization' || 
+           currentUser?.account_type === 'organization' ||
+           currentUser?.is_organization === true;
+  };
 
   // Helper function to format image URL
   const formatImageUrl = (path) => {
@@ -53,11 +62,28 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
     return `/${path}`;
   };
 
-  // Log image paths for debugging
+  // Check follow status when component mounts
   useEffect(() => {
-    console.log('Organization cover image path:', organization.cover_image_path);
-    console.log('Organization logo path:', organization.logo);
-  }, [organization]);
+    // Only check follow status if user is logged in and not in dashboard
+    if (currentUser && !isOrganizationUser() && !inDashboard) {
+      const checkFollowStatus = async () => {
+        try {
+          const response = await axios.get(`/organizations/${organization.id}/follow-status`);
+          
+          if (response.data && response.data.is_following !== undefined) {
+            setIsFollowing(response.data.is_following);
+            if (response.data.follower_count !== undefined) {
+              setFollowerCount(response.data.follower_count);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking follow status:', error.message);
+        }
+      };
+      
+      checkFollowStatus();
+    }
+  }, [currentUser, organization.id, inDashboard]);
 
   const toggleFollow = async () => {
     if (!currentUser) {
@@ -66,7 +92,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
     }
 
     // Hide follow button for organization users
-    if (currentUser.account_type === 'organization') {
+    if (isOrganizationUser()) {
       return;
     }
 
@@ -78,10 +104,8 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
 
     try {
       setIsLoading(true);
-      console.log(`Making request to: /organizations/${organization.id}/follow`);
       
       const response = await axios.post(`/organizations/${organization.id}/follow`);
-      console.log('Follow response:', response.data);
       
       // Update the UI based on the response
       setIsFollowing(response.data.is_following);
@@ -92,7 +116,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
         'Successfully unfollowed organization'
       );
     } catch (error) {
-      console.error('Error toggling follow status:', error);
+      console.error('Error toggling follow status:', error.message);
       toast.error(error.response?.data?.message || 'Failed to follow organization');
     } finally {
       setIsLoading(false);
@@ -123,6 +147,10 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
       transition={{ duration: 0.2 }}
       className="bg-gray-50 overflow-hidden shadow-md hover:shadow-xl rounded-xl border border-gray-200 flex flex-col h-full transition-all duration-200"
     >
+      <Link
+      to={`/organizations/${organization.id}`}
+      className="flex flex-col h-full"
+      >
       {/* Cover Image */}
     <div className="relative p-4"> 
       <div 
@@ -138,6 +166,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
             className="w-full h-full object-cover rounded-lg"
             src={formatImageUrl(organization.cover_image_path)}
             alt={`${organization.name} cover`}
+            loading="lazy"
             onError={(e) => {
               console.error('Failed to load cover image:', organization.cover_image_path);
               setCoverImageError(true);
@@ -146,24 +175,6 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
         )}
       </div>
       
-      {/* Like button positioned on the top right */}
-      <div className="absolute top-4 right-4">
-        <button
-          onClick={toggleFollow}
-          disabled={isLoading}
-          className={`p-2 rounded-full transition-colors shadow-md ${
-            isFollowing 
-              ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
-              : 'text-gray-100 bg-gray-700 bg-opacity-50 hover:bg-gray-600'
-          }`}
-        >
-          {isFollowing ? (
-            <FaHeart className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-          ) : (
-            <FaThumbsUp className={`h-5 w-5 ${isLoading ? 'opacity-50' : ''}`} />
-          )}
-        </button>
-      </div>
     </div>
 
       
@@ -182,6 +193,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
                   className="h-full w-full object-cover"
                   src={formatImageUrl(organization.logo)}
                   alt={organization.name}
+                  loading="lazy"
                   onError={(e) => {
                     console.error('Failed to load logo image:', organization.logo);
                     setLogoImageError(true);
@@ -244,7 +256,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
           )}
 
           {/* Only show follow button for non-organization users and not in dashboard */}
-          {currentUser && currentUser.account_type !== 'organization' && !inDashboard && (
+          {currentUser && !isOrganizationUser() && !inDashboard && (
             <button
               onClick={toggleFollow}
               className={`text-sm flex items-center transition-colors duration-200 ${
@@ -273,7 +285,7 @@ export default function OrganizationCard({ organization, inDashboard = false }) 
           )}
         </div>
       </div>
-
+      </Link>
       
     </motion.div>
   );

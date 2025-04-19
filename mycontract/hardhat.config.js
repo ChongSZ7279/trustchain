@@ -5,13 +5,22 @@ require("@matterlabs/hardhat-zksync-verify");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.19",
+  solidity: {
+    version: "0.8.19",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  },
   networks: {
     localhost: {
       url: "http://127.0.0.1:8545"
     },
     hardhat: {
       // For local development
+      chainId: 31337
     },
     // Add Sepolia network configuration
     sepolia: {
@@ -41,6 +50,11 @@ module.exports = {
       verifyURL:
         "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
     },
+    scrollSepolia: {
+      url: "https://sepolia-rpc.scroll.io",
+      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
+      chainId: 534351,
+    },
   },
   paths: {
     sources: "./contracts",
@@ -57,4 +71,19 @@ module.exports = {
       },
     },
   },
+  etherscan: {
+    apiKey: {
+      scrollSepolia: "YOUR_SCROLL_API_KEY" // Optional: For contract verification
+    },
+    customChains: [
+      {
+        network: "scrollSepolia",
+        chainId: 534351,
+        urls: {
+          apiURL: "https://sepolia.scrollscan.com/api",
+          browserURL: "https://sepolia.scrollscan.com"
+        }
+      }
+    ]
+  }
 };

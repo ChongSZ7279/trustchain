@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { DonationContractABI } from '../utils/contractABI';
+import { DonationContractABI } from '../contracts/DonationContractABI';
 
 export default function BlockchainTester() {
   const [provider, setProvider] = useState(null);
@@ -22,18 +22,18 @@ export default function BlockchainTester() {
         VITE_CONTRACT_ADDRESS: import.meta.env.VITE_CONTRACT_ADDRESS,
         VITE_API_URL: import.meta.env.VITE_API_URL,
       });
-      
+
       if (window.ethereum) {
         try {
           // Request account access
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           const account = accounts[0];
           setAccount(account);
-          
+
           // Create provider and signer - compatible with ethers v5 or v6
           let provider;
           let signer;
-          
+
           // Check ethers version by feature detection
           if (typeof ethers.BrowserProvider === 'function') {
             // ethers v6
@@ -46,25 +46,25 @@ export default function BlockchainTester() {
             provider = new ethers.providers.Web3Provider(window.ethereum);
             signer = provider.getSigner();
           }
-          
+
           setProvider(provider);
           setSigner(signer);
-          
+
           // Get balance
           const balance = await provider.getBalance(account);
           setBalance(ethers.utils?.formatEther(balance) || ethers.formatEther(balance));
-          
+
           // Connect to contract
           const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
           console.log("Contract address:", contractAddress);
-          
+
           const contract = new ethers.Contract(
             contractAddress,
             DonationContractABI,
             signer
           );
           setContract(contract);
-          
+
           // Get donation count
           const count = await contract.getDonationCount();
           setDonationCount(count.toString());
@@ -76,7 +76,7 @@ export default function BlockchainTester() {
         setError('Please install MetaMask to use this feature');
       }
     };
-    
+
     init();
   }, []);
 
@@ -85,12 +85,12 @@ export default function BlockchainTester() {
       setError('Contract not initialized');
       return;
     }
-    
+
     try {
       setLoading(true);
       setError('');
       setResult('');
-      
+
       // Convert amount to wei - compatible with ethers v5 or v6
       let amountInWei;
       if (ethers.utils && ethers.utils.parseEther) {
@@ -102,19 +102,19 @@ export default function BlockchainTester() {
       } else {
         throw new Error("Could not find parseEther function in ethers library");
       }
-      
+
       // Call the donate function on the contract
       const tx = await contract.donate(donationMessage, { value: amountInWei });
-      
+
       // Wait for transaction to be mined
       const receipt = await tx.wait();
-      
+
       setResult(`Donation successful! Transaction hash: ${receipt.hash || receipt.transactionHash}`);
-      
+
       // Update donation count
       const count = await contract.getDonationCount();
       setDonationCount(count.toString());
-      
+
       // Add to transactions list
       const newTransaction = {
         hash: receipt.hash || receipt.transactionHash,
@@ -122,7 +122,7 @@ export default function BlockchainTester() {
         message: donationMessage,
         timestamp: new Date().toISOString()
       };
-      
+
       setTransactions(prev => [newTransaction, ...prev]);
     } catch (err) {
       console.error("Donation error:", err);
@@ -135,7 +135,7 @@ export default function BlockchainTester() {
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6">Blockchain Tester</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="p-4 border rounded-lg">
           <h3 className="text-lg font-semibold mb-2">Account Info</h3>
@@ -143,7 +143,7 @@ export default function BlockchainTester() {
           <p><strong>Balance:</strong> {balance ? `${balance} ETH` : 'Unknown'}</p>
           <p><strong>Donation Count:</strong> {donationCount}</p>
         </div>
-        
+
         <div className="p-4 border rounded-lg">
           <h3 className="text-lg font-semibold mb-2">Make Donation</h3>
           <div className="mb-4">
@@ -155,7 +155,7 @@ export default function BlockchainTester() {
               className="w-full p-2 border rounded"
             />
           </div>
-          
+
           <div className="mb-4">
             <label className="block mb-1">Message</label>
             <input
@@ -165,7 +165,7 @@ export default function BlockchainTester() {
               className="w-full p-2 border rounded"
             />
           </div>
-          
+
           <button
             onClick={handleDonate}
             disabled={loading || !contract}
@@ -175,19 +175,19 @@ export default function BlockchainTester() {
           </button>
         </div>
       </div>
-      
+
       {error && (
         <div className="mb-6 p-4 bg-red-100 text-red-700 rounded">
           {error}
         </div>
       )}
-      
+
       {result && (
         <div className="mb-6 p-4 bg-green-100 text-green-700 rounded">
           {result}
         </div>
       )}
-      
+
       <div className="mt-8">
         <h3 className="text-xl font-semibold mb-4">Transaction History</h3>
         {transactions.length === 0 ? (
@@ -219,4 +219,4 @@ export default function BlockchainTester() {
       </div>
     </div>
   );
-} 
+}

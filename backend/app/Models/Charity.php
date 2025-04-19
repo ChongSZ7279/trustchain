@@ -17,6 +17,7 @@ class Charity extends Model
         'objective',
         'fund_targeted',
         'fund_received',
+        'people_affected',
         'picture_path',
         'verified_document',
         'is_verified'

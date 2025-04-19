@@ -170,6 +170,28 @@ This will:
 - Seed the database with demo users, organizations, charities, tasks, and transactions
 - Generate placeholder images and documents
 
+### Verification Test Data Setup
+
+The standard database seeding process includes verification test data for the admin verification panel. When you run `php artisan migrate:fresh --seed`, it will automatically:
+
+- Add the 'verified' status to the tasks table
+- Create pending donations with blockchain transaction hashes that need verification
+- Create tasks with proof that need verification
+- Create verified tasks that are ready for fund release
+
+To access the admin verification panel:
+
+1. Log in as an admin user
+2. Navigate to:
+   ```
+   http://localhost:8000/admin/verification
+   ```
+
+In the verification panel, you can:
+- View pending donations and tasks that need verification
+- Verify donations and tasks
+- Release funds to charity wallet addresses after verification
+
 ### Demo Credentials
 
 After setting up the demo data, you can log in with the following credentials:
@@ -257,4 +279,4 @@ To enable Gmail sending:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.

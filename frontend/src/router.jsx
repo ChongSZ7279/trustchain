@@ -26,12 +26,13 @@ import Guidelines from './pages/Guidelines';
 import FAQ from './pages/FAQ';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword'; 
+import ResetPassword from './components/ResetPassword';
 import ApiTest from './components/ApiTest';
 import Invoice from './components/Invoice';
 import BlockchainTester from './components/BlockchainTester';
 import SponsorshipPartners from './components/SponsorshipPartners';
 import BlockchainBasics from './pages/BlockchainBasics';
+import AdminVerificationPanel from './components/admin/AdminVerificationPanel';
 
 const router = createBrowserRouter([
   {
@@ -104,7 +105,43 @@ const router = createBrowserRouter([
           title: "Blockchain Basics",
           subtitle: "Learn the basics of blockchain technology"
         }
-      }
+      },
+      {
+        path: '/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/transactions/:id',
+        element: <TransactionDetails />
+      },
+      {
+        path: '/charities/:id/donate',
+        element: <DonationForm />
+      },
+      {
+        path: '/donations/:id',
+        element: <DonationDetails />
+      },
+      {
+        path: '/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
+      {
+        path: '/charities/:charityId/transactions',
+        element: <TransactionList />
+      },
+      {
+        path: '/charities/:charityId/donations',
+        element: <TransactionList dataSource="donations" />
+      },
+      {
+        path: '/charities/:charityId/financial-activities',
+        element: <TransactionList dataSource="combined" />
+      },
     ]
   },
   {
@@ -200,44 +237,12 @@ const router = createBrowserRouter([
         element: <TaskForm />
       },
       {
-        path: '/transactions',
-        element: <TransactionList />
-      },
-      {
-        path: '/transactions/:id',
-        element: <TransactionDetails />
-      },
-      {
-        path: '/charities/:id/donate',
-        element: <DonationForm />
-      },
-      {
-        path: '/donations/:id',
-        element: <DonationDetails />
-      },
-      {
-        path: '/donations',
-        element: <TransactionList dataSource="donations" />
-      },
-      {
-        path: '/financial-activities',
-        element: <TransactionList dataSource="combined" />
-      },
-      {
-        path: '/charities/:charityId/transactions',
-        element: <TransactionList />
-      },
-      {
-        path: '/charities/:charityId/donations',
-        element: <TransactionList dataSource="donations" />
-      },
-      {
-        path: '/charities/:charityId/financial-activities',
-        element: <TransactionList dataSource="combined" />
-      },
-      {
         path: '/donations/:donationId/invoice',
         element: <Invoice />
+      },
+      {
+        path: '/admin/verification',
+        element: <AdminVerificationPanel />
       }
     ]
   },

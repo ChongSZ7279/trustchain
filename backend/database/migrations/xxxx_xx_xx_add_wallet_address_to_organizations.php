@@ -11,8 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Check if wallet_address column already exists
+        if (Schema::hasColumn('organizations', 'wallet_address')) {
+            // Do nothing, the column already exists
+            return;
+        }
+        
+        // If the column doesn't exist for some reason, add it
         Schema::table('organizations', function (Blueprint $table) {
-            $table->string('wallet_address')->nullable()->after('email');
+            $table->string('wallet_address')->nullable();
         });
     }
 
@@ -21,8 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('organizations', function (Blueprint $table) {
-            $table->dropColumn('wallet_address');
-        });
+        // Don't drop the column since it was part of the original schema
     }
 }; 

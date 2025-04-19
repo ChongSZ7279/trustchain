@@ -1,0 +1,81 @@
+/* Alchemy Pay Widget Styles */
+
+.alchemypay-widget-container {
+  position: relative;
+  min-height: 600px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.alchemypay-widget-container iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  border-radius: 8px !important;
+}
+
+/* Fix for mobile devices */
+@media (max-width: 768px) {
+  .alchemypay-widget-container {
+    min-height: 700px;
+  }
+}
+
+/* Alchemy Pay Button Styles */
+.alchemypay-button {
+  background-color: #6366F1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.alchemypay-button:hover {
+  background-color: #4F46E5;
+}
+
+/* Alchemy Pay Card Styles */
+.alchemypay-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.alchemypay-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.alchemypay-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.alchemypay-card-badge {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.alchemypay-card-content {
+  margin-bottom: 16px;
+}
+
+.alchemypay-card-footer {
+  font-size: 12px;
+  color: #6B7280;
+  text-align: center;
+}

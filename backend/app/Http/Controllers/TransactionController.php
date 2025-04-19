@@ -6,9 +6,12 @@ use App\Models\Transaction;
 use App\Models\Charity;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\Donation;
+use App\Helpers\DonationSyncHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
@@ -23,15 +26,11 @@ class TransactionController extends Controller
                 'id' => Auth::id(),
                 'ic_number' => Auth::user()->ic_number,
                 'type' => get_class(Auth::user())
-            ] : null,
+            ] : 'guest',
             'request' => request()->all()
         ]);
 
-        // Check if user is authenticated
-        if (!Auth::check()) {
-            \Log::warning('Unauthenticated user trying to access transactions');
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+        // Transactions are now public - no authentication check needed
 
         $query = Transaction::with(['user', 'charity', 'task']);
 
@@ -79,9 +78,19 @@ class TransactionController extends Controller
             }
         }
 
-        // Get paginated results
-        $transactions = $query->latest()->paginate(request('per_page', 10));
-        
+        // Get paginated results with consistent per_page value
+        $perPage = request('per_page', 10);
+        $transactions = $query->latest()->paginate($perPage);
+
+        // Log pagination details
+        \Log::info('Transaction pagination details:', [
+            'requested_per_page' => $perPage,
+            'actual_per_page' => $transactions->perPage(),
+            'total' => $transactions->total(),
+            'current_page' => $transactions->currentPage(),
+            'last_page' => $transactions->lastPage()
+        ]);
+
         \Log::info('Transaction query results:', [
             'total' => $transactions->total(),
             'current_page' => $transactions->currentPage(),
@@ -122,7 +131,7 @@ class TransactionController extends Controller
         }
 
         $data = $validator->validated();
-        
+
         // Set user_ic if not anonymous
         if (!($request->anonymous ?? false)) {
             $data['user_ic'] = Auth::user() ? Auth::user()->ic_number : $request->user_ic;
@@ -195,15 +204,83 @@ class TransactionController extends Controller
     {
         // Add logging to debug
         \Log::info("Fetching transactions for charity: $charityId");
-        
+
+        // Validate charity exists
+        $charity = Charity::findOrFail($charityId);
+
+        // Get transactions with relationships
         $transactions = Transaction::where('charity_id', $charityId)
-            ->with(['user']) // Include any needed relationships
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        \Log::info("Found " . $transactions->count() . " transactions");
-        
-        return response()->json($transactions);
+            ->with(['user', 'task']) // Include all needed relationships
+            ->orderBy('created_at', 'desc');
+
+        // Apply filters if provided
+        if (request()->has('type')) {
+            $transactions->where('type', request('type'));
+        }
+
+        if (request()->has('status')) {
+            $transactions->where('status', request('status'));
+        }
+
+        // Get results
+        $results = $transactions->get();
+
+        // Add charity name to each transaction for easier display
+        $results->each(function($transaction) use ($charity) {
+            $transaction->charity_name = $charity->name;
+        });
+
+        // Also get donations that might not be in the transactions table
+        try {
+            // First, ensure all donations are synced with transactions
+            $donations = Donation::where('cause_id', $charityId)->get();
+
+            // Sync each donation with transactions
+            foreach ($donations as $donation) {
+                DonationSyncHelper::syncDonationWithTransaction($donation);
+            }
+
+            // Get any donations that might not have been synced properly
+            $donationsNotInTransactions = Donation::where('cause_id', $charityId)
+                ->whereNotExists(function($query) {
+                    $query->select(DB::raw(1))
+                          ->from('transactions')
+                          ->whereRaw('transactions.transaction_hash = donations.transaction_hash');
+                })
+                ->get();
+
+            // Convert donations to transaction format
+            $formattedDonations = $donationsNotInTransactions->map(function($donation) use ($charity) {
+                return [
+                    'id' => 'donation-' . $donation->id,
+                    'charity_id' => $donation->cause_id,
+                    'amount' => $donation->amount,
+                    'type' => 'donation',
+                    'status' => $donation->status,
+                    'transaction_hash' => $donation->transaction_hash,
+                    'message' => $donation->donor_message,
+                    'created_at' => $donation->created_at,
+                    'updated_at' => $donation->updated_at,
+                    'charity_name' => $charity->name,
+                    'currency_type' => $donation->currency_type,
+                    'is_donation' => true
+                ];
+            });
+
+            // Add formatted donations to results
+            $results = $results->concat($formattedDonations);
+
+            // Sort by date (newest first)
+            $results = $results->sortByDesc('created_at')->values();
+
+            \Log::info("Added {$formattedDonations->count()} donations to transactions for charity: {$charity->name}");
+        } catch (\Exception $e) {
+            \Log::error("Error adding donations to transactions: {$e->getMessage()}");
+        }
+
+        \Log::info("Found " . $results->count() . " transactions for charity: {$charity->name}");
+
+        return response()->json($results);
     }
 
     /**
@@ -211,14 +288,37 @@ class TransactionController extends Controller
      */
     public function getTaskTransactions($taskId)
     {
+        // Validate task exists
         $task = Task::findOrFail($taskId);
-        
+
+        // Get transactions with relationships
         $transactions = Transaction::with(['user', 'charity'])
             ->where('task_id', $taskId)
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
-        return response()->json($transactions);
+            ->orderBy('created_at', 'desc');
+
+        // Apply filters if provided
+        if (request()->has('type')) {
+            $transactions->where('type', request('type'));
+        }
+
+        if (request()->has('status')) {
+            $transactions->where('status', request('status'));
+        }
+
+        // Get results
+        $results = $transactions->get();
+
+        // Add task name to each transaction for easier display
+        $results->each(function($transaction) use ($task) {
+            $transaction->task_name = $task->name;
+            if ($transaction->charity_id) {
+                $transaction->charity_name = $transaction->charity->name ?? 'Unknown Charity';
+            }
+        });
+
+        \Log::info("Found " . $results->count() . " transactions for task: {$task->name}");
+
+        return response()->json($results);
     }
 
     /**
@@ -229,7 +329,7 @@ class TransactionController extends Controller
         // Debug logging
         \Log::info('getUserTransactions request', [
             'requested_user_id' => $userId,
-            'auth_user' => Auth::user(),
+            'auth_user' => Auth::user() ? Auth::user()->ic_number : 'guest',
             'headers' => request()->headers->all()
         ]);
 
@@ -247,27 +347,51 @@ class TransactionController extends Controller
             ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
+
         try {
+            // Validate user exists
             $user = User::where('ic_number', $userId)->firstOrFail();
-            
-            $transactions = Transaction::with(['charity', 'task'])
+
+            // Get transactions with relationships
+            $query = Transaction::with(['charity', 'task'])
                 ->where('user_ic', $userId)
-                ->orderBy('created_at', 'desc')
-                ->get();
-            
+                ->orderBy('created_at', 'desc');
+
+            // Apply filters if provided
+            if (request()->has('type')) {
+                $query->where('type', request('type'));
+            }
+
+            if (request()->has('status')) {
+                $query->where('status', request('status'));
+            }
+
+            // Get results
+            $results = $query->get();
+
+            // Enhance transaction data with related entity names
+            $results->each(function($transaction) {
+                if ($transaction->charity_id && $transaction->charity) {
+                    $transaction->charity_name = $transaction->charity->name;
+                }
+                if ($transaction->task_id && $transaction->task) {
+                    $transaction->task_name = $transaction->task->name;
+                }
+            });
+
             \Log::info('Successfully retrieved transactions', [
                 'user_ic' => $userId,
-                'count' => $transactions->count()
+                'user_name' => $user->name,
+                'count' => $results->count()
             ]);
-                
-            return response()->json($transactions);
+
+            return response()->json($results);
         } catch (\Exception $e) {
             \Log::error('Error retrieving transactions', [
                 'user_ic' => $userId,
                 'error' => $e->getMessage()
             ]);
-            
+
             return response()->json(['message' => 'Error retrieving transactions'], 500);
         }
     }

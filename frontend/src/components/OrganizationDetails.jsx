@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackButton from './BackToHistory';
 import CharityCard from './CharityCard';
+import SubscriptionDonation from './SubscriptionDonation';
 import {
   FaBuilding,
   FaAddressCard,
@@ -33,7 +34,9 @@ import {
   FaRegClock,
   FaDownload,
   FaEye,
-  FaChartBar
+  FaChartBar,
+  FaRegCalendarCheck,
+  FaTimes
 } from 'react-icons/fa';
 
 export default function OrganizationDetails() {
@@ -50,6 +53,7 @@ export default function OrganizationDetails() {
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [imageLoading, setImageLoading] = useState({
     logo: true,
     cover: true
@@ -280,27 +284,40 @@ export default function OrganizationDetails() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 mt-4 md:mt-0">
-                {/* Only show follow button for non-organization users */}
+              <div className="flex flex-wrap gap-3 mt-4 md:mt-0">
+                {/* Only show these buttons for non-organization users */}
                 {!isOrganizationUser() && (
-                  <button
-                    onClick={toggleFollow}
-                    disabled={isFollowLoading}
-                    className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-200 ${
-                      isFollowing
-                        ? 'bg-gray-100 text-indigo-600 hover:bg-gray-200 border border-indigo-600'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    }`}
-                  >
-                    <FaThumbsUp className={`inline-block mr-2 ${isFollowLoading ? 'opacity-50' : ''}`} />
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </button>
+                  <>
+                    {/* Monthly Support/Donate Button - Most attractive */}
+                    <button
+                      onClick={() => setShowSubscriptionModal(true)}
+                      className="px-4 py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center"
+                    >
+                      <FaRegCalendarCheck className="mr-2" />
+                      <span>Donate Monthly</span>
+                    </button>
+                    
+                    {/* Follow Button - Second attractive */}
+                    <button
+                      onClick={toggleFollow}
+                      disabled={isFollowLoading}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        isFollowing
+                          ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200 border border-indigo-300'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                      }`}
+                    >
+                      <FaThumbsUp className={`inline-block mr-2 ${isFollowLoading ? 'opacity-50' : ''}`} />
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                  </>
                 )}
 
+                {/* Share Button */}
                 <div className="relative">
                   <button
                     onClick={handleShare}
-                    className="px-4 py-2 rounded-md font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                    className="px-4 py-2 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
                   >
                     <FaShare className="inline-block mr-2" />
                     Share
@@ -312,12 +329,13 @@ export default function OrganizationDetails() {
                   )}
                 </div>
 
+                {/* Edit Button */}
                 {canEditOrganization() && (
                   <Link
                     to={`/organizations/${id}/edit`}
-                    className="px-4 py-2 rounded-md font-medium text-sm bg-green-600 border border-gray-300 text-white hover:bg-green-700 transition-all duration-200 text-center"
+                    className="px-4 py-2 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 text-center flex items-center"
                   >
-                    <FaEdit className="inline-block mr-2" />
+                    <FaEdit className="mr-2" />
                     Edit
                   </Link>
                 )}
@@ -416,7 +434,7 @@ export default function OrganizationDetails() {
               } flex-1 group`}
             >
               <div className={`mr-2 ${activeTab === 'documents' ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-500'} transition-colors duration-200`}>
-                <FaFileAlt className="text-lg" />
+                <FaFileContract className="text-lg" />
               </div>
               <span>Documents</span>
               {hasDocuments && (
@@ -644,8 +662,9 @@ export default function OrganizationDetails() {
                     <h2 className="text-xl font-bold text-gray-900 ml-4">Account Information</h2>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Account Created Box */}
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                       <div className="p-6">
                         <div className="flex items-center justify-center flex-col h-full">
                           <div className="bg-green-100 rounded-full p-4 mb-4">
@@ -661,7 +680,10 @@ export default function OrganizationDetails() {
                           </p>
                         </div>
                       </div>
+                    </div>
 
+                    {/* Last Updated Box */}
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                       <div className="p-6">
                         <div className="flex items-center justify-center flex-col h-full">
                           <div className="bg-green-100 rounded-full p-4 mb-4">
@@ -679,6 +701,7 @@ export default function OrganizationDetails() {
                       </div>
                     </div>
                   </div>
+
                 </div>
               </div>
             </motion.div>
@@ -785,244 +808,273 @@ export default function OrganizationDetails() {
               className="bg-white rounded-xl shadow-md"
             >
               <div className="p-6 md:p-8">
-                <div className="flex items-center mb-8">
-                  <div className="bg-indigo-100 p-3 rounded-full mr-4">
-                    <FaFileContract className="text-indigo-600 text-xl" />
+                {/* Header Section with improved design */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                  <div className="flex items-center">
+                    <div className="bg-indigo-100 p-3 rounded-full mr-4">
+                      <FaFileContract className="text-indigo-600 text-xl" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Organization Documents</h2>
+                      <p className="text-gray-600 text-sm mt-1">
+                        {hasDocuments
+                          ? 'These verified documents confirm the legitimacy of this organization'
+                          : 'This organization has not uploaded verification documents yet'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">Organization Documents</h2>
-                    <p className="text-gray-600 text-sm mt-1">
-                      {hasDocuments
-                        ? 'This organization has provided verification documents'
-                        : 'This organization has not uploaded verification documents yet'}
-                    </p>
+                  
+                  {/* Document status indicator */}
+                  <div className={`px-4 py-2 rounded-lg ${hasDocuments ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'} flex items-center`}>
+                    {hasDocuments ? (
+                      <>
+                        <FaCheckCircle className="mr-2" />
+                        <span className="font-medium">All Documents Provided</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaExclamationTriangle className="mr-2" />
+                        <span className="font-medium">Documents Pending</span>
+                      </>
+                    )}
                   </div>
                 </div>
-
+        
+                {/* Info Banner with improved design */}
                 <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 flex items-start">
                   <div className="bg-white p-3 rounded-full shadow-sm mr-4 flex-shrink-0">
                     <FaInfoCircle className="text-blue-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-blue-800 text-lg mb-2">Verification Documents</h3>
+                    <h3 className="font-semibold text-blue-800 text-lg mb-2">About Verification Documents</h3>
                     <p className="text-blue-700">
-                      All organizations must submit official documents for verification. These documents help us confirm the legitimacy of the organization and ensure transparency for donors.
+                      Organizations must submit official documents for verification to establish their legitimacy. 
+                      This transparency helps donors make informed decisions and ensures accountability.
                     </p>
                   </div>
                 </div>
-
+        
+                {/* Document Cards with improved visual design */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Verification Document */}
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
-                    <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="bg-white p-2 rounded-full shadow-sm">
-                          <FaFileAlt className="text-indigo-600 text-lg" />
+                  {/* Document Type Templates */}
+                  {[
+                    {
+                      type: 'verification',
+                      title: 'Verification Document',
+                      description: 'Official registration certificate or legal verification document',
+                      document: orgData.verified_document,
+                      icon: FaFileAlt,
+                      color: 'indigo',
+                      gradient: 'from-indigo-50 to-blue-50'
+                    },
+                    {
+                      type: 'statutory',
+                      title: 'Statutory Declaration',
+                      description: 'Legal declaration document verifying the organization status',
+                      document: orgData.statutory_declaration,
+                      icon: FaFileContract,
+                      color: 'green',
+                      gradient: 'from-green-50 to-teal-50'
+                    }
+                  ].map((doc, index) => (
+                    <motion.div 
+                      key={doc.type}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ 
+                        opacity: 1, 
+                        y: 0,
+                        transition: { delay: index * 0.2 }
+                      }}
+                      whileHover={{ y: -5 }}
+                      transition={{ duration: 0.2 }}
+                      className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md"
+                    >
+                      <div className={`p-5 border-b border-gray-200 bg-gradient-to-r ${doc.gradient} flex items-center justify-between`}>
+                        <div className="flex items-center">
+                          <div className="bg-white p-2 rounded-full shadow-sm">
+                            <doc.icon className={`text-${doc.color}-600 text-lg`} />
+                          </div>
+                          <h3 className="ml-3 font-semibold text-gray-900">{doc.title}</h3>
                         </div>
-                        <h3 className="ml-3 font-semibold text-gray-900">Verification Document</h3>
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          doc.document ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {doc.document ? 'Uploaded' : 'Not Uploaded'}
+                        </div>
                       </div>
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${orgData.verified_document ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {orgData.verified_document ? 'Uploaded' : 'Not Uploaded'}
-                      </div>
-                    </div>
-
-                    <div className="p-6">
-                      {orgData.verified_document ? (
-                        <div className="flex flex-col space-y-6">
-                          <div className="flex items-center justify-center bg-gray-100 rounded-xl p-6 h-56 relative overflow-hidden group">
-                            <img
-                              src={getImageUrl(orgData.verified_document)}
-                              alt="Verification Document Preview"
-                              className="max-h-full max-w-full object-contain z-10 transition-transform duration-300 group-hover:scale-105"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                            <div className="absolute inset-0 hidden items-center justify-center">
-                              <div className="bg-indigo-100 p-4 rounded-full">
-                                <FaFileContract className="text-indigo-600 text-3xl" />
+        
+                      <div className="p-6">
+                        {doc.document ? (
+                          <div className="flex flex-col space-y-6">
+                            {/* Document Preview with improved hover effects */}
+                            <div className="flex items-center justify-center bg-gray-100 rounded-xl p-6 h-56 relative overflow-hidden group">
+                              <motion.img
+                                src={getImageUrl(doc.document)}
+                                alt={`${doc.title} Preview`}
+                                className="max-h-full max-w-full object-contain z-10 shadow-sm rounded-md"
+                                initial={{ scale: 1 }}
+                                whileHover={{ scale: 1.05 }}
+                                transition={{ duration: 0.3 }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div className="absolute inset-0 hidden items-center justify-center">
+                                <div className={`bg-${doc.color}-100 p-4 rounded-full`}>
+                                  <FaFileContract className={`text-${doc.color}-600 text-3xl`} />
+                                </div>
+                              </div>
+                              
+                              {/* Hover overlay with improved visual effects */}
+                              <motion.div 
+                                className="absolute inset-0 bg-black bg-opacity-0 flex items-center justify-center z-20"
+                                initial={{ opacity: 0 }}
+                                whileHover={{ opacity: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}
+                              >
+                                <div className="flex space-x-4">
+                                  <motion.a
+                                    href={getImageUrl(doc.document)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-white rounded-full p-3 shadow-lg hover:bg-blue-50 transition-all duration-200"
+                                    whileHover={{ y: -3, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                  >
+                                    <FaEye className="text-blue-600 text-xl" />
+                                  </motion.a>
+                                  <motion.a
+                                    href={getImageUrl(doc.document)}
+                                    download
+                                    className="bg-white rounded-full p-3 shadow-lg hover:bg-green-50 transition-all duration-200"
+                                    whileHover={{ y: -3, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                  >
+                                    <FaDownload className="text-green-600 text-xl" />
+                                  </motion.a>
+                                </div>
+                              </motion.div>
+                            </div>
+        
+                            {/* Document Information and Actions with improved layout */}
+                            <div>
+                              <h4 className="font-medium text-gray-900 text-lg">{doc.title}</h4>
+                              <p className="text-gray-600 mb-4">{doc.description}</p>
+                              <div className="flex flex-wrap gap-3">
+                                <motion.a
+                                  href={getImageUrl(doc.document)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-all duration-200 shadow-sm flex-1 justify-center"
+                                  whileHover={{ y: -2, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                                >
+                                  <FaEye className="mr-2" />
+                                  View Document
+                                </motion.a>
+        
+                                <motion.a
+                                  href={getImageUrl(doc.document)}
+                                  download
+                                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 shadow-sm flex-1 justify-center"
+                                  whileHover={{ y: -2, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                                >
+                                  <FaDownload className="mr-2" />
+                                  Download
+                                </motion.a>
                               </div>
                             </div>
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 z-20">
-                              <a
-                                href={getImageUrl(orgData.verified_document)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-white rounded-full p-3 mx-2 shadow-lg hover:bg-indigo-100 transition-all duration-200"
-                              >
-                                <FaEye className="text-indigo-600 text-xl" />
-                              </a>
-                              <a
-                                href={getImageUrl(orgData.verified_document)}
-                                download
-                                className="bg-white rounded-full p-3 mx-2 shadow-lg hover:bg-indigo-100 transition-all duration-200"
-                              >
-                                <FaDownload className="text-indigo-600 text-xl" />
-                              </a>
-                            </div>
                           </div>
-
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div>
-                              <h4 className="font-medium text-gray-900 text-lg">Verification Document</h4>
-                              <p className="text-gray-600">Official verification document</p>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <div className="bg-gray-100 rounded-full p-5 mb-6 w-20 h-20 flex items-center justify-center">
+                              <FaFileAlt className="text-gray-400 text-3xl" />
                             </div>
-
-                            <div className="flex space-x-3">
-                              <a
-                                href={getImageUrl(orgData.verified_document)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 shadow-sm"
+                            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                              {doc.type === 'verification' ? 'No Document Uploaded' : 'No Declaration Uploaded'}
+                            </h3>
+                            <p className="text-gray-600 mb-6 max-w-md">
+                              {doc.type === 'verification' 
+                                ? "This organization hasn't uploaded a verification document yet. This document helps establish the legitimacy of the organization."
+                                : "This organization hasn't uploaded a statutory declaration yet. This document verifies the organization's legal status."
+                              }
+                            </p>
+        
+                            {canEditOrganization() && (
+                              <motion.div
+                                whileHover={{ y: -3, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                               >
-                                <FaEye className="mr-2" />
-                                View Document
-                              </a>
-
-                              <a
-                                href={getImageUrl(orgData.verified_document)}
-                                download
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 shadow-sm"
-                              >
-                                <FaDownload className="mr-2" />
-                                Download
-                              </a>
-                            </div>
+                                <Link
+                                  to={`/organizations/${id}/edit`}
+                                  className="inline-flex items-center px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200"
+                                >
+                                  <FaPlus className="mr-2" />
+                                  {doc.type === 'verification' ? 'Upload Document' : 'Upload Declaration'}
+                                </Link>
+                              </motion.div>
+                            )}
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-10 text-center">
-                          <div className="bg-gray-100 rounded-full p-5 mb-6 w-20 h-20 flex items-center justify-center">
-                            <FaFileAlt className="text-gray-400 text-3xl" />
-                          </div>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-3">No Document Uploaded</h3>
-                          <p className="text-gray-600 mb-6 max-w-md">
-                            This organization hasn't uploaded a verification document yet. Verification documents help establish the legitimacy of the organization.
-                          </p>
-
-                          {canEditOrganization() && (
-                            <Link
-                              to={`/organizations/${id}/edit`}
-                              className="inline-flex items-center px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200"
-                            >
-                              <FaPlus className="mr-2" />
-                              Upload Document
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Statutory Declaration */}
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
-                    <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-teal-50 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="bg-white p-2 rounded-full shadow-sm">
-                          <FaFileAlt className="text-green-600 text-lg" />
-                        </div>
-                        <h3 className="ml-3 font-semibold text-gray-900">Statutory Declaration</h3>
+                        )}
                       </div>
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${orgData.statutory_declaration ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {orgData.statutory_declaration ? 'Uploaded' : 'Not Uploaded'}
-                      </div>
-                    </div>
-
-                    <div className="p-6">
-                      {orgData.statutory_declaration ? (
-                        <div className="flex flex-col space-y-6">
-                          <div className="flex items-center justify-center bg-gray-100 rounded-xl p-6 h-56 relative overflow-hidden group">
-                            <img
-                              src={getImageUrl(orgData.statutory_declaration)}
-                              alt="Statutory Declaration Preview"
-                              className="max-h-full max-w-full object-contain z-10 transition-transform duration-300 group-hover:scale-105"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                            <div className="absolute inset-0 hidden items-center justify-center">
-                              <div className="bg-green-100 p-4 rounded-full">
-                                <FaFileContract className="text-green-600 text-3xl" />
-                              </div>
-                            </div>
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 z-20">
-                              <a
-                                href={getImageUrl(orgData.statutory_declaration)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-white rounded-full p-3 mx-2 shadow-lg hover:bg-green-100 transition-all duration-200"
-                              >
-                                <FaEye className="text-green-600 text-xl" />
-                              </a>
-                              <a
-                                href={getImageUrl(orgData.statutory_declaration)}
-                                download
-                                className="bg-white rounded-full p-3 mx-2 shadow-lg hover:bg-green-100 transition-all duration-200"
-                              >
-                                <FaDownload className="text-green-600 text-xl" />
-                              </a>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div>
-                              <h4 className="font-medium text-gray-900 text-lg">Statutory Declaration</h4>
-                              <p className="text-gray-600">Official statutory declaration document</p>
-                            </div>
-
-                            <div className="flex space-x-3">
-                              <a
-                                href={getImageUrl(orgData.statutory_declaration)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-all duration-200 shadow-sm"
-                              >
-                                <FaEye className="mr-2" />
-                                View Document
-                              </a>
-
-                              <a
-                                href={getImageUrl(orgData.statutory_declaration)}
-                                download
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 shadow-sm"
-                              >
-                                <FaDownload className="mr-2" />
-                                Download
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-10 text-center">
-                          <div className="bg-gray-100 rounded-full p-5 mb-6 w-20 h-20 flex items-center justify-center">
-                            <FaFileAlt className="text-gray-400 text-3xl" />
-                          </div>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-3">No Declaration Uploaded</h3>
-                          <p className="text-gray-600 mb-6 max-w-md">
-                            This organization hasn't uploaded a statutory declaration yet. Statutory declarations are important legal documents that verify the organization's status.
-                          </p>
-
-                          {canEditOrganization() && (
-                            <Link
-                              to={`/organizations/${id}/edit`}
-                              className="inline-flex items-center px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-all duration-200"
-                            >
-                              <FaPlus className="mr-2" />
-                              Upload Declaration
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    </motion.div>
+                  ))}
                 </div>
+                
+                {/* Footer note with improved visual design */}
+                {!hasDocuments && canEditOrganization() && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-8 p-5 bg-yellow-50 border border-yellow-200 rounded-lg"
+                  >
+                    <div className="flex items-start">
+                      <div className="bg-yellow-100 p-2 rounded-full mr-3 flex-shrink-0">
+                        <FaExclamationTriangle className="text-yellow-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-yellow-800 mb-1">Verification Required</h4>
+                        <p className="text-yellow-700">
+                          Your organization is pending verification. Please upload the required documents to verify your organization and establish trust with potential donors.
+                        </p>
+                        <Link
+                          to={`/organizations/${id}/edit`}
+                          className="inline-flex items-center px-4 py-2 mt-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 transition-all duration-200"
+                        >
+                          <FaFileAlt className="mr-2" />
+                          Upload Required Documents
+                        </Link>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Monthly Support Modal */}
+      {showSubscriptionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div 
+            className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowSubscriptionModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-2 z-10"
+            >
+              <FaTimes className="text-xl" />
+            </button>
+            
+            <div className="p-0">
+              <SubscriptionDonation 
+                organizationId={id} 
+                organizationName={orgData.name}
+                onClose={() => setShowSubscriptionModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

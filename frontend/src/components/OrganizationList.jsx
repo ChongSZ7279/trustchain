@@ -63,7 +63,7 @@ export default function OrganizationList() {
     setActiveFiltersCount(filtersCount);
     
     fetchOrganizations();
-  }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
+  }, [currentPage, selectedCategories, selectedStatuses, fundRange]);
 
   const fetchOrganizations = async () => {
     try {
@@ -156,26 +156,8 @@ export default function OrganizationList() {
     setCurrentPage(1); // Reset to first page when filters are reset
   };
   
-  const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      fetchOrganizations();
-    }
-  };
-
-  // Create an organization button (shown if user is logged in)
-  const renderCreateOrganizationButton = () => {
-    if (user) {
-      return (
-        <button
-          onClick={() => navigate('/organizations/create')}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-        >
-          <FaPlus className="mr-2" />
-          Create Organization
-        </button>
-      );
-    }
-    return null;
+  const handleSearchSubmit = () => {
+    fetchOrganizations();
   };
 
   if (loading) {
@@ -268,22 +250,37 @@ export default function OrganizationList() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page when search changes
                 }}
-                onKeyPress={handleSearchKeyPress}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchSubmit();
+                  }
+                }}
                 onFocus={() => setSearchFocus(true)}
                 onBlur={() => setSearchFocus(false)}
                 placeholder="Search organizations by name, mission, or location..."
-                className={`block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
+                className={`block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
               />
-              {searchTerm && (
-                <button 
-                  onClick={() => setSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {searchTerm && (
+                  <button 
+                    onClick={() => {
+                      setSearchTerm('');
+                      handleSearchSubmit();
+                    }}
+                    className="text-gray-400 hover:text-gray-600 mr-2"
+                  >
+                    <FaTimes className="h-5 w-5" />
+                  </button>
+                )}
+                <button
+                  onClick={handleSearchSubmit}
+                  className="text-indigo-500 hover:text-indigo-700"
+                  title="Search"
                 >
-                  <FaTimes className="h-5 w-5" />
+                  <FaSearch className="h-5 w-5" />
                 </button>
-              )}
+              </div>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -522,13 +519,6 @@ export default function OrganizationList() {
                   Clear All Filters
                 </button>
                 
-                <button
-                  onClick={() => navigate('/organizations/create')}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                >
-                  <FaPlus className="mr-2" />
-                  Create Organization
-                </button>
               </div>
             )}
           </div>

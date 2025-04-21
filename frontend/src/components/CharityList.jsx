@@ -73,7 +73,7 @@ export default function CharityList() {
     setActiveFiltersCount(filtersCount);
     
     fetchCharities();
-  }, [currentPage, searchTerm, selectedCategories, selectedStatuses, fundRange]);
+  }, [currentPage, selectedCategories, selectedStatuses, fundRange]);
 
   const fetchCharities = async () => {
     try {
@@ -175,10 +175,8 @@ export default function CharityList() {
     setCurrentPage(1); // Reset to first page when filters are reset
   };
   
-  const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      fetchCharities();
-    }
+  const handleSearchSubmit = () => {
+    fetchCharities();
   };
 
   if (loading) {
@@ -282,22 +280,37 @@ export default function CharityList() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page when search changes
                 }}
-                onKeyPress={handleSearchKeyPress}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchSubmit();
+                  }
+                }}
                 onFocus={() => setSearchFocus(true)}
                 onBlur={() => setSearchFocus(false)}
                 placeholder="Search charities by name, category, or mission..."
-                className={`block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
+                className={`block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
               />
-              {searchTerm && (
-                <button 
-                  onClick={() => setSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {searchTerm && (
+                  <button 
+                    onClick={() => {
+                      setSearchTerm('');
+                      handleSearchSubmit();
+                    }}
+                    className="text-gray-400 hover:text-gray-600 mr-2"
+                  >
+                    <FaTimes className="h-5 w-5" />
+                  </button>
+                )}
+                <button
+                  onClick={handleSearchSubmit}
+                  className="text-indigo-500 hover:text-indigo-700"
+                  title="Search"
                 >
-                  <FaTimes className="h-5 w-5" />
+                  <FaSearch className="h-5 w-5" />
                 </button>
-              )}
+              </div>
             </div>
             
             <div className="flex items-center space-x-2">

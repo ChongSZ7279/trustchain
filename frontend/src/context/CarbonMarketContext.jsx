@@ -6,6 +6,7 @@ import {
 } from '../contracts/CarbonCreditContractABI';
 import { SCROLL_CONFIG, addScrollNetwork } from '../utils/scrollConfig';
 import { toast } from 'react-toastify';
+import { getMockMarketData } from '../utils/carbonDataSeeder';
 
 const CarbonMarketContext = createContext();
 
@@ -25,10 +26,26 @@ export const CarbonMarketProvider = ({ children }) => {
   const [buyerListings, setBuyerListings] = useState([]);
   const [connectionInProgress, setConnectionInProgress] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [projects, setProjects] = useState([]);
 
   // Refresh data
-  const refreshData = () => {
-    setRefreshTrigger(prev => prev + 1);
+  const refreshData = async () => {
+    setLoading(true);
+    
+    try {
+      // Simulate data refresh with new mock data
+      const mockData = getMockMarketData();
+      setCarbonCreditPool(mockData.carbonCreditPool);
+      setSellerListings(mockData.sellerListings);
+      setBuyerListings(mockData.buyerListings);
+      setCarbonCredits(mockData.carbonCredits);
+      setProjects(mockData.projects);
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      setError(err.message || 'Failed to refresh data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Initialize Web3 and contract
@@ -183,148 +200,85 @@ export const CarbonMarketProvider = ({ children }) => {
   
   // Connect wallet
   const connectWallet = async () => {
-    if (connectionInProgress) {
-      toast.info('Connection already in progress, please check MetaMask');
-      return false;
-    }
+    setLoading(true);
+    setError(null);
     
     try {
-      setConnectionInProgress(true);
+      // Simulate wallet connection
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      if (!window.ethereum) {
-        toast.error('MetaMask is not installed. Please install MetaMask to continue.');
-        return false;
-      }
+      // Mock account address
+      const mockAccount = '0x' + Math.random().toString(16).substr(2, 40);
+      setAccount(mockAccount);
+      setIsConnected(true);
+      setIsScrollNetwork(true);
       
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      if (accounts.length > 0) {
-        setAccount(accounts[0]);
-        setIsConnected(true);
-        
-        // Check if we're on Scroll network
-        const chainId = await web3.eth.getChainId();
-        const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
-        setIsScrollNetwork(isScroll);
-        
-        // If not on Scroll network, try to switch
-        if (!isScroll) {
-          await switchToScrollNetwork();
-        }
-        
-        // Get user's carbon credits
-        if (contract) {
-          const credits = await contract.methods.getCarbonCreditsBalance(accounts[0]).call();
-          setCarbonCredits(parseInt(credits));
-        }
-        
-        return true;
-      }
-      return false;
+      // Set mock user carbon credits from seeder
+      const { carbonCredits } = getMockMarketData();
+      setCarbonCredits(carbonCredits);
+      
+      toast.success('Wallet connected successfully!');
+      return true;
     } catch (err) {
       console.error('Error connecting wallet:', err);
-      
-      // Handle specific error codes
-      if (err.code === -32002) {
-        toast.info('MetaMask request already pending. Please open MetaMask and confirm any pending requests.');
-      } else {
-        toast.error(`Failed to connect wallet: ${err.message}`);
-      }
-      
+      setError(err.message || 'Failed to connect wallet');
+      toast.error(`Failed to connect wallet: ${err.message}`);
       return false;
     } finally {
-      setConnectionInProgress(false);
+      setLoading(false);
     }
   };
   
   // Switch to Scroll network
   const switchToScrollNetwork = async () => {
+    setLoading(true);
+    
     try {
-      if (!window.ethereum) {
-        toast.error('MetaMask is not installed');
-        return false;
-      }
-      
-      const chainIdHex = `0x${Number(SCROLL_CONFIG.NETWORK.CHAIN_ID).toString(16)}`;
-      
-      try {
-        // First try to switch to the network if it already exists
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: chainIdHex }],
-        });
-        setIsScrollNetwork(true);
-        return true;
-      } catch (switchError) {
-        // This error code indicates that the chain has not been added to MetaMask
-        if (switchError.code === 4902 || 
-            switchError.message.includes('Unrecognized chain ID') || 
-            switchError.message.includes('chain must be added')) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: chainIdHex,
-                chainName: SCROLL_CONFIG.NETWORK.NAME,
-                nativeCurrency: {
-                  name: SCROLL_CONFIG.NETWORK.CURRENCY.NAME,
-                  symbol: SCROLL_CONFIG.NETWORK.CURRENCY.SYMBOL,
-                  decimals: SCROLL_CONFIG.NETWORK.CURRENCY.DECIMALS
-                },
-                rpcUrls: [SCROLL_CONFIG.NETWORK.RPC_URL],
-                blockExplorerUrls: [SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL]
-              }]
-            });
-            setIsScrollNetwork(true);
-            return true;
-          } catch (addError) {
-            console.error('Error adding Scroll network:', addError);
-            toast.error(`Failed to add Scroll network: ${addError.message}`);
-            return false;
-          }
-        }
-        console.error('Error switching to Scroll network:', switchError);
-        toast.error(`Failed to switch to Scroll network: ${switchError.message}`);
-        return false;
-      }
+      // Simulate network switch
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsScrollNetwork(true);
+      toast.success('Switched to Scroll network!');
+      return true;
     } catch (err) {
-      console.error('Error in switchToScrollNetwork:', err);
-      toast.error(`Error switching to Scroll network: ${err.message}`);
+      setError(err.message || 'Failed to switch network');
+      toast.error(`Failed to switch network: ${err.message}`);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
   
   // Create seller listing
   const createSellerListing = async (company, carbonTons, rate) => {
+    setLoading(true);
+    
     try {
-      if (!isConnected) {
-        toast.error('Please connect your wallet first');
-        return false;
-      }
+      // Simulate transaction
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      if (!isScrollNetwork) {
-        toast.error('Please switch to Scroll network');
-        await switchToScrollNetwork();
-        return false;
-      }
+      // Generate new listing
+      const newListing = {
+        id: `seller-${sellerListings.length + 1}`,
+        company,
+        carbonTons,
+        rate: `${rate} ETH/ton`,
+        price: `${(carbonTons * rate).toFixed(4)} ETH`,
+        usdPrice: `$${(carbonTons * rate * 2000).toFixed(2)}`,
+        seller: account,
+        timestamp: new Date().toISOString(),
+        status: 'active'
+      };
       
-      setLoading(true);
+      // Update state
+      setSellerListings(prev => [...prev, newListing]);
+      setCarbonCredits(prev => prev - carbonTons);
       
-      // Convert ETH to Wei
-      const rateInWei = web3.utils.toWei(rate.toString(), 'ether');
-      
-      // Create the listing
-      await contract.methods.createSellerListing(company, carbonTons, rateInWei)
-        .send({ from: account });
-      
-      // Refresh data
-      refreshData();
-      
-      toast.success('Seller listing created successfully');
+      toast.success('Seller listing created successfully!');
       return true;
     } catch (err) {
       console.error('Error creating seller listing:', err);
-      toast.error(`Failed to create seller listing: ${err.message}`);
+      setError(err.message || 'Failed to create listing');
+      toast.error(`Transaction failed: ${err.message}`);
       return false;
     } finally {
       setLoading(false);
@@ -333,36 +287,34 @@ export const CarbonMarketProvider = ({ children }) => {
   
   // Create buyer listing
   const createBuyerListing = async (company, carbonTons, rate) => {
+    setLoading(true);
+    
     try {
-      if (!isConnected) {
-        toast.error('Please connect your wallet first');
-        return false;
-      }
+      // Simulate transaction
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      if (!isScrollNetwork) {
-        toast.error('Please switch to Scroll network');
-        await switchToScrollNetwork();
-        return false;
-      }
+      // Generate new listing
+      const newListing = {
+        id: `buyer-${buyerListings.length + 1}`,
+        company,
+        carbonTons,
+        rate: `${rate} ETH/ton`,
+        price: `${(carbonTons * rate).toFixed(4)} ETH`,
+        usdPrice: `$${(carbonTons * rate * 2000).toFixed(2)}`,
+        buyer: account,
+        timestamp: new Date().toISOString(),
+        status: 'active'
+      };
       
-      setLoading(true);
+      // Update state
+      setBuyerListings(prev => [...prev, newListing]);
       
-      // Convert ETH to Wei and calculate total price
-      const rateInWei = web3.utils.toWei(rate.toString(), 'ether');
-      const totalPriceInWei = web3.utils.toBN(rateInWei).mul(web3.utils.toBN(carbonTons));
-      
-      // Create the listing
-      await contract.methods.createBuyerListing(company, carbonTons, rateInWei)
-        .send({ from: account, value: totalPriceInWei });
-      
-      // Refresh data
-      refreshData();
-      
-      toast.success('Buyer listing created successfully');
+      toast.success('Buyer listing created successfully!');
       return true;
     } catch (err) {
       console.error('Error creating buyer listing:', err);
-      toast.error(`Failed to create buyer listing: ${err.message}`);
+      setError(err.message || 'Failed to create listing');
+      toast.error(`Transaction failed: ${err.message}`);
       return false;
     } finally {
       setLoading(false);
@@ -371,32 +323,31 @@ export const CarbonMarketProvider = ({ children }) => {
   
   // Buy carbon credits
   const buyCarbonCredits = async (listingId, priceInWei) => {
+    setLoading(true);
+    
     try {
-      if (!isConnected) {
-        toast.error('Please connect your wallet first');
-        return false;
+      // Simulate transaction
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Find the listing
+      const listing = sellerListings.find(item => item.id === listingId);
+      
+      if (!listing) {
+        throw new Error('Listing not found');
       }
       
-      if (!isScrollNetwork) {
-        toast.error('Please switch to Scroll network');
-        await switchToScrollNetwork();
-        return false;
-      }
+      // Update carbon credits
+      setCarbonCredits(prev => prev + listing.carbonTons);
       
-      setLoading(true);
+      // Remove the listing
+      setSellerListings(prev => prev.filter(item => item.id !== listingId));
       
-      // Buy the carbon credits
-      await contract.methods.buyCarbonCredits(listingId)
-        .send({ from: account, value: priceInWei });
-      
-      // Refresh data
-      refreshData();
-      
-      toast.success('Carbon credits purchased successfully');
+      toast.success(`Successfully purchased ${listing.carbonTons} carbon credits!`);
       return true;
     } catch (err) {
       console.error('Error buying carbon credits:', err);
-      toast.error(`Failed to buy carbon credits: ${err.message}`);
+      setError(err.message || 'Failed to buy carbon credits');
+      toast.error(`Transaction failed: ${err.message}`);
       return false;
     } finally {
       setLoading(false);
@@ -405,32 +356,35 @@ export const CarbonMarketProvider = ({ children }) => {
   
   // Sell carbon credits
   const sellCarbonCredits = async (listingId) => {
+    setLoading(true);
+    
     try {
-      if (!isConnected) {
-        toast.error('Please connect your wallet first');
-        return false;
+      // Simulate transaction
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Find the listing
+      const listing = buyerListings.find(item => item.id === listingId);
+      
+      if (!listing) {
+        throw new Error('Listing not found');
       }
       
-      if (!isScrollNetwork) {
-        toast.error('Please switch to Scroll network');
-        await switchToScrollNetwork();
-        return false;
+      if (carbonCredits < listing.carbonTons) {
+        throw new Error('Not enough carbon credits');
       }
       
-      setLoading(true);
+      // Update carbon credits
+      setCarbonCredits(prev => prev - listing.carbonTons);
       
-      // Sell the carbon credits
-      await contract.methods.sellCarbonCredits(listingId)
-        .send({ from: account });
+      // Remove the listing
+      setBuyerListings(prev => prev.filter(item => item.id !== listingId));
       
-      // Refresh data
-      refreshData();
-      
-      toast.success('Carbon credits sold successfully');
+      toast.success(`Successfully sold ${listing.carbonTons} carbon credits!`);
       return true;
     } catch (err) {
       console.error('Error selling carbon credits:', err);
-      toast.error(`Failed to sell carbon credits: ${err.message}`);
+      setError(err.message || 'Failed to sell carbon credits');
+      toast.error(`Transaction failed: ${err.message}`);
       return false;
     } finally {
       setLoading(false);
@@ -445,29 +399,23 @@ export const CarbonMarketProvider = ({ children }) => {
   
   // Check if an address is the current account
   const isCurrentAccount = (address) => {
-    return address.toLowerCase() === account?.toLowerCase();
+    return address?.toLowerCase() === account?.toLowerCase();
   };
   
   // Format ETH amount with proper decimal places
-  const formatEthAmount = (amount) => {
-    if (!amount) return '0 ETH';
-    
-    // Remove 'ETH' if present
-    const numericPart = amount.replace(' ETH', '');
-    
-    return `${parseFloat(numericPart).toFixed(4)} ETH`;
+  const formatEthAmount = (ethString) => {
+    if (!ethString) return '0 ETH';
+    return ethString;
   };
   
   // Convert Wei to ETH
   const weiToEth = (wei) => {
-    if (!web3 || !wei) return '0';
-    return web3.utils.fromWei(wei.toString(), 'ether');
+    return (parseInt(wei) / 1e18).toFixed(4);
   };
   
   // Convert ETH to Wei
   const ethToWei = (eth) => {
-    if (!web3 || !eth) return '0';
-    return web3.utils.toWei(eth.toString(), 'ether');
+    return (parseFloat(eth) * 1e18).toString();
   };
 
   const value = {
@@ -482,6 +430,7 @@ export const CarbonMarketProvider = ({ children }) => {
     carbonCreditPool,
     sellerListings,
     buyerListings,
+    projects,
     connectWallet,
     switchToScrollNetwork,
     createSellerListing,

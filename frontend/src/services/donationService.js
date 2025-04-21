@@ -392,6 +392,7 @@ export const verifyTransaction = async (transactionHash) => {
       console.warn('This appears to be a mock transaction hash that will not be found on Scrollscan');
       return {
         success: false,
+        verified: false,
         isMockHash: true,
         message: 'This appears to be a test/mock transaction hash that does not exist on the blockchain',
         scrollscanUrl: `https://sepolia.scrollscan.com/tx/${transactionHash}`
@@ -404,13 +405,17 @@ export const verifyTransaction = async (transactionHash) => {
 
     return {
       ...result,
+      success: result.verified, // Ensure both success and verified properties exist
+      verified: result.verified,
       scrollscanUrl: `https://sepolia.scrollscan.com/tx/${transactionHash}`
     };
   } catch (error) {
     console.error('Error verifying transaction:', error);
     return {
       success: false,
+      verified: false,
       error: error.message,
+      message: error.message,
       scrollscanUrl: `https://sepolia.scrollscan.com/tx/${transactionHash}`
     };
   }

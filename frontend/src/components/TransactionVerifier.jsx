@@ -24,7 +24,34 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
     setLoading(true);
     try {
       console.log('Verifying transaction hash:', hashToVerify);
-      const verification = await verifyTransaction(hashToVerify);
+
+      // Clean the hash - remove any whitespace and ensure it's properly formatted
+      let cleanHash = hashToVerify.trim();
+
+      // Ensure the hash has the 0x prefix
+      if (!cleanHash.startsWith('0x')) {
+        cleanHash = '0x' + cleanHash;
+      }
+
+      // Ensure the hash is the correct length (0x + 64 hex characters)
+      if (cleanHash.length !== 66) {
+        console.warn('Transaction hash has incorrect length:', cleanHash.length);
+        // If it's too short, it might be a mock hash
+        if (cleanHash.length < 66) {
+          setResult({
+            verified: false,
+            success: false,
+            isMockHash: true,
+            message: 'This appears to be a test/mock transaction hash that does not exist on the blockchain',
+            scrollscanUrl: `https://sepolia.scrollscan.com/tx/${cleanHash}`
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Verify the transaction
+      const verification = await verifyTransaction(cleanHash);
       console.log('Verification result:', verification);
       setResult(verification);
 
@@ -35,7 +62,9 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
       console.error('Error in verification:', error);
       setResult({
         success: false,
+        verified: false,
         error: error.message,
+        message: error.message,
         scrollscanUrl: `https://sepolia.scrollscan.com/tx/${hashToVerify}`
       });
     } finally {
@@ -102,7 +131,7 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
                 </div>
               </div>
             </div>
-          ) : result.verified || result.success ? (
+          ) : (result.verified || result.success) && !result.isMockHash ? (
             <div className="flex items-start">
               <FaCheckCircle className="text-green-500 mt-1 mr-3 flex-shrink-0" />
               <div>

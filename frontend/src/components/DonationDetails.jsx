@@ -428,6 +428,10 @@ export default function DonationDetails() {
                   console.log('Transaction verification result:', result);
                   if (result.verified || result.success) {
                     toast.success('Transaction verified on blockchain!');
+                  } else if (result.isMockHash) {
+                    toast.warning('This appears to be a test transaction that does not exist on the blockchain');
+                  } else {
+                    toast.error('Could not verify transaction on blockchain. It may be pending or not found.');
                   }
                 }}
               />
@@ -436,7 +440,18 @@ export default function DonationDetails() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
-                    <dd className="mt-1 text-sm text-gray-900 break-all">{donation.transaction_hash}</dd>
+                    <dd className="mt-1 text-sm text-gray-900 break-all">
+                      {donation.transaction_hash}
+                      <a
+                        href={`https://sepolia.scrollscan.com/tx/${donation.transaction_hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-indigo-600 hover:text-indigo-800 inline-flex items-center"
+                      >
+                        <FaExternalLinkAlt className="h-3 w-3 mr-1" />
+                        View on Scrollscan
+                      </a>
+                    </dd>
                   </div>
 
                   {donation.smart_contract_data && (

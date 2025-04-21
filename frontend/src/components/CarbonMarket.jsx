@@ -74,10 +74,10 @@ const CarbonMarket = () => {
         }
       });
     } else {
-      tradingMarketRef.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
+    tradingMarketRef.current?.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'start'
+    });
     }
   };
 
@@ -113,14 +113,14 @@ const CarbonMarket = () => {
       setProcessingTransaction(true);
       
       let success = false;
-      
-      if (modalType === 'sell') {
+
+    if (modalType === 'sell') {
         success = await createSellerListing(
           newListing.company, 
           parseInt(newListing.carbonTons), 
           parseFloat(newListing.rate)
         );
-      } else {
+    } else {
         success = await createBuyerListing(
           newListing.company, 
           parseInt(newListing.carbonTons), 
@@ -129,7 +129,7 @@ const CarbonMarket = () => {
       }
       
       if (success) {
-        setIsCreateModalOpen(false);
+    setIsCreateModalOpen(false);
         setNewListing({ company: '', carbonTons: '', rate: '' });
         refreshData();
       }
@@ -163,19 +163,19 @@ const CarbonMarket = () => {
       
       let success = false;
       
-      if (modalType === 'buy') {
+    if (modalType === 'buy') {
         // Extract numeric part of price and convert to wei
         const priceString = selectedListing.price.replace(' ETH', '');
         const priceInWei = ethToWei(priceString);
         
         success = await buyCarbonCredits(selectedListing.id, priceInWei);
-      } else {
+    } else {
         success = await sellCarbonCredits(selectedListing.id);
       }
       
       if (success) {
-        setIsConfirmModalOpen(false);
-        setSelectedListing(null);
+    setIsConfirmModalOpen(false);
+    setSelectedListing(null);
         refreshData();
       }
     } catch (error) {
@@ -243,12 +243,12 @@ const CarbonMarket = () => {
               
               <div className="flex flex-wrap space-y-3 sm:space-y-0 sm:space-x-4">
                 <motion.button 
-                  onClick={handleGetStarted}
+              onClick={handleGetStarted}
                   className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
-                >
-                  Get Started
+            >
+              Get Started
                   <FaArrowRight className="ml-2" />
                 </motion.button>
                 
@@ -342,12 +342,12 @@ const CarbonMarket = () => {
                       <div className="p-3 bg-indigo-50 rounded-lg text-center">
                         <div className="text-xs text-indigo-600 mb-1">Active Sellers</div>
                         <div className="font-bold text-indigo-800">{sellerListings.length}</div>
-                      </div>
+          </div>
                       <div className="p-3 bg-green-50 rounded-lg text-center">
                         <div className="text-xs text-green-600 mb-1">Active Buyers</div>
                         <div className="font-bold text-green-800">{buyerListings.length}</div>
-                      </div>
-                    </div>
+          </div>
+        </div>
                     
                     {isConnected && (
                       <div className="p-3 bg-blue-50 rounded-lg">
@@ -404,7 +404,7 @@ const CarbonMarket = () => {
                   <FaLeaf className="w-16 h-16 text-green-500" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Carbon Credit Pool</h3>
-                <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center">
                   <span className="text-4xl font-bold text-gray-900 mr-2">{carbonCreditPool}</span>
                   <span className="text-gray-600 uppercase text-lg">TONS</span>
                 </div>
@@ -582,9 +582,9 @@ const CarbonMarket = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                       </svg>
-                    </button>
-                  </div>
-                </div>
+                        </button>
+            </div>
+          </div>
                 <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
                   <AnimatePresence>
                     {sellerListings.map((listing) => (
@@ -674,9 +674,9 @@ const CarbonMarket = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                       </svg>
-                    </button>
-                  </div>
-                </div>
+                        </button>
+            </div>
+          </div>
                 <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
                   <AnimatePresence>
                     {buyerListings.map((listing) => (
@@ -789,17 +789,17 @@ const CarbonMarket = () => {
                   <div className="relative rounded-lg shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <FaEthereum className="text-gray-400" />
-                    </div>
-                    <input
-                      type="number"
-                      required
+                </div>
+                  <input
+                    type="number"
+                    required
                       min="0.0001"
                       step="0.0001"
-                      value={newListing.rate}
-                      onChange={(e) => setNewListing({...newListing, rate: e.target.value})}
+                    value={newListing.rate}
+                    onChange={(e) => setNewListing({...newListing, rate: e.target.value})}
                       className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                       placeholder="0.0"
-                    />
+                  />
                   </div>
                 </div>
                 

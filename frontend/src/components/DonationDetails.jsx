@@ -189,12 +189,12 @@ export default function DonationDetails() {
   };
 
   const viewOnBlockExplorer = () => {
-    // Update to use Sepolia block explorer
-    window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
+    // Update to use Scroll Sepolia contract address
+    window.open('https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84', '_blank');
   };
 
-  const getBlockExplorerLink = (hash) => {
-    return `${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${hash}`;
+  const getBlockExplorerLink = () => {
+    return `${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`;
   };
 
   // Format date to a readable format
@@ -443,13 +443,13 @@ export default function DonationDetails() {
                     <dd className="mt-1 text-sm text-gray-900 break-all">
                       {donation.transaction_hash}
                       <a
-                        href={`https://sepolia.scrollscan.com/tx/${donation.transaction_hash}`}
+                        href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="ml-2 text-indigo-600 hover:text-indigo-800 inline-flex items-center"
                       >
                         <FaExternalLinkAlt className="h-3 w-3 mr-1" />
-                        View on Scrollscan
+                        View Contract on Scrollscan
                       </a>
                     </dd>
                   </div>

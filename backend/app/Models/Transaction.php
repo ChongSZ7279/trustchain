@@ -26,11 +26,13 @@ class Transaction extends Model
         'contract_address',
         'message',
         'anonymous',
+        'is_mock',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'anonymous' => 'boolean'
+        'anonymous' => 'boolean',
+        'is_mock' => 'boolean'
     ];
 
     /**

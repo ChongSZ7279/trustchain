@@ -169,7 +169,7 @@ class TransactionSeeder extends Seeder
                 'charity_id' => $charity->id,
                 'task_id' => $task->id,
                 'amount' => $releaseAmount,
-                'type' => 'fund_release',
+                'type' => 'charity', // Using 'charity' instead of 'fund_release' to avoid ENUM constraint issues
                 'status' => 'completed',
                 'transaction_hash' => $txHash,
                 'contract_address' => $contractAddress,

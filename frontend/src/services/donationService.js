@@ -395,7 +395,7 @@ export const verifyTransaction = async (transactionHash) => {
         verified: false,
         isMockHash: true,
         message: 'This appears to be a test/mock transaction hash that does not exist on the blockchain',
-        scrollscanUrl: `https://sepolia.scrollscan.com/tx/${transactionHash}`
+        scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
       };
     }
 
@@ -407,7 +407,7 @@ export const verifyTransaction = async (transactionHash) => {
       ...result,
       success: result.verified, // Ensure both success and verified properties exist
       verified: result.verified,
-      scrollscanUrl: `https://sepolia.scrollscan.com/tx/${transactionHash}`
+      scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
     };
   } catch (error) {
     console.error('Error verifying transaction:', error);
@@ -416,7 +416,7 @@ export const verifyTransaction = async (transactionHash) => {
       verified: false,
       error: error.message,
       message: error.message,
-      scrollscanUrl: `https://sepolia.scrollscan.com/tx/${transactionHash}`
+      scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
     };
   }
 };

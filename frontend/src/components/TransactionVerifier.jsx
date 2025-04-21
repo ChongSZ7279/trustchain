@@ -43,7 +43,7 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
             success: false,
             isMockHash: true,
             message: 'This appears to be a test/mock transaction hash that does not exist on the blockchain',
-            scrollscanUrl: `https://sepolia.scrollscan.com/tx/${cleanHash}`
+            scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
           });
           setLoading(false);
           return;
@@ -65,7 +65,7 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
         verified: false,
         error: error.message,
         message: error.message,
-        scrollscanUrl: `https://sepolia.scrollscan.com/tx/${hashToVerify}`
+        scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
       });
     } finally {
       setLoading(false);
@@ -126,7 +126,7 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
                     rel="noopener noreferrer"
                     className="text-sm text-yellow-800 flex items-center hover:underline"
                   >
-                    Try viewing on Scrollscan anyway <FaExternalLinkAlt className="ml-1" />
+                    View Contract on Scrollscan <FaExternalLinkAlt className="ml-1" />
                   </a>
                 </div>
               </div>
@@ -154,7 +154,7 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
                     rel="noopener noreferrer"
                     className="text-sm text-green-800 flex items-center hover:underline"
                   >
-                    View on Scrollscan <FaExternalLinkAlt className="ml-1" />
+                    View Contract on Scrollscan <FaExternalLinkAlt className="ml-1" />
                   </a>
                 </div>
               </div>
@@ -183,7 +183,7 @@ const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificati
                     rel="noopener noreferrer"
                     className="text-sm text-yellow-800 flex items-center hover:underline"
                   >
-                    Try viewing on Scrollscan <FaExternalLinkAlt className="ml-1" />
+                    View Contract on Scrollscan <FaExternalLinkAlt className="ml-1" />
                   </a>
                 </div>
               </div>

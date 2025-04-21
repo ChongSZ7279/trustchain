@@ -255,7 +255,7 @@ class TransactionController extends Controller
                     'id' => 'donation-' . $donation->id,
                     'charity_id' => $donation->cause_id,
                     'amount' => $donation->amount,
-                    'type' => 'donation',
+                    'type' => 'charity', // Using 'charity' type for donations as per the enum constraint
                     'status' => $donation->status,
                     'transaction_hash' => $donation->transaction_hash,
                     'message' => $donation->donor_message,

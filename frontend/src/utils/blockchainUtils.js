@@ -82,7 +82,7 @@ export const verifyTransaction = async (transactionHash) => {
               to: data.result.to,
               value: web3.utils.fromWei(data.result.value, 'ether'),
               blockNumber: data.result.blockNumber,
-              scrollscanUrl: `https://sepolia.scrollscan.com/tx/${cleanHash}`
+              scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
             }
           };
         }
@@ -112,7 +112,7 @@ export const verifyTransaction = async (transactionHash) => {
           value: web3.utils.fromWei(transaction.value, 'ether'),
           blockNumber: transaction.blockNumber,
           gasUsed: receipt.gasUsed,
-          scrollscanUrl: `https://sepolia.scrollscan.com/tx/${cleanHash}`
+          scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
         }
       };
     } else {
@@ -124,8 +124,7 @@ export const verifyTransaction = async (transactionHash) => {
   }
 };
 
-// Function to get a Scrollscan URL for a transaction hash
-export const getScrollscanUrl = (transactionHash) => {
-  if (!transactionHash) return null;
-  return `https://sepolia.scrollscan.com/tx/${transactionHash}`;
+// Function to get a Scrollscan URL for the contract
+export const getScrollscanUrl = () => {
+  return 'https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84';
 };

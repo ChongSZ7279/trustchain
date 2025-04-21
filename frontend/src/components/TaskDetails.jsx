@@ -504,7 +504,7 @@ export default function TaskDetails() {
                         <div className="flex items-center">
                           <span className="font-mono text-xs truncate">{task.blockchain_address}</span>
                           <a
-                            href={`https://etherscan.io/address/${task.blockchain_address}`}
+                            href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-2 text-indigo-600 hover:text-indigo-500"
@@ -530,7 +530,7 @@ export default function TaskDetails() {
                           0x5FbDB2315678afecb367f032d93F642f64180aa3
                         </span>
                         <a
-                          href="https://etherscan.io/address/0x5FbDB2315678afecb367f032d93F642f64180aa3"
+                          href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="ml-2 text-indigo-600 hover:text-indigo-500"

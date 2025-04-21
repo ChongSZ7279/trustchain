@@ -269,14 +269,17 @@ export default function TransactionDetails() {
 
                   <div className="mt-4">
                     <a
-                      href={`https://sepolia.scrollscan.com/tx/${transaction.transaction_hash}`}
+                      href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center"
                     >
-                      View on Scroll Sepolia Explorer
+                      View Contract on Scroll Sepolia Explorer
                       <FaExternalLinkAlt className="ml-1 h-3 w-3" />
                     </a>
+                    <p className="mt-2 text-xs text-gray-500">
+                      All transactions for this contract can be viewed on the Scroll Sepolia Explorer.
+                    </p>
                   </div>
                 </div>
 

@@ -98,7 +98,7 @@ class FiatToScrollConverter extends Controller
                         'user_ic' => $userId,
                         'charity_id' => $validated['charity_id'],
                         'amount' => $validated['amount'],
-                        'type' => $isTestMode ? 'test_payment' : 'fiat_to_scroll',
+                        'type' => 'charity', // Using 'charity' type for all donations as per the enum constraint
                         'status' => 'completed',
                         'message' => $validated['message'] ?? null,
                         'anonymous' => $validated['is_anonymous'] ?? false,
@@ -186,7 +186,7 @@ class FiatToScrollConverter extends Controller
                                 'user_ic' => $userId,
                                 'charity_id' => $validated['charity_id'],
                                 'amount' => $validated['amount'],
-                                'type' => 'test_payment',
+                                'type' => 'charity', // Using 'charity' type for all donations as per the enum constraint
                                 'status' => 'completed',
                                 'message' => $validated['message'] ?? null,
                                 'anonymous' => $validated['is_anonymous'] ?? false,
@@ -379,7 +379,7 @@ class FiatToScrollConverter extends Controller
                     'user_ic' => $userId,
                     'charity_id' => $validated['charity_id'],
                     'amount' => $validated['amount'],
-                    'type' => $isTestMode ? 'test_payment' : 'fiat_to_scroll',
+                    'type' => 'charity', // Using 'charity' type for all donations as per the enum constraint
                     'status' => 'completed',
                     'message' => $validated['message'] ?? null,
                     'anonymous' => $validated['is_anonymous'] ?? true,
@@ -498,7 +498,7 @@ class FiatToScrollConverter extends Controller
                     $transaction->user_ic = $user->ic_number;
                     $transaction->charity_id = $request->charity_id;
                     $transaction->amount = $request->amount;
-                    $transaction->type = 'test_payment_recovery';
+                    $transaction->type = 'charity'; // Using 'charity' type for all donations as per the enum constraint
                     $transaction->status = 'completed';
                     $transaction->message = $request->message ?? null;
                     $transaction->anonymous = $request->is_anonymous ?? true;
@@ -649,7 +649,11 @@ class FiatToScrollConverter extends Controller
             ]);
 
             // Create Web3 connection to Scroll testnet
-            $web3 = new \Web3\Web3('https://sepolia-rpc.scroll.io/');
+            $providerUrl = env('BLOCKCHAIN_PROVIDER_URL', 'https://sepolia-rpc.scroll.io/');
+            $web3 = new \Web3\Web3($providerUrl);
+
+            // Log the provider URL for debugging
+            Log::info('Using blockchain provider:', ['url' => $providerUrl]);
 
             // Use the admin wallet for fiat-to-crypto conversions
             $privateKey = env('BLOCKCHAIN_ADMIN_PRIVATE_KEY');
@@ -658,40 +662,83 @@ class FiatToScrollConverter extends Controller
             }
             $testWalletAddress = env('BLOCKCHAIN_ADMIN_ADDRESS');
 
+            // Log wallet info for debugging (don't log private key in production)
+            Log::info('Using wallet address:', ['address' => $testWalletAddress]);
+
             // Contract configuration
             $contractAddress = env('CONTRACT_ADDRESS');
-            $contractAbi = json_decode(file_get_contents(base_path('resources/abi/DonationContract.json')), true);
+
+            // Log contract address for debugging
+            Log::info('Using contract address:', ['address' => $contractAddress]);
+
+            // Try to load the ABI file
+            $abiPath = base_path('resources/abi/DonationContract.json');
+            if (!file_exists($abiPath)) {
+                throw new \Exception('ABI file not found at: ' . $abiPath);
+            }
+
+            $contractAbi = json_decode(file_get_contents($abiPath), true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception('Error parsing ABI file: ' . json_last_error_msg());
+            }
 
             // Create contract instance
             $contract = new \Web3\Contract($web3->provider, $contractAbi);
 
-            // Convert amount to wei
-            $amountInWei = \Web3\Utils::toWei($amount, 'ether');
+            // Convert amount to wei (1 ETH = 10^18 wei)
+            $amountInWei = bcmul((string)$amount, '1000000000000000000');
+
+            // Log the amount for debugging
+            Log::info('Donation amount:', [
+                'amount_eth' => $amount,
+                'amount_wei' => $amountInWei
+            ]);
 
             // Initialize transaction hash variable
             $txHash = null;
 
-            // Call the donate function on the contract
-            $contract->at($contractAddress)->send(
-                'donate', // Function name
-                $charityId, // First parameter: charityId
-                $message,  // Second parameter: message
-                [
-                    'from' => $testWalletAddress,
-                    'gas' => '0x' . dechex(200000), // Gas limit
-                    'gasPrice' => '0x' . dechex(20000000000), // 20 Gwei
-                    'value' => '0x' . dechex($amount * 1e18), // Convert to wei
-                    'privateKey' => $privateKey
-                ],
-                function ($err, $result) use (&$txHash) {
-                    if ($err) {
-                        throw new \Exception("Contract error: " . $err->getMessage());
-                    }
+            // Prepare transaction parameters
+            $params = [
+                'from' => $testWalletAddress,
+                'gas' => '0x' . dechex(200000), // Gas limit
+                'gasPrice' => '0x' . dechex(20000000000), // 20 Gwei
+                'value' => '0x' . dechex((int)$amount * 1e18), // Convert to wei
+                'privateKey' => $privateKey
+            ];
 
-                    // Store transaction hash
-                    $txHash = $result;
-                }
-            );
+            // Log transaction parameters (except private key)
+            Log::info('Transaction parameters:', [
+                'from' => $params['from'],
+                'gas' => $params['gas'],
+                'gasPrice' => $params['gasPrice'],
+                'value' => $params['value']
+            ]);
+
+            // Call the donate function on the contract
+            try {
+                $contract->at($contractAddress)->send(
+                    'donate', // Function name
+                    $charityId, // First parameter: charityId
+                    $message,  // Second parameter: message
+                    $params,
+                    function ($err, $result) use (&$txHash) {
+                        if ($err) {
+                            throw new \Exception("Contract error: " . $err->getMessage());
+                        }
+
+                        // Store transaction hash
+                        $txHash = $result;
+                    }
+                );
+            } catch (\Exception $e) {
+                Log::error('Contract call failed:', [
+                    'error' => $e->getMessage(),
+                    'contract_address' => $contractAddress,
+                    'function' => 'donate',
+                    'params' => [$charityId, $message]
+                ]);
+                throw $e;
+            }
 
             Log::info('Blockchain transaction successful', [
                 'transaction_hash' => $txHash
@@ -705,9 +752,8 @@ class FiatToScrollConverter extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // For testing purposes, don't fail the whole donation if blockchain fails
-            // Instead, return a fake hash but log the error
-            return '0x' . md5('failed_blockchain_' . time());
+            // Don't return a mock hash, throw the error so the frontend can handle it properly
+            throw new \Exception('Blockchain transaction failed: ' . $e->getMessage());
         }
     }
 

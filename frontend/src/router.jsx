@@ -33,6 +33,7 @@ import BlockchainTester from './components/BlockchainTester';
 import SponsorshipPartners from './components/SponsorshipPartners';
 import BlockchainBasics from './pages/BlockchainBasics';
 import AdminVerificationPanel from './components/admin/AdminVerificationPanel';
+import CarbonMarket from './components/CarbonMarket';
 
 const router = createBrowserRouter([
   {
@@ -62,6 +63,15 @@ const router = createBrowserRouter([
         path: '/charities/:id',
         element: <CharityDetails />
       },
+      {
+        path: '/carbonmarket',
+        element: <CarbonMarket />,
+        handle: {
+          title: "Carbon Market",
+          subtitle: "Explore and trade carbon credits"
+        }
+      },
+// ... existing code ...
       {
         path: '/terms',
         element: <TermsAndConditions />

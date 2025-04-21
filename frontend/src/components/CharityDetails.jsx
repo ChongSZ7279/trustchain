@@ -160,6 +160,12 @@ const FundingProgress = ({ current, target, donorCount, endDate, className = "" 
             <div className="h-full w-full animate-pulse bg-white opacity-20"></div>
           </div>
         </div>
+
+        {/* Display donor count with better visibility */}
+        <div className="mt-2 text-sm text-gray-700 flex items-center justify-end font-medium">
+          <FaHeart className="mr-1.5 text-pink-500" />
+          <span>{donors} donor{donors !== 1 ? 's' : ''} have contributed</span>
+        </div>
       </div>
     );
   } catch (error) {
@@ -478,11 +484,13 @@ export default function CharityDetails() {
         const uniqueDonors = new Set();
         transactionsData.forEach(tx => {
           if (tx.donor_id) uniqueDonors.add(tx.donor_id);
+          // Also count blockchain transactions by donor address
+          if (tx.donor) uniqueDonors.add(tx.donor);
         });
         console.log(`Found ${uniqueDonors.size} unique donors in transactions`);
 
-        // Only update charity donor count if it's not already set (for debugging)
-        if (!charityData.donor_count && uniqueDonors.size > 0) {
+        // Always update the donor count if we found donors in transactions
+        if (uniqueDonors.size > 0) {
           console.log("Updating charity donor count from transactions:", uniqueDonors.size);
           setCharity(prev => ({
             ...prev,
@@ -513,8 +521,8 @@ export default function CharityDetails() {
           });
           console.log(`Found ${uniqueDonors.size} unique donors in donations`);
 
-          // Only update if charity has no donor count and donations has more donors than transactions
-          if (!charityData.donor_count && uniqueDonors.size > 0) {
+          // Update donor count if we found more donors in donations than we already have
+          if (uniqueDonors.size > (charity?.donor_count || 0)) {
             console.log("Updating charity donor count from donations:", uniqueDonors.size);
             setCharity(prev => ({
               ...prev,
@@ -1067,33 +1075,34 @@ export default function CharityDetails() {
                     </div>
                   </div>
 
-                  {/* Donor count */}
-                  <div className="mt-2 text-xs text-gray-500 flex items-center justify-end">
-                    <FaHeart className="mr-1 text-pink-500" />
+                  {/* Donor count - Enhanced with better visibility */}
+                  <div className="mt-2 text-sm text-gray-700 flex items-center justify-end font-medium">
+                    <FaHeart className="mr-1.5 text-pink-500" />
                     <span>{charity?.donor_count || 0} donor{(charity?.donor_count !== 1) ? 's' : ''} have contributed</span>
                   </div>
                 </div>
               </div>
 
-              {/* Actions - Improved layout and styling */}
-              <div className="flex flex-col gap-3 mt-6 lg:mt-0 w-full lg:w-auto self-center">
-                {/* Donate button - Enhanced with status-based styling */}
+              {/* Actions - Improved layout and styling with consistent button sizes */}
+              <div className="flex flex-col gap-4 mt-6 lg:mt-0 w-full lg:w-auto self-center">
+                {/* Donate button - Enhanced with more attractive styling */}
                 <button
                   onClick={() => setShowDonationModal(true)}
-                  className={`w-full lg:w-auto px-6 py-3 rounded-lg font-medium text-base text-white transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${charity?.is_verified ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600' : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600'}`}
+                  className={`w-full lg:w-48 px-6 py-3.5 rounded-lg font-bold text-base text-white transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1 ${charity?.is_verified ? 'bg-gradient-to-r from-green-500 to-emerald-400 hover:from-green-600 hover:to-emerald-500' : 'bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500'}`}
+                  style={{ animation: 'pulse 2s infinite' }}
                 >
                   <FaHandHoldingHeart className="mr-2 text-lg" />
                   Donate Now
                 </button>
 
-                <div className="flex gap-3 justify-center">
-                  {/* Share button - Enhanced */}
+                <div className="flex gap-2 justify-center">
+                  {/* Share button - Consistent sizing */}
                   <div className="relative">
                     <button
                       onClick={handleShare}
-                      className="px-4 py-2.5 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center shadow-sm hover:shadow"
+                      className="w-24 h-10 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow"
                     >
-                      <FaShare className="mr-2" />
+                      <FaShare className="mr-1.5" />
                       Share
                     </button>
                     {showShareTooltip && (
@@ -1103,33 +1112,33 @@ export default function CharityDetails() {
                     )}
                   </div>
 
-                  {/* Follow button - Enhanced */}
+                  {/* Follow button - Consistent sizing */}
                   {currentUser && !isOrganizationUser() && (
                     <button
                       onClick={handleFollowToggle}
                       disabled={followLoading}
-                      className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center shadow-sm hover:shadow ${
+                      className={`w-24 h-10 rounded-lg font-medium text-sm transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow ${
                         isFollowing
                           ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-300'
                           : 'bg-indigo-600 text-white hover:bg-indigo-700'
                       }`}
                     >
                       {followLoading ? (
-                        <div className="animate-spin h-4 w-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                        <div className="animate-spin h-4 w-4 border-2 border-current rounded-full border-t-transparent mr-1.5"></div>
                       ) : (
-                        <FaThumbsUp className="mr-2" />
+                        <FaThumbsUp className="mr-1.5" />
                       )}
                       {isFollowing ? 'Following' : 'Follow'}
                     </button>
                   )}
 
-                  {/* Edit button - Enhanced */}
+                  {/* Edit button - Consistent sizing */}
                   {canManageCharity() && (
                     <Link
                       to={`/charities/${id}/edit`}
-                      className="px-4 py-2.5 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center shadow-sm hover:shadow"
+                      className="w-24 h-10 rounded-lg font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow"
                     >
-                      <FaEdit className="mr-2" />
+                      <FaEdit className="mr-1.5" />
                       Edit
                     </Link>
                   )}
@@ -1372,7 +1381,7 @@ export default function CharityDetails() {
 
                       {/* Organization Details */}
                       <div className="p-5">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-6">
                           {/* Contact Email */}
                           <div className="flex items-start space-x-3">
                             <div className="bg-blue-100 p-2 rounded-lg">
@@ -1408,7 +1417,7 @@ export default function CharityDetails() {
                           </div>
 
                           {/* Address */}
-                          <div className="flex items-start space-x-3 md:col-span-2">
+                          <div className="flex items-start space-x-3">
                             <div className="bg-red-100 p-2 rounded-lg">
                               <FaMapMarkerAlt className="text-red-600" />
                             </div>
@@ -1424,7 +1433,7 @@ export default function CharityDetails() {
 
                           {/* Wallet Address (if available) */}
                           {organization.wallet_address && (
-                            <div className="flex items-start space-x-3 md:col-span-2">
+                            <div className="flex items-start space-x-3">
                               <div className="bg-purple-100 p-2 rounded-lg">
                                 <FaWallet className="text-purple-600" />
                               </div>

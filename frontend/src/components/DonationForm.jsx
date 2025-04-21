@@ -119,7 +119,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     // Prevent multiple simultaneous connection attempts
     if (connectionInProgress) {
       console.log('Wallet connection already in progress, please wait...');
-      toast.info('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
+      toast('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
       return false;
     }
 
@@ -149,34 +149,50 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         return true;
       }
 
-      // If not already connected, initialize Web3
-      const { chainId } = await initWeb3();
-      const connected = isWalletConnected();
-      console.log('Wallet connected:', connected, 'Chain ID:', chainId);
-
-      setWalletConnected(connected);
-
-      // Check if we're on Scroll network
-      const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
-      setIsScrollNetwork(isScroll);
-
-      // If not on Scroll network, try to switch
-      if (connected && !isScroll) {
-        console.log('Connected but not on Scroll network. Attempting to switch...');
-        await switchToScrollNetwork();
+      // Make sure MetaMask is installed
+      if (!window.ethereum) {
+        toast.error('MetaMask is not installed. Please install MetaMask to continue.');
+        return false;
       }
 
-      return connected;
+      // Directly request accounts to trigger the MetaMask popup
+      console.log('Requesting accounts directly from MetaMask...');
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts && accounts.length > 0) {
+          console.log('Successfully connected to account:', accounts[0]);
+
+          // Now initialize Web3 with the connected account
+          const { chainId } = await initWeb3();
+          setWalletConnected(true);
+
+          // Check if we're on Scroll network
+          const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+          setIsScrollNetwork(isScroll);
+
+          // If not on Scroll network, try to switch
+          if (!isScroll) {
+            console.log('Connected but not on Scroll network. Attempting to switch...');
+            await switchToScrollNetwork();
+          }
+
+          toast.success('Wallet connected successfully!');
+          return true;
+        } else {
+          throw new Error('No accounts returned from MetaMask');
+        }
+      } catch (requestError) {
+        if (requestError.code === -32002) {
+          toast('MetaMask request already pending. Please open MetaMask and check for pending requests.');
+        } else if (requestError.code === 4001) {
+          toast.error('You rejected the connection request. Please approve the MetaMask connection to continue.');
+        } else {
+          toast.error(`Failed to connect wallet: ${requestError.message}`);
+        }
+        throw requestError;
+      }
     } catch (error) {
       console.error('Error connecting wallet:', error);
-
-      // Handle specific error codes
-      if (error.code === -32002) {
-        toast.info('MetaMask request already pending. Please open MetaMask and confirm any pending requests.');
-      } else {
-        toast.error(`Failed to connect wallet: ${error.message}`);
-      }
-
       return false;
     } finally {
       setConnectionInProgress(false);
@@ -236,8 +252,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       if (result.success) {
         if (result.databaseError) {
           // Show a warning to user that transaction was successful but not saved to database
-          const errorMessage = result.error || 'Unknown database error';
-          toast.warning(`Warning: Your donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash.`);
+          toast.warning(`Warning: Your donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash: ${result.transactionHash}`);
         } else {
           // Everything went well
           toast.success(`Donation successful!`);

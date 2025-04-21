@@ -1,114 +1,164 @@
 import React, { useState, useEffect } from 'react';
-import { verifyTransaction } from '../utils/contractInteraction';
-import { ethers } from 'ethers';
+import { verifyTransaction } from '../services/donationService';
+import { FaExclamationTriangle, FaCheckCircle, FaSpinner, FaExternalLinkAlt } from 'react-icons/fa';
 
-const TransactionVerifier = ({ transactionHash, onVerificationComplete }) => {
-  const [txHash, setTxHash] = useState('');
+const TransactionVerifier = ({ transactionHash, autoVerify = false, onVerificationComplete }) => {
+  const [txHash, setTxHash] = useState(transactionHash || '');
   const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  
-  const handleVerify = async () => {
-    if (!txHash) return;
-    
+  const [loading, setLoading] = useState(autoVerify && transactionHash);
+
+  useEffect(() => {
+    if (transactionHash) {
+      setTxHash(transactionHash);
+    }
+
+    if (autoVerify && transactionHash) {
+      handleVerify(transactionHash);
+    }
+  }, [transactionHash, autoVerify]);
+
+  const handleVerify = async (hash = null) => {
+    const hashToVerify = hash || txHash;
+    if (!hashToVerify) return;
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No authentication token found');
-        setResult({ success: false, error: 'User not authenticated' });
-        return;
-      }
-
-      const provider = new ethers.providers.JsonRpcProvider(
-        `https://sepolia.infura.io/v3/${import.meta.env.REACT_APP_INFURA_PROJECT_ID || '7b6b2b41ec7246db9a517eef9aa00ae8'}`
-      );
-
-      const verification = await verifyTransaction(txHash, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('Verifying transaction hash:', hashToVerify);
+      const verification = await verifyTransaction(hashToVerify);
+      console.log('Verification result:', verification);
       setResult(verification);
+
+      if (onVerificationComplete) {
+        onVerificationComplete(verification);
+      }
     } catch (error) {
-      setResult({ success: false, error: error.message });
+      console.error('Error in verification:', error);
+      setResult({
+        success: false,
+        error: error.message,
+        scrollscanUrl: `https://sepolia.scrollscan.com/tx/${hashToVerify}`
+      });
     } finally {
       setLoading(false);
     }
   };
-  
-  useEffect(() => {
-    const verifyTransaction = async () => {
-      try {
-        setVerifying(true);
-        // Change from localhost to Sepolia testnet
-        const provider = new ethers.providers.JsonRpcProvider(
-          `https://sepolia.infura.io/v3/${import.meta.env.REACT_APP_INFURA_PROJECT_ID || '7b6b2b41ec7246db9a517eef9aa00ae8'}`
-        );
-        // ... existing code ...
-      } catch (error) {
-        // ... existing code ...
-      }
-    };
-    
-    // ... existing code ...
-  }, [transactionHash]);
-  
+
   return (
-    <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">Verify Blockchain Transaction</h2>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Transaction Hash
-        </label>
-        <input
-          type="text"
-          value={txHash}
-          onChange={(e) => setTxHash(e.target.value)}
-          placeholder="0x..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-        />
-      </div>
-      
-      <button
-        onClick={handleVerify}
-        disabled={loading || !txHash}
-        className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300"
-      >
-        {loading ? 'Verifying...' : 'Verify Transaction'}
-      </button>
-      
-      {result && (
-        <div className="mt-4 p-4 border rounded-md">
-          <h3 className="font-bold mb-2">
-            {result.success ? 'Transaction Found' : 'Verification Failed'}
-          </h3>
-          
-          {result.success ? (
-            <div>
-              <p className="mb-2">
-                <span className="font-semibold">Status:</span> 
-                {result.confirmed ? ' Confirmed ✅' : ' Pending ⏳'}
-              </p>
-              {result.blockNumber && (
-                <p className="mb-2">
-                  <span className="font-semibold">Block Number:</span> {result.blockNumber.toString()}
+    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <h3 className="text-lg font-semibold mb-4">Transaction Verification</h3>
+
+      {!autoVerify && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Transaction Hash
+          </label>
+          <div className="flex">
+            <input
+              type="text"
+              value={txHash}
+              onChange={(e) => setTxHash(e.target.value)}
+              placeholder="0x..."
+              className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 text-sm"
+            />
+            <button
+              onClick={() => handleVerify()}
+              disabled={loading || !txHash}
+              className="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700 disabled:bg-blue-300 flex items-center"
+            >
+              {loading ? <FaSpinner className="animate-spin mr-2" /> : null}
+              {loading ? 'Verifying...' : 'Verify'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center justify-center py-4">
+          <FaSpinner className="animate-spin text-blue-500 mr-2" />
+          <span>Verifying transaction...</span>
+        </div>
+      )}
+
+      {result && !loading && (
+        <div className={`p-4 rounded-md ${result.verified || result.success ? 'bg-green-50' : 'bg-yellow-50'}`}>
+          {result.isMockHash ? (
+            <div className="flex items-start">
+              <FaExclamationTriangle className="text-yellow-500 mt-1 mr-3 flex-shrink-0" />
+              <div>
+                <h4 className="font-medium text-yellow-800">Test Transaction Detected</h4>
+                <p className="text-sm text-yellow-700 mt-1">
+                  This appears to be a test or mock transaction hash that was generated by the system for testing purposes.
+                  It will not be found on Scrollscan because it doesn't exist on the actual blockchain.
                 </p>
-              )}
-              <p className="mb-2">
-                <span className="font-semibold">From:</span> {result.transaction?.from}
-              </p>
-              <p className="mb-2">
-                <span className="font-semibold">To:</span> {result.transaction?.to}
-              </p>
-              <p className="mb-2">
-                <span className="font-semibold">Value:</span> {result.transaction?.value.toString()} Wei
-              </p>
+                <div className="mt-3">
+                  <a
+                    href={result.scrollscanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-yellow-800 flex items-center hover:underline"
+                  >
+                    Try viewing on Scrollscan anyway <FaExternalLinkAlt className="ml-1" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : result.verified || result.success ? (
+            <div className="flex items-start">
+              <FaCheckCircle className="text-green-500 mt-1 mr-3 flex-shrink-0" />
+              <div>
+                <h4 className="font-medium text-green-800">Transaction Verified</h4>
+                <p className="text-sm text-green-700 mt-1">
+                  This transaction has been verified on the Scroll Sepolia blockchain.
+                </p>
+                {result.details && (
+                  <div className="mt-2 text-sm text-green-700">
+                    <div><strong>From:</strong> {result.details.from}</div>
+                    <div><strong>To:</strong> {result.details.to}</div>
+                    <div><strong>Value:</strong> {result.details.value} ETH</div>
+                    <div><strong>Block Number:</strong> {result.details.blockNumber}</div>
+                  </div>
+                )}
+                <div className="mt-3">
+                  <a
+                    href={result.scrollscanUrl || result.details?.scrollscanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-green-800 flex items-center hover:underline"
+                  >
+                    View on Scrollscan <FaExternalLinkAlt className="ml-1" />
+                  </a>
+                </div>
+              </div>
             </div>
           ) : (
-            <p className="text-red-500">{result.error}</p>
+            <div className="flex items-start">
+              <FaExclamationTriangle className="text-yellow-500 mt-1 mr-3 flex-shrink-0" />
+              <div>
+                <h4 className="font-medium text-yellow-800">Transaction Not Found</h4>
+                <p className="text-sm text-yellow-700 mt-1">
+                  {result.message || 'This transaction could not be found on the Scroll Sepolia blockchain.'}
+                </p>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>Possible reasons:</p>
+                  <ul className="list-disc pl-5 mt-1">
+                    <li>The transaction is still pending and hasn't been mined yet</li>
+                    <li>The transaction hash is incorrect</li>
+                    <li>The transaction was created in test mode and doesn't exist on the blockchain</li>
+                    <li>There might be network connectivity issues with the Scroll Sepolia RPC</li>
+                  </ul>
+                </div>
+                <div className="mt-3">
+                  <a
+                    href={result.scrollscanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-yellow-800 flex items-center hover:underline"
+                  >
+                    Try viewing on Scrollscan <FaExternalLinkAlt className="ml-1" />
+                  </a>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -116,4 +166,4 @@ const TransactionVerifier = ({ transactionHash, onVerificationComplete }) => {
   );
 };
 
-export default TransactionVerifier; 
+export default TransactionVerifier;

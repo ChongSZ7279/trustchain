@@ -113,7 +113,7 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
   }, [isSuccess, onClose]);
   
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-lg max-w-lg mx-auto">
+    <div className="bg-white rounded-xl overflow-hidden shadow-lg">
       {isSuccess ? (
         // Success state after subscription is created
         <motion.div 

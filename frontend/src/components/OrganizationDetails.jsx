@@ -285,32 +285,29 @@ export default function OrganizationDetails() {
 
               {/* Actions */}
               <div className="flex flex-wrap gap-3 mt-4 md:mt-0">
-                {/* Only show these buttons for non-organization users */}
-                {!isOrganizationUser() && (
-                  <>
-                    {/* Monthly Support/Donate Button - Most attractive */}
-                    <button
-                      onClick={() => setShowSubscriptionModal(true)}
-                      className="px-4 py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center"
-                    >
-                      <FaRegCalendarCheck className="mr-2" />
-                      <span>Donate Monthly</span>
-                    </button>
-                    
-                    {/* Follow Button - Second attractive */}
-                    <button
-                      onClick={toggleFollow}
-                      disabled={isFollowLoading}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                        isFollowing
-                          ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200 border border-indigo-300'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
-                      }`}
-                    >
-                      <FaThumbsUp className={`inline-block mr-2 ${isFollowLoading ? 'opacity-50' : ''}`} />
-                      {isFollowing ? 'Following' : 'Follow'}
-                    </button>
-                  </>
+                {/* Monthly Support/Donate Button - Most attractive */}
+                <button
+                  onClick={() => setShowSubscriptionModal(true)}
+                  className="px-4 py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center"
+                >
+                  <FaRegCalendarCheck className="mr-2" />
+                  <span>Donate Monthly</span>
+                </button>
+                
+                {/* Follow Button - Second attractive */}
+                  {currentUser && !isOrganizationUser() && (
+                <button
+                  onClick={toggleFollow}
+                  disabled={isFollowLoading}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    isFollowing
+                      ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200 border border-indigo-300'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                  }`}
+                >
+                  <FaThumbsUp className={`inline-block mr-2 ${isFollowLoading ? 'opacity-50' : ''}`} />
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
                 )}
 
                 {/* Share Button */}
@@ -738,7 +735,7 @@ export default function OrganizationDetails() {
                       className="inline-flex items-center px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 whitespace-nowrap"
                     >
                       <FaPlus className="mr-2" />
-                      Add New Charity
+                      Create Charity
                     </Link>
                   )}
                 </div>

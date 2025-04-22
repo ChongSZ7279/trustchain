@@ -31,16 +31,22 @@ import {
   FaFilter,
   FaExchangeAlt,
   FaClock,
-  FaCogs,
   FaTachometerAlt,
   FaListAlt,
   FaChevronDown,
   FaArrowDown,
   FaArrowUp,
   FaHourglass,
-  FaTimes
+  FaTimes,
+  FaSearch,
+  FaSort,
+  FaSortUp,
+  FaSortDown,
+  FaMoneyBillWave,
+  FaHandHoldingHeart
 } from 'react-icons/fa';
 import { PlusIcon, HeartIcon } from '@heroicons/react/24/outline';
+import Pagination from './Pagination';
 
 export default function OrganizationDashboard() {
   const { id } = useParams();
@@ -54,13 +60,21 @@ export default function OrganizationDashboard() {
   const [totalDonations, setTotalDonations] = useState(0);
   const [donations, setDonations] = useState([]);
   const [combinedTransactions, setCombinedTransactions] = useState([]);
-  const [currentDataSource, setCurrentDataSource] = useState('transactions');
+  const [currentDataSource, setCurrentDataSource] = useState('combined');
   const [organizationId, setOrganizationId] = useState(null);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [filteredHistory, setFilteredHistory] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [charityFilter, setCharityFilter] = useState("all");
   const [filteredCharities, setFilteredCharities] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10 // Change to 10 items per page from 100
+  });
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     if (!currentUser) {
@@ -82,8 +96,8 @@ export default function OrganizationDashboard() {
         const charitiesResponse = await axios.get(`/organizations/${currentUser.id}/charities`);
         setCharities(charitiesResponse.data);
         
-        // Load data based on the current data source
-        await loadDataBySource(currentDataSource);
+        // Load data based on the current data source (default to combined)
+        await loadDataBySource('combined');
         
       } catch (err) {
         console.error('Error in fetchOrganizationData:', err);
@@ -96,47 +110,148 @@ export default function OrganizationDashboard() {
     fetchOrganizationData();
   }, [currentUser]);
 
-  const loadDataBySource = async (source) => {
+  const loadDataBySource = async (source = 'combined') => {
     if (!currentUser || !currentUser.id) return;
     
     try {
       setLoading(true);
+      setCurrentDataSource(source); // Update the current data source state
       
-      let endpoint;
-      if (source === 'transactions') {
-        endpoint = `/organizations/${currentUser.id}/transactions`;
-      } else if (source === 'donations') {
-        endpoint = `/organizations/${currentUser.id}/donations`;
-      } else if (source === 'combined') {
-        endpoint = `/organizations/${currentUser.id}/financial-activities`;
+      // First, fetch all charities belonging to this organization
+      console.log("Fetching charities for organization:", currentUser.id);
+      const charitiesResponse = await axios.get(`/organizations/${currentUser.id}/charities`);
+      const organizationCharities = charitiesResponse.data;
+      
+      // Extract charity IDs
+      const charityIds = organizationCharities.map(charity => charity.id);
+      console.log("Charity IDs belonging to this organization:", charityIds);
+      
+      // If no charities found, return empty data
+      if (charityIds.length === 0) {
+        console.log("No charities found for this organization");
+        setTransactions([]);
+        setDonations([]);
+        setCombinedTransactions([]);
+        setLoading(false);
+        return;
       }
       
-      console.log(`Loading data from ${endpoint}`);
-      const response = await axios.get(endpoint);
-      console.log(`${source} data:`, response.data);
+      let data = [];
+      let responseData = null;
       
-      // Handle both paginated and non-paginated responses
-      const data = response.data.data ? response.data.data : response.data;
+      // Prepare pagination parameters
+      const params = {
+        page: pagination.currentPage,
+        per_page: pagination.itemsPerPage
+      };
       
+      // Fetch data based on source type
       if (source === 'transactions') {
+        // Use the organization transactions endpoint
+        console.log("Fetching transactions for organization:", currentUser.id);
+        const response = await axios.get(`/organizations/${currentUser.id}/transactions`, { params });
+        responseData = response.data;
+        data = responseData.data ? responseData.data : responseData;
+        console.log("Organization transactions:", data);
+        
         setTransactions(data || []);
-        // Calculate total donations from transactions
-        const total = Array.isArray(data) ? data.reduce((sum, transaction) => sum + parseFloat(transaction.amount || 0), 0) : 0;
-        setTotalDonations(total);
+        setCombinedTransactions(data || []);
+        
       } else if (source === 'donations') {
+        // Use the organization donations endpoint
+        console.log("Fetching donations for organization:", currentUser.id);
+        const response = await axios.get(`/organizations/${currentUser.id}/donations`, { params });
+        responseData = response.data;
+        data = responseData.data ? responseData.data : responseData;
+        console.log("Organization donations:", data);
+        
         setDonations(data || []);
+        setCombinedTransactions(data || []);
+        
+      } else if (source === 'combined') {
+        // For combined view, fetch both transactions and donations
+        console.log("Fetching combined financial activities for organization:", currentUser.id);
+        
+        try {
+          // First get transactions
+          const txResponse = await axios.get(`/organizations/${currentUser.id}/transactions`, { params });
+          const txData = txResponse.data.data || txResponse.data || [];
+          
+          // Then get donations
+          const donResponse = await axios.get(`/organizations/${currentUser.id}/donations`, { params });
+          const donData = donResponse.data.data || donResponse.data || [];
+          
+          // Combine the data
+          const combined = [...txData, ...donData];
+          console.log("Combined financial activities:", combined);
+          
+          // Sort by date (newest first)
+          combined.sort((a, b) => {
+            const dateA = new Date(a.created_at || a.completed_at || 0);
+            const dateB = new Date(b.created_at || b.completed_at || 0);
+            return dateB - dateA;
+          });
+          
+          // Calculate total donations
+          const total = combined.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+          setTotalDonations(total);
+          
+          // Set the combined data
+          data = combined;
+          responseData = { data: combined, total: combined.length };
+          setCombinedTransactions(combined);
+        } catch (err) {
+          console.error("Error fetching combined data:", err);
+          data = [];
+          setCombinedTransactions([]);
+        }
       }
       
-      // Always ensure combinedTransactions is an array
-      setCombinedTransactions(Array.isArray(data) ? data : []);
+      // Update pagination from response
+      updatePaginationFromResponse(responseData, data);
       
       setLoading(false);
     } catch (error) {
       console.error(`Error loading ${source} data:`, error);
-      setError(`Failed to load ${source} data`);
+      setError(`Failed to load ${source} data: ${error.message}`);
       setCombinedTransactions([]); // Reset to empty array on error
       setLoading(false);
     }
+  };
+
+  // Helper function to update pagination from response
+  const updatePaginationFromResponse = (response, extractedData) => {
+    if (response && response.meta) {
+      setPagination({
+        currentPage: response.meta.current_page,
+        totalPages: response.meta.last_page,
+        totalItems: response.meta.total,
+        itemsPerPage: response.meta.per_page
+      });
+    } else if (response && response.current_page) {
+      setPagination({
+        currentPage: response.current_page,
+        totalPages: response.last_page,
+        totalItems: response.total,
+        itemsPerPage: response.per_page
+      });
+    } else {
+      // If no pagination data, set the total items to the length of the data
+      setPagination(prev => ({
+        ...prev,
+        totalItems: Array.isArray(extractedData) ? extractedData.length : 0,
+        totalPages: Math.ceil((Array.isArray(extractedData) ? extractedData.length : 0) / prev.itemsPerPage),
+      }));
+    }
+  };
+  
+  // Handle page change
+  const handlePageChange = (page) => {
+    setPagination(prev => ({ ...prev, currentPage: page }));
+    // Scroll to top of the list when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Reload the data for the new page
+    loadDataBySource(currentDataSource);
   };
 
   useEffect(() => {
@@ -282,6 +397,106 @@ export default function OrganizationDashboard() {
   const canEditOrganization = () => {
     return (accountType === 'organization' && currentUser?.id === currentUser?.id) || 
            (currentUser?.representative_id === currentUser?.ic_number);
+  };
+
+  // Format amount to display SCROLL with 3 decimal places
+  const formatAmount = (amount) => {
+    if (!amount) return '0.000 SCROLL';
+    return `${parseFloat(amount).toFixed(3)} SCROLL`;
+  };
+
+  // Add a getCharityName function to display charity names in the transaction list
+  const getCharityName = (item) => {
+    if (!item) return 'Unknown Charity';
+    
+    // If charity object is included in the response
+    if (item.charity && item.charity.name) {
+      return item.charity.name;
+    }
+    
+    // If only charity_id or cause_id is available
+    const charityId = item.charity_id || item.cause_id;
+    if (charityId && charities.length > 0) {
+      const charity = charities.find(c => c.id === charityId);
+      return charity ? charity.name : `Charity #${charityId}`;
+    }
+    
+    return 'Unknown Charity';
+  };
+
+  const handleSort = (field) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    loadDataBySource(currentDataSource);
+  };
+
+  const getTransactionType = (item) => {
+    // Simplify to only three possible types
+    
+    // Check if this is fund_release
+    if (item.type === 'fund_release') {
+      return 'Fund Release';
+    }
+    
+    // Check donation types
+    if (item.donation_type === 'subscription' || 
+        (item.type === 'subscription') || 
+        (item.source === 'Donation' && item.type === 'subscription')) {
+      return 'Subscription Donation';
+    }
+    
+    // Default to charity donation for all other donation types
+    if (item.source === 'Donation' || 
+        item.donor_message || 
+        item.donor_id ||
+        item.cause_id || 
+        item.currency_type || 
+        item.donation_type === 'charity' || 
+        item.type === 'charity' || 
+        item.type === 'donation') {
+      return 'Charity Donation';
+    }
+    
+    // If nothing else matches, default to Fund Release
+    return 'Fund Release';
+  };
+
+  // Add functions for consistent type styling
+  const getTypeClass = (item) => {
+    // Get the transaction type
+    const transactionType = getTransactionType(item);
+    
+    // Apply consistent colors
+    switch (transactionType) {
+      case 'Fund Release':
+        return 'bg-green-100 text-green-800';
+      case 'Charity Donation':
+        return 'bg-purple-100 text-purple-800';
+      case 'Subscription Donation':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTypeIcon = (item) => {
+    // Get the transaction type
+    const transactionType = getTransactionType(item);
+    
+    // Apply consistent icons
+    switch (transactionType) {
+      case 'Fund Release':
+        return <FaMoneyBillWave className="mr-1.5" />;
+      case 'Charity Donation':
+      case 'Subscription Donation':
+        return <FaHandHoldingHeart className="mr-1.5" />;
+      default:
+        return <FaExchangeAlt className="mr-1.5" />;
+    }
   };
 
   if (loading && !currentUser) {
@@ -514,17 +729,6 @@ export default function OrganizationDashboard() {
               <FaHistory className={`mr-2 h-4 w-4 ${activeTab === 'transaction' ? 'text-indigo-500' : 'text-gray-400'}`} />
               Transactions
             </button>
-            <button
-              onClick={() => setActiveTab('history')}
-              className={`${
-                activeTab === 'history'
-                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center transition-colors duration-200 rounded-t-lg mx-1`}
-              >
-              <FaHistory className={`mr-2 h-4 w-4 ${activeTab === 'history' ? 'text-indigo-500' : 'text-gray-400'}`} />
-              Transaction History
-              </button>
             </nav>
 
           {/* Tab Content */}
@@ -780,12 +984,12 @@ export default function OrganizationDashboard() {
                     className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                     value={currentDataSource}
                     onChange={(e) => {
-                      setCurrentDataSource(e.target.value);
+                      loadDataBySource(e.target.value);
                     }}
                   >
+                    <option value="combined">All</option>
                     <option value="transactions">Transactions</option>
                     <option value="donations">Donations</option>
-                    <option value="combined">All</option>
                   </select>
                   
                   <button
@@ -825,6 +1029,15 @@ export default function OrganizationDashboard() {
                           <div className="flex items-center">
                             <FaCalendarAlt className="mr-2" />
                             Date
+                            <button onClick={() => handleSort('created_at')} className="ml-1">
+                              {sortField === 'created_at' ? (
+                                sortDirection === 'asc' ? 
+                                  <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                                  <FaSortDown className="h-4 w-4 text-indigo-600" />
+                              ) : (
+                                <FaSort className="h-3 w-3 text-gray-400" />
+                              )}
+                            </button>
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -837,6 +1050,15 @@ export default function OrganizationDashboard() {
                           <div className="flex items-center">
                             <FaChartBar className="mr-2" />
                             Amount
+                            <button onClick={() => handleSort('amount')} className="ml-1">
+                              {sortField === 'amount' ? (
+                                sortDirection === 'asc' ? 
+                                  <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                                  <FaSortDown className="h-4 w-4 text-indigo-600" />
+                              ) : (
+                                <FaSort className="h-3 w-3 text-gray-400" />
+                              )}
+                            </button>
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -863,26 +1085,22 @@ export default function OrganizationDashboard() {
                       {combinedTransactions.map(item => {
                         if (!item) return null; // Skip null or undefined items
                         
-                        // Determine if this is a donation or transaction
-                        const isDonation = item.source === 'Donation' || item.donor_message;
-                        
                         return (
                           <tr key={item.id || item.transaction_hash || Math.random()} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatDate(item.created_at || item.completed_at || new Date())}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                isDonation ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {isDonation ? 'Donation' : (item.type || 'Transaction')}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeClass(item)}`}>
+                                {getTypeIcon(item)}
+                                {getTransactionType(item)}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.amount ? `${item.amount} ${item.currency_type || 'ETH'}` : 'N/A'}
+                              {formatAmount(item.amount)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.user?.name || item.from_user?.name || (item.is_anonymous ? 'Anonymous' : 'Unknown')}
+                              {getCharityName(item)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
@@ -892,7 +1110,7 @@ export default function OrganizationDashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <Link
-                                to={isDonation ? `/donations/${item.id}` : `/transactions/${item.id}`}
+                                to={item.source === 'Donation' ? `/donations/${item.id}` : `/transactions/${item.id}`}
                                 className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
                               >
                                 <FaEdit className="mr-2" />
@@ -904,130 +1122,50 @@ export default function OrganizationDashboard() {
                       })}
                     </tbody>
                   </table>
+                  
+                  {/* Pagination */}
+                  {pagination.totalPages > 1 && (
+                    <div className="border-t border-gray-200 px-4 py-3">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-gray-700">
+                          Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.itemsPerPage + 1}</span> to{' '}
+                          <span className="font-medium">
+                            {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
+                          </span>{' '}
+                          of <span className="font-medium">{pagination.totalItems}</span> transactions
+                        </div>
+                        
+                        <Pagination
+                          currentPage={pagination.currentPage}
+                          totalPages={pagination.totalPages}
+                          onPageChange={handlePageChange}
+                        />
+                        
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-700">Rows per page:</span>
+                          <select
+                            value={pagination.itemsPerPage}
+                            onChange={(e) => {
+                              setPagination(prev => ({
+                                ...prev,
+                                itemsPerPage: Number(e.target.value),
+                                currentPage: 1
+                              }));
+                              loadDataBySource(currentDataSource);
+                            }}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm"
+                          >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-              </motion.div>
-            )}
-
-            {activeTab === 'history' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="p-6"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-medium text-gray-900 flex items-center">
-                    <FaHistory className="mr-2 text-indigo-600" />
-                    Transaction History
-                  </h2>
-                  <div className="relative">
-                    <select
-                      className="appearance-none bg-white border border-gray-300 rounded-lg py-2 px-4 pr-8 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={historyFilter}
-                      onChange={(e) => setHistoryFilter(e.target.value)}
-                    >
-                      <option value="all">All Transactions</option>
-                      <option value="received">Donations Received</option>
-                      <option value="sent">Donations Sent</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                      <FaChevronDown />
-            </div>
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : error ? (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                    <strong className="font-bold">Error!</strong>
-                    <span className="block sm:inline"> {error}</span>
-                  </div>
-                ) : filteredHistory.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-gray-100 rounded-lg p-6 text-center"
-                  >
-                    <p className="text-gray-600">No transaction history found.</p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="overflow-x-auto bg-white rounded-lg shadow"
-                  >
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Charity</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredHistory.map((transaction, index) => (
-                          <motion.tr
-                            key={transaction.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="hover:bg-gray-50"
-                          >
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                {transaction.type === 'received' ? (
-                                  <FaArrowDown className="mr-2 text-green-500" />
-                                ) : (
-                                  <FaArrowUp className="mr-2 text-blue-500" />
-                                )}
-                                <span className="font-medium">
-                                  {transaction.type === 'received' ? 'Received' : 'Sent'}
-                                </span>
-        </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`font-medium ${transaction.type === 'received' ? 'text-green-600' : 'text-blue-600'}`}>
-                                ${transaction.amount.toFixed(2)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {transaction.charityName || 'Unknown Charity'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(transaction.date).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                ${transaction.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                  transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                  'bg-red-100 text-red-800'}`}>
-                                {transaction.status === 'completed' ? (
-                                  <>
-                                    <span className="mr-1">✓</span> Completed
-                                  </>
-                                ) : transaction.status === 'pending' ? (
-                                  <>
-                                    <FaHourglass className="mr-1" /> Pending
-                                  </>
-                                ) : (
-                                  <>
-                                    <FaTimes className="mr-1" /> Failed
-                                  </>
-                                )}
-                              </span>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </motion.div>
-                )}
               </motion.div>
             )}
           </AnimatePresence>

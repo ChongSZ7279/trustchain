@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import {
   FaCalendarAlt,
   FaCreditCard,
@@ -36,6 +37,56 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
   const [showFrequencyDropdown, setShowFrequencyDropdown] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   
+  // Exchange rate state variables
+  const [exchangeRates, setExchangeRates] = useState({
+    ethToScroll: 1,    // 1 ETH = 1 SCROLL (initial value)
+    usdToScroll: 2000, // 1 SCROLL = $2000 USD (initial value)
+    myrToUsd: 4.2,     // 1 USD = 4.2 MYR (initial value)
+  });
+  const [loadingRates, setLoadingRates] = useState(false);
+  
+  // Fetch conversion rates from API
+  useEffect(() => {
+    const fetchConversionRates = async () => {
+      setLoadingRates(true);
+      try {
+        // Get base API URL from environment variables or use default
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        // Fetch USD rate for Scroll
+        const usdResponse = await axios.get(`${API_BASE_URL}/scroll-conversion-rates?currency=USD`);
+        
+        // If successful, update the exchange rates
+        if (usdResponse.data.success) {
+          const scrollPriceUSD = usdResponse.data.data.scroll_price;
+          
+          // For simplicity, we'll assume ETH to Scroll is 1:1 (they're close in value)
+          // In production, you'd want to fetch this from an API that compares both assets
+          const ethToScrollRate = 1;
+          
+          // Update exchange rates state
+          setExchangeRates({
+            ethToScroll: ethToScrollRate,
+            usdToScroll: scrollPriceUSD,
+            myrToUsd: 4.2 // Using fixed rate for MYR
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversion rates:', error);
+        // Keep using default values if API call fails
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+    
+    fetchConversionRates();
+    
+    // Refresh rates every 5 minutes
+    const ratesInterval = setInterval(fetchConversionRates, 5 * 60 * 1000);
+    
+    return () => clearInterval(ratesInterval);
+  }, []);
+  
   const frequencyOptions = [
     { value: 'weekly', label: 'Weekly', description: 'Donate every week' },
     { value: 'biweekly', label: 'Bi-weekly', description: 'Donate every two weeks' },
@@ -45,6 +96,21 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
   
   // Get selected frequency object
   const selectedFrequency = frequencyOptions.find(option => option.value === frequency);
+  
+  // Currency conversion section component
+  const CurrencyConversionInfo = () => (
+    <div className="mt-4 mb-6 bg-gray-50 rounded-lg border border-gray-200 p-3">
+      <div className="flex items-center mb-2">
+        <FaExchangeAlt className="text-indigo-500 mr-2" />
+        <h3 className="text-sm font-medium text-gray-700">Currency Conversion {loadingRates && "(Loading...)"}</h3>
+      </div>
+      <div className="text-xs text-gray-600 space-y-1">
+        <p>1 SCROLL = {1/exchangeRates.ethToScroll} ETH</p>
+        <p>1 SCROLL ≈ ${exchangeRates.usdToScroll.toFixed(2)} USD</p>
+        <p>1 SCROLL ≈ RM {(exchangeRates.usdToScroll * exchangeRates.myrToUsd).toFixed(2)} MYR</p>
+      </div>
+    </div>
+  );
   
   // Handle subscription creation
   const handleCreateSubscription = async () => {
@@ -359,6 +425,9 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
                     )}
                   </div>
                 </div>
+                
+                {/* Add Currency Conversion Information */}
+                <CurrencyConversionInfo />
                 
                 {/* Donation Message */}
                 <div>

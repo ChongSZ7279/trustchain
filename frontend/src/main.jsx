@@ -9,6 +9,7 @@ import axios from 'axios';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { BlockchainProvider } from './context/BlockchainContext';
+import { CarbonMarketProvider } from './context/CarbonMarketContext';
 
 // Configure axios defaults
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -30,8 +31,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <BlockchainProvider>
-        <RouterProvider router={router} />
-        <Toaster position="top-right" />
+        <CarbonMarketProvider>
+          <RouterProvider router={router} />
+          <Toaster position="top-right" />
+        </CarbonMarketProvider>
       </BlockchainProvider>
     </AuthProvider>
   </React.StrictMode>

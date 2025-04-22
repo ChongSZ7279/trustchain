@@ -315,9 +315,13 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
           
           // Add navigation to donation details after a short delay (if we have a valid database ID)
           if (result.databaseId && (typeof result.databaseId === 'number' || !isNaN(parseInt(result.databaseId)))) {
+            console.log(`Navigating to donation details page for ID: ${result.databaseId}`);
+            // Wait a bit longer to ensure toast is visible
             setTimeout(() => {
               navigate(`/donations/${result.databaseId}`);
-            }, 2000);
+            }, 2500);
+          } else {
+            console.warn('No valid donation ID for navigation:', result.databaseId);
           }
         }
 

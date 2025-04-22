@@ -214,11 +214,12 @@ class AdminVerificationController extends Controller
         if ($task->status !== 'pending') {
             // If the task is already verified, return a more specific message
             if ($task->status === 'verified') {
+                $txHash = $task->transaction_hash ? $this->validateTransactionHash($task->transaction_hash) : null;
                 return response()->json([
                     'success' => false,
                     'message' => 'This task has already been verified',
-                    'transaction_hash' => $task->transaction_hash ?? null,
-                    'explorer_url' => $task->transaction_hash ? "https://sepolia.scrollscan.com/tx/{$task->transaction_hash}" : null
+                    'transaction_hash' => $txHash,
+                    'explorer_url' => $txHash ? "https://sepolia.scrollscan.com/tx/{$txHash}" : null
                 ], 400);
             }
 
@@ -278,15 +279,18 @@ class AdminVerificationController extends Controller
                 ]);
 
                 // Generate a mock transaction hash for testing purposes
-                $txHash = '0x' . bin2hex(random_bytes(32));
+                $txHash = $this->validateTransactionHash('0x' . bin2hex(random_bytes(32)));
 
                 // Continue with a mock transaction instead of failing
-                Log::warning('Using mock transaction hash due to fund release failure');
+                Log::warning('Using mock transaction hash due to fund release failure', [
+                    'hash' => $txHash,
+                    'error' => $result['message'] ?? 'Unknown error'
+                ]);
                 $result = [
                     'success' => true,
                     'message' => 'Funds released successfully (mock transaction due to error: ' . ($result['message'] ?? 'Unknown error') . ')',
                     'transaction_hash' => $txHash,
-                    'explorer_url' => "https://sepolia.scrollscan.com/address/" . env('CONTRACT_ADDRESS'),
+                    'explorer_url' => "https://sepolia.scrollscan.com/tx/{$txHash}",
                     'is_mock' => true
                 ];
             }
@@ -299,8 +303,46 @@ class AdminVerificationController extends Controller
                 'task_id' => $task->id,
                 'charity_id' => $charity->id,
                 'transaction_hash' => $txHash,
+                'is_mock' => $result['is_mock'] ?? false,
                 'explorer_url' => $result['explorer_url'] ?? null
             ]);
+
+            // Store the transaction hash in the task record
+            $task->transaction_hash = $txHash;
+            $task->save();
+
+            // Create a transaction record
+            try {
+                // Create a transaction record
+                $transaction = new \App\Models\Transaction([
+                    'task_id' => $task->id,
+                    'charity_id' => $charity->id,
+                    'amount' => $amount,
+                    'type' => 'charity', // Using 'charity' instead of 'fund_release' to avoid ENUM constraint issues
+                    'status' => 'completed',
+                    'transaction_hash' => $txHash,
+                    'contract_address' => env('CONTRACT_ADDRESS'),
+                    'message' => 'Funds released after task verification',
+                    'user_ic' => Auth::check() && Auth::user()->ic_number ? Auth::user()->ic_number : null, // Use admin user or null
+                    'anonymous' => false,
+                ]);
+                $transaction->save();
+
+                Log::info('Transaction record created successfully', [
+                    'transaction_id' => $transaction->id,
+                    'task_id' => $task->id,
+                    'transaction_hash' => $txHash
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error creating transaction record', [
+                    'error' => $e->getMessage(),
+                    'task_id' => $task->id,
+                    'transaction_hash' => $txHash
+                ]);
+
+                // Continue execution - we don't want to fail the whole process if just the transaction record fails
+                // The task is already marked as verified and the funds are released
+            }
         } catch (\Exception $e) {
             Log::error('Exception when releasing funds', [
                 'task_id' => $task->id,
@@ -309,63 +351,28 @@ class AdminVerificationController extends Controller
             ]);
 
             // Generate a mock transaction hash for testing purposes
-            $txHash = '0x' . bin2hex(random_bytes(32));
+            $txHash = $this->validateTransactionHash('0x' . bin2hex(random_bytes(32)));
 
             // Continue with a mock transaction instead of failing
-            Log::warning('Using mock transaction hash due to exception');
+            Log::warning('Using mock transaction hash due to exception', [
+                'hash' => $txHash,
+                'error' => $e->getMessage()
+            ]);
             $result = [
                 'success' => true,
                 'message' => 'Funds released successfully (mock transaction due to exception: ' . $e->getMessage() . ')',
                 'transaction_hash' => $txHash,
-                'explorer_url' => "https://sepolia.scrollscan.com/address/" . env('CONTRACT_ADDRESS'),
+                'explorer_url' => "https://sepolia.scrollscan.com/tx/{$txHash}",
                 'is_mock' => true
             ];
-        }
-
-        // Check if transaction_hash column exists before trying to set it
-        if (Schema::hasColumn('tasks', 'transaction_hash')) {
-            $task->transaction_hash = $txHash;
-            $task->save();
-        }
-
-        try {
-            // Create a transaction record
-            $transaction = new \App\Models\Transaction([
-                'task_id' => $task->id,
-                'charity_id' => $charity->id,
-                'amount' => $amount,
-                'type' => 'charity', // Using 'charity' instead of 'fund_release' to avoid ENUM constraint issues
-                'status' => 'completed',
-                'transaction_hash' => $txHash,
-                'contract_address' => env('CONTRACT_ADDRESS'),
-                'message' => 'Funds released after task verification',
-                'user_ic' => Auth::check() && Auth::user()->ic_number ? Auth::user()->ic_number : null, // Use admin user or null
-                'anonymous' => false,
-            ]);
-            $transaction->save();
-
-            Log::info('Transaction record created successfully', [
-                'transaction_id' => $transaction->id,
-                'task_id' => $task->id,
-                'transaction_hash' => $txHash
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error creating transaction record', [
-                'error' => $e->getMessage(),
-                'task_id' => $task->id,
-                'transaction_hash' => $txHash
-            ]);
-
-            // Continue execution - we don't want to fail the whole process if just the transaction record fails
-            // The task is already marked as verified and the funds are released
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Task verified and initial funds released to charity wallet',
             'task' => $task,
-            'transaction_hash' => $txHash,
-            'explorer_url' => $result['explorer_url'] ?? "https://sepolia.scrollscan.com/tx/{$txHash}",
+            'transaction_hash' => $this->validateTransactionHash($txHash),
+            'explorer_url' => $result['explorer_url'] ?? "https://sepolia.scrollscan.com/tx/{$this->validateTransactionHash($txHash)}",
             'note' => 'Additional funds may be released automatically as new donations are verified for this charity.'
         ]);
     }
@@ -621,5 +628,31 @@ class AdminVerificationController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Validate and format an Ethereum transaction hash
+     * 
+     * @param string $hash The transaction hash to validate
+     * @return string The validated transaction hash
+     */
+    private function validateTransactionHash($hash)
+    {
+        // Remove 0x prefix if present
+        $cleanHash = preg_replace('/^0x/', '', $hash);
+        
+        // Only keep valid hex characters
+        $cleanHash = preg_replace('/[^a-fA-F0-9]/', '', $cleanHash);
+        
+        // Ensure hash is exactly 64 characters (32 bytes) for Ethereum transactions
+        if (strlen($cleanHash) > 64) {
+            $cleanHash = substr($cleanHash, 0, 64);
+        } elseif (strlen($cleanHash) < 64) {
+            // Pad with zeros if too short (this should never happen with real hashes)
+            $cleanHash = str_pad($cleanHash, 64, '0', STR_PAD_LEFT);
+        }
+        
+        // Add 0x prefix back
+        return '0x' . $cleanHash;
     }
 }

@@ -27,7 +27,8 @@ import {
   FaDollarSign,
   FaFileInvoice,
   FaDownload,
-  FaPrint
+  FaPrint,
+  FaInfoCircle
 } from 'react-icons/fa';
 import { ethers } from 'ethers';
 import { DonationContractABI } from '../contracts/DonationContractABI';
@@ -419,6 +420,13 @@ export default function DonationDetails() {
           {donation.transaction_hash && (
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
+              
+              <div className="mb-3 bg-blue-50 rounded-md p-3">
+                <p className="text-sm text-blue-700">
+                  <FaInfoCircle className="inline-block mr-1" />
+                  This section verifies your original donation transaction on the blockchain. This ensures your donation was recorded transparently and immutably.
+                </p>
+              </div>
 
               {/* Use the TransactionVerifier component */}
               <TransactionVerifier
@@ -879,6 +887,24 @@ export default function DonationDetails() {
                   }}
                 />
               )}
+              
+              {/* Add explanation about fund release vs donation */}
+              <div className="mt-4 bg-gray-50 p-3 rounded-md">
+                <p className="text-sm text-gray-600">
+                  <FaInfoCircle className="inline-block mr-1 text-gray-500" />
+                  <strong>How fund release works:</strong> The original donation transaction records your contribution to the smart contract. After task verification, a separate fund release transaction transfers funds from the contract to the charity's wallet.
+                </p>
+                {donation.transfer_transaction_hash && (
+                  <div className="mt-2">
+                    <Link 
+                      to={`/transactions/${donation.transfer_transaction_id || donation.id}`}
+                      className="text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      View fund release transaction details →
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

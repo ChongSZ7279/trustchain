@@ -55,6 +55,7 @@ import {
   FaGem,
   FaCrown,
   FaGlobe,
+  FaHandHoldingHeart,
 } from 'react-icons/fa';
 import CharityCard from './CharityCard';
 import OrganizationCard from './OrganizationCard';
@@ -855,6 +856,71 @@ export default function UserDashboard() {
     return new Intl.NumberFormat().format(points);
   };
 
+  // Add functions for consistent type styling after the getStatusIcon function
+  const getTransactionType = (item) => {
+    // Simplify to only three possible types
+    
+    // Check if this is fund_release
+    if (item.type === 'fund_release') {
+      return 'Fund Release';
+    }
+    
+    // Check donation types
+    if (item.donation_type === 'subscription' || 
+        (item.type === 'subscription') || 
+        (item.source === 'Donation' && item.type === 'subscription')) {
+      return 'Subscription Donation';
+    }
+    
+    // Default to charity donation for all other donation types
+    if (item.source === 'Donation' || 
+        item.donor_message || 
+        item.donor_id ||
+        item.cause_id || 
+        item.currency_type || 
+        item.donation_type === 'charity' || 
+        item.type === 'charity' || 
+        item.type === 'donation') {
+      return 'Charity Donation';
+    }
+    
+    // If nothing else matches, default to Fund Release
+    return 'Fund Release';
+  };
+
+  const getTypeClass = (item) => {
+    // Get the transaction type
+    const transactionType = getTransactionType(item);
+    
+    // Apply consistent colors
+    switch (transactionType) {
+      case 'Fund Release':
+        return 'bg-green-100 text-green-800';
+      case 'Charity Donation':
+        return 'bg-purple-100 text-purple-800';
+      case 'Subscription Donation':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTypeIcon = (item) => {
+    // Get the transaction type
+    const transactionType = getTransactionType(item);
+    
+    // Apply consistent icons
+    switch (transactionType) {
+      case 'Fund Release':
+        return <FaMoneyBillWave className="mr-1.5" />;
+      case 'Charity Donation':
+      case 'Subscription Donation':
+        return <FaHandHoldingHeart className="mr-1.5" />;
+      default:
+        return <FaExchangeAlt className="mr-1.5" />;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1406,14 +1472,9 @@ export default function UserDashboard() {
                                 {formatDate(item.created_at || item.completed_at || new Date())}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  isDonation ? 'bg-purple-100 text-purple-800' : 
-                                  item.type === 'charity' ? 'bg-blue-100 text-blue-800' : 
-                                  'bg-green-100 text-green-800'
-                                }`}>
-                                  {isDonation ? 'Donation' : 
-                                  item.type === 'charity' ? 'Charity Donation' : 
-                                  'Task Funding'}
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeClass(item)}`}>
+                                  {getTypeIcon(item)}
+                                  {getTransactionType(item)}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

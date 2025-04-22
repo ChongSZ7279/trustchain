@@ -135,6 +135,17 @@ export default function TransactionDetails() {
             </div>
           </div>
 
+          {/* Add info box to explain transaction types */}
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+            <div className="flex items-start">
+              <FaInfoCircle className="text-blue-500 mt-1 mr-2 flex-shrink-0" />
+              <div className="text-sm text-blue-700">
+                <p className="font-medium">Fund Release Transaction</p>
+                <p>This shows details of a fund release transaction, which occurs when funds are transferred from escrow to a charity after verification. For original donation details, check the Donation section.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
             <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
               <div className="sm:col-span-1">
@@ -334,6 +345,24 @@ export default function TransactionDetails() {
                         This transaction represents the transfer of {transaction.amount} SCROLL to the charity wallet after successful task verification by an admin.
                         The funds were released from the smart contract to the charity's wallet address.
                       </p>
+                      
+                      {/* Add link to original donation if available */}
+                      {transaction.donation_id && (
+                        <div className="mt-3 p-2 bg-white rounded border border-green-200">
+                          <p className="text-sm text-gray-700">
+                            <FaInfoCircle className="inline-block mr-1 text-gray-500" />
+                            This is a fund release transaction that transfers funds from the original donation.
+                          </p>
+                          <Link
+                            to={`/donations/${transaction.donation_id}`}
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-500 mt-1 inline-block"
+                          >
+                            View original donation details
+                            <span aria-hidden="true"> →</span>
+                          </Link>
+                        </div>
+                      )}
+                      
                       {relatedTask && (
                         <div className="mt-4 p-3 bg-white rounded border border-green-200">
                           <h4 className="text-sm font-medium text-gray-900">Verified Task</h4>

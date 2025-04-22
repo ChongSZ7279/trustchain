@@ -260,7 +260,11 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                 onClick={handleVerify}
                 disabled={verifying || hasVerificationIssues}
                 title={hasVerificationIssues ? 'Cannot verify: Missing required information' : 'Verify this task and release funds'}
-                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-md text-white ${hasVerificationIssues ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 transform hover:-translate-y-0.5 transition-all duration-200'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50`}
+                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-md text-white ${
+                  hasVerificationIssues 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transform hover:-translate-y-0.5 transition-all duration-200'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50`}
               >
                 {verifying ? (
                   <>
@@ -283,6 +287,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                   <FaCheckCircle className="text-green-500 mr-2 flex-shrink-0" />
                   <span className="text-sm font-medium text-green-800">Funds released successfully</span>
                 </div>
+                
                 <div className="mt-2 text-xs text-gray-600 flex items-center">
                   <span className="font-medium mr-1">TX:</span> 
                   <a 
@@ -290,11 +295,54 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-indigo-600 hover:text-indigo-900 transition-colors duration-200 flex items-center"
+                    title="View transaction on Scrollscan"
                   >
-                    <span className="truncate max-w-[150px]">{txHash}</span>
+                    <span className="truncate max-w-[150px] font-mono">{txHash}</span>
                     <FaExternalLinkAlt className="ml-1 inline h-3 w-3 flex-shrink-0" />
                   </a>
+                  
+                  {/* Copy to clipboard button */}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(txHash);
+                      toast.success('Transaction hash copied to clipboard');
+                    }}
+                    className="ml-2 p-1 text-gray-500 hover:text-indigo-600 transition-colors duration-200 rounded-full hover:bg-gray-100"
+                    title="Copy transaction hash"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                  </button>
                 </div>
+                
+                {/* Real transaction note */}
+                {txHash && txHash.length === 66 && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-2 text-xs">
+                    <div className="flex items-center">
+                      <FaInfoCircle className="text-blue-500 mr-1.5 flex-shrink-0" />
+                      <span className="text-blue-700 font-medium">Note</span>
+                    </div>
+                    <p className="mt-1 text-blue-600">
+                      Make sure your admin wallet (0x760E788beE2321601eCe743A80854FE0B7519A7E) has sufficient Scroll Sepolia ETH for gas fees. 
+                      You can get testnet ETH from the <a href="https://sepolia.scroll.io/faucet" target="_blank" rel="noopener noreferrer" className="underline">Scroll Sepolia Faucet</a>.
+                    </p>
+                  </div>
+                )}
+                
+                {/* Mock transaction indicator */}
+                {txHash && txHash.length !== 66 && (
+                  <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
+                    <div className="flex items-center">
+                      <FaInfoCircle className="text-yellow-500 mr-1.5 flex-shrink-0" />
+                      <span className="text-yellow-700 font-medium">Development Mode</span>
+                    </div>
+                    <p className="mt-1 text-yellow-600">
+                      This appears to be a mock transaction hash generated in test mode. 
+                      It won't be found on Scrollscan.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -303,7 +351,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
         {/* Expand/Collapse button */}
         <div className="mt-5 flex justify-center">
           <button
-            className="inline-flex items-center px-5 py-2 border border-gray-200 text-sm font-medium rounded-full text-gray-600 bg-gray-50 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="inline-flex items-center px-5 py-2 border border-gray-300 text-sm font-medium rounded-full text-gray-600 bg-gray-50 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:-translate-y-0.5 shadow-sm"
             onClick={() => setExpanded(!expanded)}
             aria-expanded={expanded}
           >
@@ -337,7 +385,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                 Task Details
               </h4>
               
-              <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm">
+              <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm hover:shadow transition-shadow duration-200">
                 <dl className="space-y-3 text-sm">
                   <div>
                     <dt className="text-gray-500 font-medium mb-1">Description</dt>
@@ -421,7 +469,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                       <div className="text-sm font-medium text-gray-900">Proof of completion document</div>
                       <button
                         onClick={() => setViewingProof(!viewingProof)}
-                        className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
+                        className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5"
                       >
                         <FaEye className="mr-1.5" />
                         {viewingProof ? 'Hide' : 'View'}
@@ -460,7 +508,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                       <div className="text-sm font-medium text-gray-900">{task.proof_images.length} image(s) available</div>
                       <button
                         onClick={() => setViewingPictures(!viewingPictures)}
-                        className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
+                        className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5"
                       >
                         <FaEye className="mr-1.5" />
                         {viewingPictures ? 'Hide' : 'View'}

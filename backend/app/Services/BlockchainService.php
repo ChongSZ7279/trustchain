@@ -74,6 +74,45 @@ class BlockchainService
     }
 
     /**
+     * Check if mock transactions are disabled
+     * 
+     * @return bool Whether mock transactions are disabled
+     */
+    private function mockTransactionsDisabled()
+    {
+        return env('BLOCKCHAIN_FORCE_REAL_TX', false) === true || 
+               env('BLOCKCHAIN_DISABLE_MOCKS', false) === true;
+    }
+    
+    /**
+     * Create a mock transaction or throw exception if mocks are disabled
+     * 
+     * @param string $reason The reason for creating a mock transaction
+     * @return array|throw The mock transaction response or throw exception
+     */
+    private function createMockTransactionOrFail($reason)
+    {
+        if ($this->mockTransactionsDisabled()) {
+            throw new \Exception("Mock transactions are disabled: $reason");
+        }
+        
+        // Generate a valid-format transaction hash
+        $txHash = $this->generateMockTransactionHash();
+        Log::warning('Using mock transaction hash', [
+            'reason' => $reason,
+            'hash' => $txHash
+        ]);
+
+        return [
+            'success' => true,
+            'message' => "Funds released successfully (mock transaction due to {$reason})",
+            'transaction_hash' => $txHash,
+            'explorer_url' => $this->getExplorerUrl($txHash),
+            'is_mock' => true
+        ];
+    }
+
+    /**
      * Release funds to a charity wallet
      *
      * @param string $charityWallet The charity wallet address
@@ -87,41 +126,20 @@ class BlockchainService
             if (empty($charityWallet)) {
                 Log::warning('Empty charity wallet address provided to releaseFunds');
                 // Use a mock transaction hash instead of failing
-                $txHash = '0x' . bin2hex(random_bytes(32));
-                return [
-                    'success' => true,
-                    'message' => 'Funds released successfully (mock transaction due to empty wallet address)',
-                    'transaction_hash' => $txHash,
-                    'explorer_url' => $this->getExplorerUrl($txHash),
-                    'is_mock' => true
-                ];
+                return $this->createMockTransactionOrFail('empty wallet address');
             }
 
             if ($amount <= 0) {
                 Log::warning('Invalid amount provided to releaseFunds', ['amount' => $amount]);
                 // Use a mock transaction hash instead of failing
-                $txHash = '0x' . bin2hex(random_bytes(32));
-                return [
-                    'success' => true,
-                    'message' => 'Funds released successfully (mock transaction due to invalid amount)',
-                    'transaction_hash' => $txHash,
-                    'explorer_url' => $this->getExplorerUrl($txHash),
-                    'is_mock' => true
-                ];
+                return $this->createMockTransactionOrFail('invalid amount');
             }
 
             // Validate wallet address format
             if (!preg_match('/^0x[a-fA-F0-9]{40}$/', $charityWallet)) {
                 Log::warning('Invalid wallet address format', ['wallet' => $charityWallet]);
                 // Use a mock transaction hash instead of failing
-                $txHash = '0x' . bin2hex(random_bytes(32));
-                return [
-                    'success' => true,
-                    'message' => 'Funds released successfully (mock transaction due to invalid wallet format)',
-                    'transaction_hash' => $txHash,
-                    'explorer_url' => $this->getExplorerUrl($txHash),
-                    'is_mock' => true
-                ];
+                return $this->createMockTransactionOrFail('invalid wallet format');
             }
 
             // Log the attempt
@@ -143,16 +161,7 @@ class BlockchainService
                 ]);
 
                 // For testing purposes, use a mock transaction hash instead of failing
-                Log::warning('Using mock transaction hash as fallback due to missing private key');
-                $txHash = '0x' . bin2hex(random_bytes(32));
-
-                return [
-                    'success' => true,
-                    'message' => 'Funds released successfully (mock transaction due to missing private key)',
-                    'transaction_hash' => $txHash,
-                    'explorer_url' => $this->getExplorerUrl($txHash),
-                    'is_mock' => true
-                ];
+                return $this->createMockTransactionOrFail('missing private key');
             }
 
             // Remove 0x prefix if present
@@ -220,9 +229,13 @@ class BlockchainService
                 Log::error('Error sending blockchain transaction', ['error' => $e->getMessage()]);
 
                 // For testing purposes, if we can't get a real transaction hash, use a mock one
+                if ($this->mockTransactionsDisabled()) {
+                    throw new \Exception("Failed to send transaction: " . $e->getMessage());
+                }
+                
                 Log::warning('Using mock transaction hash as fallback');
                 // Generate a valid Ethereum transaction hash (0x + 64 hex chars)
-                $txHash = '0x' . bin2hex(random_bytes(32));
+                $txHash = $this->generateMockTransactionHash();
 
                 // Mark this as a mock transaction in the response
                 return [
@@ -291,8 +304,23 @@ class BlockchainService
      */
     public function getExplorerUrl($transactionHash)
     {
-        // Always return the contract address page for consistency
-        return "https://sepolia.scrollscan.com/address/{$this->contractAddress}";
+        // Clean and format the transaction hash
+        $cleanHash = $transactionHash;
+        
+        // Remove any non-hex characters
+        $cleanHash = preg_replace('/[^a-fA-F0-9]/', '', $cleanHash);
+        
+        // Ensure it starts with 0x
+        if (substr($cleanHash, 0, 2) !== '0x') {
+            $cleanHash = '0x' . $cleanHash;
+        }
+        
+        // If hash is malformed or too short, return link to contract instead
+        if (strlen($cleanHash) < 66) {
+            return "https://sepolia.scrollscan.com/address/{$this->contractAddress}";
+        }
+        
+        return "https://sepolia.scrollscan.com/tx/{$cleanHash}";
     }
 
     /**
@@ -355,6 +383,11 @@ class BlockchainService
             $from = env('BLOCKCHAIN_ADMIN_ADDRESS');
             if (!$from) {
                 Log::error('Admin address not configured in .env');
+                
+                if ($this->mockTransactionsDisabled()) {
+                    throw new \Exception("Admin address not configured in .env");
+                }
+                
                 // For testing purposes, generate a mock transaction hash
                 return '0x' . bin2hex(random_bytes(32));
             }
@@ -400,31 +433,86 @@ class BlockchainService
                         Log::warning('Unknown account error - this is likely because the admin account is not recognized by the blockchain provider');
                     }
 
-                    // For testing purposes, generate a mock transaction hash
-                    return '0x' . bin2hex(random_bytes(32));
+                    if ($this->mockTransactionsDisabled()) {
+                        throw new \Exception("RPC Error: " . ($result['error']['message'] ?? 'Unknown error'));
+                    }
+                    
+                    // For testing purposes, generate a mock transaction hash with proper format
+                    return $this->generateMockTransactionHash();
                 }
 
-                if (!isset($result['result'])) {
-                    Log::error('No transaction hash returned', [
-                        'response' => $result,
-                        'transaction' => $transaction
+                if (isset($result['result'])) {
+                    Log::info('Transaction hash received from blockchain', [
+                        'txHash' => $result['result'],
+                        'from' => $from,
+                        'to' => $to,
+                        'amount' => $amount,
+                        'explorer_url' => $this->getExplorerUrl($result['result'])
                     ]);
-                    // For testing purposes, generate a mock transaction hash
-                    return '0x' . bin2hex(random_bytes(32));
+                    
+                    // Return properly formatted transaction hash
+                    return $this->validateTransactionHash($result['result']);
                 }
-
-                return $result['result'];
+                
+                if ($this->mockTransactionsDisabled()) {
+                    throw new \Exception("No transaction hash returned from RPC");
+                }
+                
+                // For testing purposes, generate a mock transaction hash with proper format
+                return $this->generateMockTransactionHash();
             } catch (\Exception $e) {
                 Log::error('Exception in HTTP request', [
                     'error' => $e->getMessage(),
                     'transaction' => $transaction
                 ]);
-                // For testing purposes, generate a mock transaction hash
-                return '0x' . bin2hex(random_bytes(32));
+                
+                if ($this->mockTransactionsDisabled()) {
+                    throw $e;
+                }
+                
+                // For testing purposes, generate a mock transaction hash with proper format
+                return $this->generateMockTransactionHash();
             }
         } catch (\Exception $e) {
             Log::error('Error sending direct transaction', ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    /**
+     * Validate and format a transaction hash
+     * 
+     * @param string $hash The transaction hash to validate
+     * @return string The validated transaction hash
+     */
+    private function validateTransactionHash($hash)
+    {
+        // Remove 0x prefix if present
+        $cleanHash = preg_replace('/^0x/', '', $hash);
+        
+        // Only keep valid hex characters
+        $cleanHash = preg_replace('/[^a-fA-F0-9]/', '', $cleanHash);
+        
+        // Ensure hash is exactly 64 characters (32 bytes) for Ethereum transactions
+        if (strlen($cleanHash) > 64) {
+            $cleanHash = substr($cleanHash, 0, 64);
+        } elseif (strlen($cleanHash) < 64) {
+            // Pad with zeros if too short (this should never happen with real hashes)
+            $cleanHash = str_pad($cleanHash, 64, '0', STR_PAD_LEFT);
+        }
+        
+        // Add 0x prefix back
+        return '0x' . $cleanHash;
+    }
+
+    /**
+     * Generate a consistent mock transaction hash for testing
+     * This ensures we get the same format as real transactions
+     * 
+     * @return string A consistent format mock transaction hash
+     */
+    private function generateMockTransactionHash()
+    {
+        return $this->validateTransactionHash('0x' . bin2hex(random_bytes(32)));
     }
 }

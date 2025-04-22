@@ -68,15 +68,18 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
   // Handle verification of a pending task
   const handleVerify = async () => {
     console.log('Verify button clicked for task:', task);
+    toast.loading('Processing verification request...');
 
     if (!task.proof) {
       console.warn('Task has no proof document');
+      toast.dismiss();
       toast.error('Cannot verify task: No proof document uploaded');
       return;
     }
 
     if (!task.charity?.organization?.wallet_address) {
       console.warn('Charity has no wallet address:', task.charity);
+      toast.dismiss();
       toast.error('Cannot verify task: Charity does not have a wallet address');
       return;
     }
@@ -85,6 +88,8 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
       setVerifying(true);
       try {
         console.log(`Making API request to verify task ${task.id}...`);
+        toast.dismiss(); // Dismiss the loading toast
+        toast.loading('Sending verification request to server...');
 
         // Add explicit API URL and include token in headers
         const token = localStorage.getItem('token');
@@ -94,15 +99,18 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
         console.log('Request URL:', fullUrl);
         console.log('Auth token exists:', !!token);
 
+        // Make the API request with a timeout
         const response = await axios.post(fullUrl, {}, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
-          }
+          },
+          timeout: 30000 // 30 second timeout
         });
 
         console.log('Verification response:', response.data);
+        toast.dismiss(); // Dismiss the loading toast
 
         if (response.data.success) {
           console.log('Task verification successful');
@@ -133,6 +141,9 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
         const errorMessage = error.response?.data?.message || error.message;
         console.error('Error response data:', error.response?.data);
 
+        // Dismiss any loading toasts
+        toast.dismiss();
+
         // Check if this is an 'already verified' error with transaction hash
         if (error.response?.data?.transaction_hash && error.response?.data?.message?.includes('already been verified')) {
           // Show success toast instead of error
@@ -144,6 +155,17 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
           setVerificationComplete(true);
 
           // Update the task status
+          onStatusUpdate(task.id, 'verified');
+        } else if (error.code === 'ECONNABORTED') {
+          // Handle timeout errors
+          toast.error('Request timed out. The server is taking too long to respond. The verification might still be processing in the background.');
+
+          // Optimistically update the UI to show that verification might be in progress
+          setVerificationComplete(true);
+          setTxHash('Processing...');
+          setExplorerUrl('https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84');
+
+          // Update the task status optimistically
           onStatusUpdate(task.id, 'verified');
         } else {
           // Show regular error toast

@@ -129,10 +129,11 @@ class DonationController extends Controller
             $donation->amount = $validated['amount'];
             $donation->currency_type = $validated['currency_type'];
             $donation->cause_id = $validated['cause_id'];
-            $donation->status = 'pending';
+            $donation->status = 'verified'; // Automatically mark as verified
             $donation->donor_message = $validated['donor_message'] ?? null;
             $donation->is_anonymous = $validated['is_anonymous'] ?? false;
             $donation->smart_contract_data = $validated['smart_contract_data'] ?? null;
+            $donation->verified_at = now(); // Set verification timestamp
             $donation->save();
 
             \Log::info('Donation created with ID: ' . $donation->id);
@@ -724,7 +725,8 @@ class DonationController extends Controller
                 $donation->amount = $validated['amount'];
                 $donation->transaction_hash = $validated['transaction_hash'];
                 $donation->donor_message = $validated['message'] ?? null;
-                $donation->status = 'pending'; // Start as pending, will be confirmed later
+                $donation->status = 'verified'; // Automatically mark as verified
+                $donation->verified_at = now(); // Set verification timestamp
                 $donation->currency_type = 'ETH';
                 $donation->is_anonymous = true;
                 $donation->user_id = $systemUserId; // Use system user ID
@@ -1163,7 +1165,7 @@ class DonationController extends Controller
                         'user_ic' => $user->ic_number,
                         'charity_id' => $validated['charity_id'],
                         'amount' => $validated['amount'],
-                        'type' => $isTestMode ? 'test_payment' : 'fiat_to_scroll',
+                        'type' => 'charity', // Using 'charity' type for all donations as per the enum constraint
                         'status' => 'completed',
                         'message' => $validated['message'] ?? null,
                         'anonymous' => true,
@@ -1181,12 +1183,13 @@ class DonationController extends Controller
                     'amount' => $validated['amount'],
                     'transaction_hash' => $validated['transaction_hash'],
                     'donor_message' => $validated['message'] ?? null,
-                    'status' => $isTestMode ? 'completed' : 'pending',
+                    'status' => 'verified',
                     'currency_type' => $validated['currency_type'] ?? ($isFiat ? 'SCROLL' : 'ETH'),
                     'is_anonymous' => true,
                     'payment_method' => $isFiat ? ($isTestMode ? 'test_payment' : 'fiat_to_scroll') : 'blockchain',
                     'created_at' => now(),
                     'updated_at' => now(),
+                    'verified_at' => now(),
                 ]);
 
                 // Also update the charity's fund data
@@ -1240,8 +1243,8 @@ class DonationController extends Controller
     public function syncDonations(Request $request)
     {
         try {
-            // Check if user is admin
-            if (!Auth::user()->is_admin) {
+            // Check if user is authenticated and is admin
+            if (!Auth::check() || !Auth::user()->is_admin) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized. Only admins can sync donations.'
@@ -1339,17 +1342,18 @@ class DonationController extends Controller
             // Insert donation using raw query
             $now = now()->format('Y-m-d H:i:s');
             $donationId = DB::insert(
-                'INSERT INTO donations (user_id, cause_id, amount, transaction_hash, donor_message, status, currency_type, is_anonymous, payment_method, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO donations (user_id, cause_id, amount, transaction_hash, donor_message, status, currency_type, is_anonymous, payment_method, created_at, updated_at, verified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     $userId,
                     $charityId,
                     $amount,
                     $transactionHash,
                     $message,
-                    'pending',
+                    'verified',
                     'ETH',
                     1, // is_anonymous = true
                     'blockchain',
+                    $now,
                     $now,
                     $now
                 ]

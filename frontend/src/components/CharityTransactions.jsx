@@ -483,15 +483,18 @@ const CharityTransactions = ({ charityId }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
                     {transaction.transaction_hash ? (
-                      <a
-                        href={`https://sepolia.scrollscan.com/tx/${transaction.transaction_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
-                      >
-                        {transaction.transaction_hash.slice(0, 10)}...{transaction.transaction_hash.slice(-8)}
-                        <FaExternalLinkAlt className="ml-1 h-3 w-3" />
-                      </a>
+                      <div className="flex items-center">
+                        <span className="mr-2">{transaction.transaction_hash.slice(0, 10)}...{transaction.transaction_hash.slice(-8)}</span>
+                        <a
+                          href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
+                          title="View contract on Scrollscan"
+                        >
+                          <FaExternalLinkAlt className="h-3 w-3" />
+                        </a>
+                      </div>
                     ) : (
                       <span>
                         {transaction.id ? `ID: ${transaction.id}` : 'N/A'}

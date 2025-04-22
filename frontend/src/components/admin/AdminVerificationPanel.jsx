@@ -4,7 +4,6 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import TaskVerificationCard from './TaskVerificationCard';
-import DonationVerificationCard from './DonationVerificationCard';
 import {
   FaCheckCircle,
   FaExclamationTriangle,
@@ -12,7 +11,6 @@ import {
   FaSearch,
   FaSyncAlt,
   FaTasks,
-  FaHandHoldingHeart,
   FaDatabase
 } from 'react-icons/fa';
 
@@ -21,11 +19,8 @@ export default function AdminVerificationPanel() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
-  const [donations, setDonations] = useState([]);
-  const [activeTab, setActiveTab] = useState('tasks');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('pending');
-  const [syncingDonations, setSyncingDonations] = useState(false);
 
   // Redirect if not admin
   useEffect(() => {
@@ -50,13 +45,6 @@ export default function AdminVerificationPanel() {
         });
         console.log('Tasks API response:', tasksResponse.data);
         setTasks(tasksResponse.data);
-
-        // Fetch donations that need verification
-        const donationsResponse = await axios.get('/admin/verification/donations', {
-          params: { status: filterStatus }
-        });
-        console.log('Donations API response:', donationsResponse.data);
-        setDonations(donationsResponse.data);
       } catch (error) {
         console.error('Error fetching verification data:', error);
         toast.error('Failed to load verification data: ' + (error.response?.data?.message || error.message));
@@ -81,13 +69,6 @@ export default function AdminVerificationPanel() {
         setTasks(tasksResponse.data);
         console.log('Tasks response:', tasksResponse.data);
 
-        // Fetch donations that need verification
-        const donationsResponse = await axios.get('/admin/verification/donations', {
-          params: { status: filterStatus }
-        });
-        setDonations(donationsResponse.data);
-        console.log('Donations response:', donationsResponse.data);
-
         toast.success('Data refreshed');
       } catch (error) {
         console.error('Error refreshing data:', error);
@@ -100,32 +81,7 @@ export default function AdminVerificationPanel() {
     fetchData();
   };
 
-  // Function to sync donations with transactions
-  const handleSyncDonations = async () => {
-    try {
-      setSyncingDonations(true);
-      toast.loading('Syncing donations with transactions...');
 
-      const response = await axios.post('/sync-donations');
-
-      if (response.data.success) {
-        toast.dismiss();
-        toast.success(`Donations synced successfully! Total: ${response.data.stats.total}, Success: ${response.data.stats.success}, Failed: ${response.data.stats.failed}`);
-
-        // Refresh the donations list
-        handleRefresh();
-      } else {
-        toast.dismiss();
-        toast.error('Failed to sync donations: ' + response.data.message);
-      }
-    } catch (error) {
-      toast.dismiss();
-      toast.error('Error syncing donations: ' + (error.response?.data?.message || error.message));
-      console.error('Error syncing donations:', error);
-    } finally {
-      setSyncingDonations(false);
-    }
-  };
 
   // Debug function to test API directly
   const handleDebugTest = async () => {
@@ -139,16 +95,12 @@ export default function AdminVerificationPanel() {
 
       // Show counts in toast
       toast.success(
-        `API Test Results: Tasks: ${testResponse.data.tasks_count}, Pending Tasks: ${testResponse.data.pending_tasks_sample.length}, Verified Tasks: ${testResponse.data.verified_tasks_sample.length}, Donations: ${testResponse.data.donations_count}, Pending Donations: ${testResponse.data.pending_donations_with_tx_hash}`
+        `API Test Results: Tasks: ${testResponse.data.tasks_count}, Pending Tasks: ${testResponse.data.pending_tasks_sample.length}, Verified Tasks: ${testResponse.data.verified_tasks_sample.length}`
       );
 
       // Update state with the test data
       if (testResponse.data.pending_tasks_sample.length > 0) {
         setTasks(testResponse.data.pending_tasks_sample);
-      }
-
-      if (testResponse.data.pending_donations_sample.length > 0) {
-        setDonations(testResponse.data.pending_donations_sample);
       }
 
     } catch (error) {
@@ -163,11 +115,6 @@ export default function AdminVerificationPanel() {
     task.charity?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredDonations = donations.filter(donation =>
-    donation.charity?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    donation.id.toString().includes(searchTerm)
-  );
-
   // Handle task verification status update
   const handleTaskStatusUpdate = (taskId, newStatus) => {
     setTasks(tasks.map(task =>
@@ -178,20 +125,6 @@ export default function AdminVerificationPanel() {
       // Remove from list if filtering by verified only
       if (filterStatus === 'verified') {
         setTasks(tasks.filter(task => task.id !== taskId));
-      }
-    }
-  };
-
-  // Handle donation verification status update
-  const handleDonationStatusUpdate = (donationId, newStatus) => {
-    setDonations(donations.map(donation =>
-      donation.id === donationId ? { ...donation, status: newStatus } : donation
-    ));
-
-    if (newStatus === 'completed') {
-      // Remove from list if filtering by verified only
-      if (filterStatus === 'verified') {
-        setDonations(donations.filter(donation => donation.id !== donationId));
       }
     }
   };
@@ -214,23 +147,6 @@ export default function AdminVerificationPanel() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Admin Verification Panel</h1>
           <div className="flex space-x-2">
-            <button
-              onClick={handleSyncDonations}
-              disabled={syncingDonations}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {syncingDonations ? (
-                <>
-                  <FaDatabase className="animate-pulse mr-2" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <FaDatabase className="mr-2" />
-                  Sync Donations
-                </>
-              )}
-            </button>
             <button
               onClick={handleDebugTest}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -280,28 +196,10 @@ export default function AdminVerificationPanel() {
               </div>
 
               <div className="flex space-x-2">
-                <button
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
-                    activeTab === 'tasks'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-gray-500 hover:text-gray-700 bg-white'
-                  }`}
-                  onClick={() => setActiveTab('tasks')}
-                >
+                <div className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-100 text-indigo-700">
                   <FaTasks className="inline mr-2" />
                   Tasks ({tasks.length})
-                </button>
-                <button
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
-                    activeTab === 'donations'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-gray-500 hover:text-gray-700 bg-white'
-                  }`}
-                  onClick={() => setActiveTab('donations')}
-                >
-                  <FaHandHoldingHeart className="inline mr-2" />
-                  Donations ({donations.length})
-                </button>
+                </div>
               </div>
             </div>
           </div>
@@ -313,52 +211,24 @@ export default function AdminVerificationPanel() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
           </div>
         ) : (
-          <div>
-            {activeTab === 'tasks' && (
-              <div className="space-y-6">
-                {filteredTasks.length > 0 ? (
-                  filteredTasks.map(task => (
-                    <TaskVerificationCard
-                      key={task.id}
-                      task={task}
-                      onStatusUpdate={handleTaskStatusUpdate}
-                    />
-                  ))
-                ) : (
-                  <div className="bg-white shadow rounded-lg p-6 text-center">
-                    <FaCheckCircle className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium text-gray-900">No tasks to verify</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm
-                        ? "No tasks match your search criteria."
-                        : `No tasks with status "${filterStatus}" found.`}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'donations' && (
-              <div className="space-y-6">
-                {filteredDonations.length > 0 ? (
-                  filteredDonations.map(donation => (
-                    <DonationVerificationCard
-                      key={donation.id}
-                      donation={donation}
-                      onStatusUpdate={handleDonationStatusUpdate}
-                    />
-                  ))
-                ) : (
-                  <div className="bg-white shadow rounded-lg p-6 text-center">
-                    <FaCheckCircle className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium text-gray-900">No donations to verify</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm
-                        ? "No donations match your search criteria."
-                        : `No donations with status "${filterStatus}" found.`}
-                    </p>
-                  </div>
-                )}
+          <div className="space-y-6">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map(task => (
+                <TaskVerificationCard
+                  key={task.id}
+                  task={task}
+                  onStatusUpdate={handleTaskStatusUpdate}
+                />
+              ))
+            ) : (
+              <div className="bg-white shadow rounded-lg p-6 text-center">
+                <FaCheckCircle className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-lg font-medium text-gray-900">No tasks to verify</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {searchTerm
+                    ? "No tasks match your search criteria."
+                    : `No tasks with status "${filterStatus}" found.`}
+                </p>
               </div>
             )}
           </div>

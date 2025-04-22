@@ -33,6 +33,8 @@ import BlockchainTester from './components/BlockchainTester';
 import SponsorshipPartners from './components/SponsorshipPartners';
 import BlockchainBasics from './pages/BlockchainBasics';
 import AdminVerificationPanel from './components/admin/AdminVerificationPanel';
+import OrganizationVerificationPanel from './components/admin/OrganizationVerificationPanel';
+import AdminDashboard from './components/admin/AdminDashboard';
 import CarbonMarket from './components/CarbonMarket';
 
 const router = createBrowserRouter([
@@ -251,8 +253,16 @@ const router = createBrowserRouter([
         element: <Invoice />
       },
       {
+        path: '/admin/dashboard',
+        element: <AdminDashboard />
+      },
+      {
         path: '/admin/verification',
         element: <AdminVerificationPanel />
+      },
+      {
+        path: '/admin/verification/organizations',
+        element: <OrganizationVerificationPanel />
       }
     ]
   },

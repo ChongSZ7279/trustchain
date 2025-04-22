@@ -49,7 +49,7 @@ class AdminVerificationController extends Controller
         $tasks = $query->orderBy('updated_at', 'desc')->get();
 
         // Log for debugging
-        \Log::info('Admin verification tasks request', [
+        Log::info('Admin verification tasks request', [
             'status' => $status,
             'count' => $tasks->count(),
             'user_id' => Auth::id(),
@@ -74,7 +74,7 @@ class AdminVerificationController extends Controller
     }
 
     /**
-     * Get verification statistics
+     * Get combined verification statistics for dashboard
      */
     public function getStats()
     {
@@ -83,46 +83,64 @@ class AdminVerificationController extends Controller
             return response()->json(['message' => 'Unauthorized - Only admins can access this resource'], 403);
         }
 
-        // Count pending donations with transaction hash
-        $pendingDonationsWithTxHash = Donation::where('status', 'pending')
-            ->whereNotNull('transaction_hash')
-            ->count();
+        try {
+            // Organizations stats
+            $totalOrganizations = \App\Models\Organization::count();
+            $verifiedOrganizations = \App\Models\Organization::where('is_verified', true)->count();
+            
+            // Charities stats
+            $totalCharities = \App\Models\Charity::count();
+            $verifiedCharities = \App\Models\Charity::where('is_verified', true)->count();
+            
+            // Tasks stats
+            $totalTasks = Task::count();
+            $completedTasks = Task::where('status', 'verified')->where('funds_released', true)->count();
+            
+            // Funds stats - sum of all transactions
+            $totalFundsReleased = \App\Models\Transaction::where('status', 'completed')
+                ->where('type', 'charity')
+                ->sum('amount');
+                
+            $stats = [
+                'organizations' => [
+                    'total' => $totalOrganizations,
+                    'verified' => $verifiedOrganizations,
+                    'pending' => $totalOrganizations - $verifiedOrganizations
+                ],
+                'charities' => [
+                    'total' => $totalCharities,
+                    'verified' => $verifiedCharities,
+                    'pending' => $totalCharities - $verifiedCharities
+                ],
+                'tasks' => [
+                    'total' => $totalTasks,
+                    'completed' => $completedTasks,
+                    'pending' => Task::where('status', 'pending')->count(),
+                    'verified' => Task::where('status', 'verified')->where('funds_released', false)->count()
+                ],
+                'funds' => [
+                    'released' => number_format($totalFundsReleased, 2)
+                ]
+            ];
 
-        $stats = [
-            'tasks' => [
-                'pending' => Task::where('status', 'pending')->count(),
-                'verified' => Task::where('status', 'verified')->where('funds_released', false)->count(),
-                'completed' => Task::where('status', 'verified')->where('funds_released', true)->count(),
-                'total' => Task::count()
-            ],
-            'donations' => [
-                'pending' => Donation::where('status', 'pending')->count(),
-                'pending_with_tx_hash' => $pendingDonationsWithTxHash,
-                'verified' => Donation::where('status', 'verified')->count(),
-                'completed' => Donation::where('status', 'completed')->count(),
-                'total' => Donation::count()
-            ],
-            'charities' => [
-                'total' => Charity::count(),
-                'with_wallet' => Charity::whereHas('organization', function($query) {
-                    $query->whereNotNull('wallet_address');
-                })->count()
-            ],
-            'debug' => [
-                'pending_donations_sample' => Donation::where('status', 'pending')
-                    ->whereNotNull('transaction_hash')
-                    ->take(3)
-                    ->get(['id', 'transaction_hash', 'status', 'amount'])
-            ]
-        ];
+            // Log for debugging
+            Log::info('Admin dashboard stats request', [
+                'stats' => $stats,
+                'user_id' => Auth::id() ?? 'guest',
+            ]);
 
-        // Log for debugging
-        \Log::info('Admin verification stats request', [
-            'stats' => $stats,
-            'user_id' => Auth::id(),
-        ]);
-
-        return response()->json($stats);
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Error getting admin stats', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to retrieve statistics',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -350,5 +368,258 @@ class AdminVerificationController extends Controller
             'explorer_url' => $result['explorer_url'] ?? "https://sepolia.scrollscan.com/tx/{$txHash}",
             'note' => 'Additional funds may be released automatically as new donations are verified for this charity.'
         ]);
+    }
+
+    /**
+     * Get organizations that need verification
+     */
+    public function getOrganizations(Request $request)
+    {
+        // Check if user is admin
+        if (Auth::check() && !Auth::user()->is_admin) {
+            return response()->json(['message' => 'Unauthorized - Only admins can access this resource'], 403);
+        }
+
+        $status = $request->input('status', 'pending'); // Default to pending
+
+        // Build query
+        $query = \App\Models\Organization::query();
+
+        // Filter by verification status
+        if ($status === 'pending') {
+            $query->where('is_verified', false);
+        } elseif ($status === 'verified') {
+            $query->where('is_verified', true);
+        }
+        // 'all' status doesn't need filtering
+
+        // Get organizations
+        $organizations = $query->orderBy('created_at', 'desc')->get();
+
+        // Log for debugging
+        Log::info('Admin organization verification request', [
+            'status' => $status,
+            'count' => $organizations->count(),
+            'user_id' => Auth::id() ?? 'guest',
+        ]);
+
+        return response()->json($organizations);
+    }
+
+    /**
+     * Verify an organization
+     */
+    public function verifyOrganization(Request $request, $id)
+    {
+        // Log the request
+        Log::info('Organization verification request received', [
+            'organization_id' => $id,
+            'user_id' => Auth::id() ?? 'guest',
+            'is_admin' => Auth::check() ? Auth::user()->is_admin : false,
+        ]);
+
+        // Check if user is admin
+        if (Auth::check() && !Auth::user()->is_admin) {
+            Log::warning('Unauthorized organization verification attempt', [
+                'user_id' => Auth::id(),
+                'organization_id' => $id
+            ]);
+            return response()->json(['success' => false, 'message' => 'Unauthorized - Only admins can verify organizations'], 403);
+        }
+
+        // Find the organization
+        $organization = \App\Models\Organization::find($id);
+
+        if (!$organization) {
+            return response()->json(['success' => false, 'message' => 'Organization not found'], 404);
+        }
+
+        // Check if organization is already verified
+        if ($organization->is_verified) {
+            return response()->json(['success' => false, 'message' => 'Organization is already verified'], 400);
+        }
+
+        // Verify the organization
+        $organization->is_verified = true;
+        $organization->verified_at = now();
+        $organization->save();
+
+        Log::info('Organization verified successfully', [
+            'organization_id' => $organization->id,
+            'organization_name' => $organization->name,
+            'verified_by' => Auth::id() ?? 'system'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Organization verified successfully',
+            'organization' => $organization
+        ]);
+    }
+
+    /**
+     * Get charities that need verification
+     */
+    public function getCharities(Request $request)
+    {
+        // Check if user is admin
+        if (Auth::check() && !Auth::user()->is_admin) {
+            return response()->json(['message' => 'Unauthorized - Only admins can access this resource'], 403);
+        }
+
+        $status = $request->input('status', 'pending'); // Default to pending
+
+        // Build query with organization relationship
+        $query = \App\Models\Charity::with('organization');
+
+        // Filter by verification status
+        if ($status === 'pending') {
+            $query->where('is_verified', false);
+        } elseif ($status === 'verified') {
+            $query->where('is_verified', true);
+        }
+        // 'all' status doesn't need filtering
+
+        // Get charities
+        $charities = $query->orderBy('created_at', 'desc')->get();
+
+        // Log for debugging
+        Log::info('Admin charity verification request', [
+            'status' => $status,
+            'count' => $charities->count(),
+            'user_id' => Auth::id() ?? 'guest',
+        ]);
+
+        return response()->json($charities);
+    }
+
+    /**
+     * Verify a charity
+     */
+    public function verifyCharity(Request $request, $id)
+    {
+        // Log the request
+        Log::info('Charity verification request received', [
+            'charity_id' => $id,
+            'user_id' => Auth::id() ?? 'guest',
+            'is_admin' => Auth::check() ? Auth::user()->is_admin : false,
+        ]);
+
+        // Check if user is admin
+        if (Auth::check() && !Auth::user()->is_admin) {
+            Log::warning('Unauthorized charity verification attempt', [
+                'user_id' => Auth::id(),
+                'charity_id' => $id
+            ]);
+            return response()->json(['success' => false, 'message' => 'Unauthorized - Only admins can verify charities'], 403);
+        }
+
+        // Find the charity
+        $charity = \App\Models\Charity::find($id);
+
+        if (!$charity) {
+            return response()->json(['success' => false, 'message' => 'Charity not found'], 404);
+        }
+
+        // Check if charity is already verified
+        if ($charity->is_verified) {
+            return response()->json(['success' => false, 'message' => 'Charity is already verified'], 400);
+        }
+
+        // Verify the charity
+        $charity->is_verified = true;
+        $charity->verified_at = now();
+        $charity->save();
+
+        Log::info('Charity verified successfully', [
+            'charity_id' => $charity->id,
+            'charity_name' => $charity->name,
+            'organization_id' => $charity->organization_id,
+            'verified_by' => Auth::id() ?? 'system'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Charity verified successfully',
+            'charity' => $charity
+        ]);
+    }
+
+    /**
+     * Debug endpoint to check verification tables
+     */
+    public function checkVerificationTables()
+    {
+        // Check if tables exist
+        $tasksTableExists = Schema::hasTable('tasks');
+        $organizationsTableExists = Schema::hasTable('organizations');
+        $charitiesTableExists = Schema::hasTable('charities');
+
+        // Get sample data
+        $pendingTasks = $tasksTableExists ? \App\Models\Task::where('status', 'pending')->take(3)->get() : [];
+        $verifiedTasks = $tasksTableExists ? \App\Models\Task::where('status', 'verified')->take(3)->get() : [];
+        
+        return response()->json([
+            'tables_exist' => [
+                'tasks' => $tasksTableExists,
+                'organizations' => $organizationsTableExists,
+                'charities' => $charitiesTableExists,
+            ],
+            'tasks_count' => $tasksTableExists ? \App\Models\Task::count() : 0,
+            'organizations_count' => $organizationsTableExists ? \App\Models\Organization::count() : 0,
+            'charities_count' => $charitiesTableExists ? \App\Models\Charity::count() : 0,
+            'pending_tasks_sample' => $pendingTasks,
+            'verified_tasks_sample' => $verifiedTasks,
+        ]);
+    }
+
+    /**
+     * Debug endpoint to check organization verification
+     */
+    public function checkOrganizationVerification()
+    {
+        try {
+            $organizationsCount = \App\Models\Organization::count();
+            $pendingOrganizations = \App\Models\Organization::where('is_verified', false)->take(5)->get();
+            $verifiedOrganizations = \App\Models\Organization::where('is_verified', true)->take(5)->get();
+
+            return response()->json([
+                'organizations_count' => $organizationsCount,
+                'pending_organizations_count' => \App\Models\Organization::where('is_verified', false)->count(),
+                'verified_organizations_count' => \App\Models\Organization::where('is_verified', true)->count(),
+                'pending_organizations_sample' => $pendingOrganizations,
+                'verified_organizations_sample' => $verifiedOrganizations
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to check organization verification data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Debug endpoint to check charity verification
+     */
+    public function checkCharityVerification()
+    {
+        try {
+            $charitiesCount = \App\Models\Charity::count();
+            $pendingCharities = \App\Models\Charity::where('is_verified', false)->with('organization')->take(5)->get();
+            $verifiedCharities = \App\Models\Charity::where('is_verified', true)->with('organization')->take(5)->get();
+
+            return response()->json([
+                'charities_count' => $charitiesCount,
+                'pending_charities_count' => \App\Models\Charity::where('is_verified', false)->count(),
+                'verified_charities_count' => \App\Models\Charity::where('is_verified', true)->count(),
+                'pending_charities_sample' => $pendingCharities,
+                'verified_charities_sample' => $verifiedCharities
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to check charity verification data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

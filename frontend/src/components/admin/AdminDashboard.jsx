@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import api from '../../utils/api';
-import { FaShieldAlt, FaBuilding, FaTasks, FaChartLine, FaUsers, FaHandshake } from 'react-icons/fa';
+import { FaShieldAlt, FaBuilding, FaTasks, FaHandshake } from 'react-icons/fa';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -93,20 +93,6 @@ export default function AdminDashboard() {
       icon: <FaBuilding className="h-8 w-8 text-green-600" />,
       link: '/admin/verification/organizations',
       color: 'bg-green-50 border-green-200 hover:bg-green-100'
-    },
-    {
-      title: 'User Management',
-      description: 'Manage users, permissions, and account access',
-      icon: <FaUsers className="h-8 w-8 text-blue-600" />,
-      link: '/admin/users',
-      color: 'bg-blue-50 border-blue-200 hover:bg-blue-100'
-    },
-    {
-      title: 'Analytics Dashboard',
-      description: 'View system analytics, transactions, and platform metrics',
-      icon: <FaChartLine className="h-8 w-8 text-purple-600" />,
-      link: '/admin/analytics',
-      color: 'bg-purple-50 border-purple-200 hover:bg-purple-100'
     }
   ];
 

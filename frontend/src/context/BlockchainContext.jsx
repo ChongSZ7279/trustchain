@@ -98,6 +98,22 @@ export const BlockchainProvider = ({ children }) => {
     }
   };
 
+  const getDonorTotalAmount = async (address) => {
+    try {
+      if (!contract) {
+        console.warn('Contract not initialized, returning 0 for donation amount');
+        return '0';
+      }
+      
+      // Call the contract method to get total donation amount
+      const amountWei = await contract.methods.getDonorTotalAmount(address).call();
+      return web3.utils.fromWei(amountWei, 'ether');
+    } catch (err) {
+      console.error('Error getting donor total amount:', err);
+      return '0';
+    }
+  };
+
   const value = {
     web3,
     contract,
@@ -106,7 +122,8 @@ export const BlockchainProvider = ({ children }) => {
     isLoading,
     error,
     connectWallet,
-    getCharityDonations
+    getCharityDonations,
+    getDonorTotalAmount
   };
 
   return (

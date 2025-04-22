@@ -382,10 +382,10 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         {/* Payment Method Selection - Improved UI */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Choose Payment Method</h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setPaymentMethod('blockchain')}
-              className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
+              className={`w-full p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
                 paymentMethod === 'blockchain'
                   ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                   : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
@@ -401,7 +401,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             </button>
             <button
               onClick={() => setPaymentMethod('transak')}
-              className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
+              className={`w-full p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
                 paymentMethod === 'transak'
                   ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                   : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
@@ -410,19 +410,6 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               <FaExchangeAlt className={`mb-1 ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-400'}`} />
               <span className={`font-medium text-sm ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-700'}`}>
                 Transak
-              </span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('alchemypay')}
-              className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
-                paymentMethod === 'alchemypay'
-                  ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              <FaCreditCard className={`mb-1 ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-400'}`} />
-              <span className={`font-medium text-sm ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-700'}`}>
-                Alchemy Pay
               </span>
             </button>
           </div>
@@ -492,6 +479,30 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 </p>
               </div>
             )}
+
+            {/* Scroll Bridge Portal Section */}
+            <div className="mb-5 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="flex items-start">
+                <FaDollarSign className="text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-blue-700 font-medium">
+                    Need SCROLL tokens?
+                  </p>
+                  <p className="text-xs text-blue-600 mb-3">
+                    You can easily bridge ETH or fiat to SCROLL using the official Scroll Bridge Portal. The process is quick and secure.
+                  </p>
+                  <a
+                    href="https://portal-sepolia.scroll.io/bridge"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  >
+                    <FaExchangeAlt className="mr-2" />
+                    Buy SCROLL Tokens
+                  </a>
+                </div>
+              </div>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Amount Field - Improved consistency */}
@@ -730,117 +741,6 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                 onSuccess={handleFiatToScrollSuccess}
                 onError={handleFiatToScrollError}
               />
-            )}
-          </div>
-        ) : paymentMethod === 'alchemypay' ? (
-          <div className="space-y-5">
-            {/* AlchemyPay Information Box - Improved styling */}
-            <div className="bg-indigo-50 p-4 rounded-lg mb-4 border border-indigo-100">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-medium text-indigo-800 flex items-center">
-                  <FaCreditCard className="mr-2" />
-                  Alchemy Pay Integration
-                </h3>
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                  Test Mode
-                </span>
-              </div>
-              <p className="text-indigo-700 text-sm">
-                Alchemy Pay allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
-                You'll be redirected to Alchemy Pay's secure payment page to complete your purchase.
-              </p>
-              <p className="text-indigo-700 text-xs mt-2">
-                <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
-              </p>
-            </div>
-
-            {/* Amount Input - Consistent styling */}
-            <div>
-              <label htmlFor="alchemypayDonationAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                Amount
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaDollarSign className="text-gray-500" />
-                </div>
-                <input
-                  type="number"
-                  id="alchemypayDonationAmount"
-                  placeholder="10.00"
-                  step="0.01"
-                  min="5.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <div className="flex items-center text-gray-500 font-medium">
-                    <span>USD</span>
-                  </div>
-                </div>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Minimum donation: $5.00 USD</p>
-            </div>
-
-            {/* Message field - Consistent styling */}
-            <div>
-              <label htmlFor="alchemypayDonationMessage" className="block text-sm font-medium text-gray-700 mb-2">
-                Message (Optional)
-              </label>
-              <textarea
-                id="alchemypayDonationMessage"
-                placeholder="Add a message with your donation"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-                rows="3"
-              />
-            </div>
-
-            {/* Anonymous option - Consistent styling */}
-            <div>
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="isAnonymousAlchemypay"
-                    type="checkbox"
-                    checked={isAnonymous}
-                    onChange={(e) => setIsAnonymous(e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="isAnonymousAlchemypay" className="font-medium text-gray-700">
-                    Make my donation anonymous
-                  </label>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Your identity will not be shown publicly with your donation.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {amount && parseFloat(amount) >= 5.0 && (
-              <AlchemyPayIntegration
-                amount={parseFloat(amount)}
-                charityId={charityId}
-                message={message}
-                isAnonymous={isAnonymous}
-                onSuccess={handleFiatToScrollSuccess}
-                onError={handleFiatToScrollError}
-              />
-            )}
-
-            {amount && parseFloat(amount) > 0 && parseFloat(amount) < 5.0 && (
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                <div className="flex items-start">
-                  <FaExclamationTriangle className="text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <p className="text-yellow-700 text-sm">
-                    Alchemy Pay requires a minimum donation of $5.00 USD. Please increase your donation amount to continue.
-                  </p>
-                </div>
-              </div>
             )}
           </div>
         ) : null}

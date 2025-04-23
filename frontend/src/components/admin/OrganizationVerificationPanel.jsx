@@ -56,13 +56,20 @@ export default function OrganizationVerificationPanel() {
         console.log('Organizations API response:', response.data);
         setOrganizations(response.data);
         
-        // Get stats
+        // Get all organizations for accurate stats
         try {
-          const statsResp = await api.get('/check-verification-organizations');
+          const allOrgsResponse = await api.get('/admin/verification/organizations', {
+            params: { status: 'all' }
+          });
+          
+          const allOrgs = allOrgsResponse.data;
+          const pendingCount = allOrgs.filter(org => !org.is_verified).length;
+          const verifiedCount = allOrgs.filter(org => org.is_verified).length;
+          
           setStats({
-            totalOrganizations: statsResp.data.organizations_count || 0,
-            pendingOrganizations: statsResp.data.pending_organizations_sample?.length || 0,
-            verifiedOrganizations: statsResp.data.verified_organizations_sample?.length || 0
+            totalOrganizations: allOrgs.length || 0,
+            pendingOrganizations: pendingCount || 0,
+            verifiedOrganizations: verifiedCount || 0
           });
         } catch (err) {
           console.error('Error fetching organization stats:', err);
@@ -91,13 +98,20 @@ export default function OrganizationVerificationPanel() {
         setOrganizations(response.data);
         console.log('Organizations response:', response.data);
         
-        // Get stats
+        // Get stats for all organizations
         try {
-          const statsResp = await api.get('/check-verification-organizations');
+          const allOrgsResponse = await api.get('/admin/verification/organizations', {
+            params: { status: 'all' }
+          });
+          
+          const allOrgs = allOrgsResponse.data;
+          const pendingCount = allOrgs.filter(org => !org.is_verified).length;
+          const verifiedCount = allOrgs.filter(org => org.is_verified).length;
+          
           setStats({
-            totalOrganizations: statsResp.data.organizations_count || 0,
-            pendingOrganizations: statsResp.data.pending_organizations_sample?.length || 0,
-            verifiedOrganizations: statsResp.data.verified_organizations_sample?.length || 0
+            totalOrganizations: allOrgs.length || 0,
+            pendingOrganizations: pendingCount || 0,
+            verifiedOrganizations: verifiedCount || 0
           });
         } catch (err) {
           console.error('Error fetching organization stats:', err);
@@ -293,60 +307,106 @@ export default function OrganizationVerificationPanel() {
 
         {/* Search Bar */}
         <div className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-          <div className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              {/* Left Side: Filter Status */}
-              <div className="flex items-center text-gray-700 font-medium">
-                <FaFilter className="mr-2 text-emerald-500" />
-                <span>Status Filter:</span>
-                <span className="ml-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
-                  {filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Organizations
-                </span>
-              </div>
-              
-              {/* Right Side: Search Box */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaSearch className="h-4 w-4 text-gray-400" />
+          <div className="flex flex-row justify-between items-center border-b border-gray-200">
+            <div className="flex">
+              <button
+                onClick={() => setFilterStatus('pending')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'pending' 
+                    ? 'border-yellow-500 text-yellow-600 bg-yellow-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaExclamationTriangle className={`mr-2 ${filterStatus === 'pending' ? 'text-yellow-500' : 'text-gray-400'}`} />
+                  Pending Verification
+                  <span className="ml-2 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.pendingOrganizations}
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-colors duration-200"
-                  placeholder="Search organizations by name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Search organizations"
-                />
-                {searchTerm && (
-                  <button
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center" 
-                    onClick={() => setSearchTerm('')}
-                    aria-label="Clear search"
-                  >
-                    <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100">×</span>
-                  </button>
-                )}
-              </div>
+              </button>
+              
+              <button
+                onClick={() => setFilterStatus('verified')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'verified' 
+                    ? 'border-green-500 text-green-600 bg-green-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaCheckCircle className={`mr-2 ${filterStatus === 'verified' ? 'text-green-500' : 'text-gray-400'}`} />
+                  Verified
+                  <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.verifiedOrganizations}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setFilterStatus('all')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'all' 
+                    ? 'border-emerald-500 text-emerald-600 bg-emerald-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaListAlt className={`mr-2 ${filterStatus === 'all' ? 'text-emerald-500' : 'text-gray-400'}`} />
+                  All Organizations
+                  <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.totalOrganizations}
+                  </span>
+                </div>
+              </button>
             </div>
             
-            {/* Search Results Notification */}
-            {searchTerm && (
-              <div className="mt-4 px-4 py-2 bg-emerald-50 rounded-md border border-emerald-100 shadow-sm">
-                <div className="flex items-center">
-                  <FaInfoCircle className="text-emerald-500 mr-2" />
-                  <span className="text-sm text-emerald-700">
-                    Found {filteredItems.length} result{filteredItems.length !== 1 ? 's' : ''} for "{searchTerm}"
-                  </span>
-                  <button 
-                    onClick={() => setSearchTerm('')}
-                    className="ml-auto text-xs px-2 py-1 bg-white text-emerald-600 rounded-md border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-colors duration-200"
-                  >
-                    Clear
-                  </button>
+            {/* Search Box */}
+            <div className="relative px-4 py-2">
+              <div className="flex">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaSearch className="h-4 w-4 text-emerald-400" />
+                  </div>
+                  <input
+                    type="text"
+                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-colors duration-200"
+                    placeholder="Search organizations..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Search organizations"
+                  />
+                  {searchTerm && (
+                    <button
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center" 
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Clear search"
+                    >
+                      <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-150">×</span>
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
+          
+          {/* Search Results Notification */}
+          {searchTerm && (
+            <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2">
+              <div className="flex items-center text-sm">
+                <FaInfoCircle className="text-emerald-500 mr-2" />
+                <span className="text-emerald-700">
+                  Found {filteredItems.length} result{filteredItems.length !== 1 ? 's' : ''} for "{searchTerm}"
+                </span>
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="ml-auto text-xs px-2.5 py-1 bg-white text-emerald-600 rounded-md border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-colors duration-200"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}

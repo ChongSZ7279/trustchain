@@ -17,6 +17,7 @@ import {
   FaThumbsUp,
   FaRegClock
 } from 'react-icons/fa';
+import api from '../../utils/api';
 
 export default function UserVerificationPanel() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function UserVerificationPanel() {
     total: 0
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   // Redirect if not admin
   useEffect(() => {
@@ -40,58 +42,109 @@ export default function UserVerificationPanel() {
     }
   }, [user, navigate]);
 
-  // Fetch data
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user || !user.is_admin) return;
-
-      setLoading(true);
-      try {
-        // This endpoint doesn't exist yet - you'll need to implement it in the backend
-        const response = await axios.get('/admin/verification/users', {
-          params: { status: filterStatus }
+  // Fetch data from API
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch user verification data
+      const response = await api.get('/admin/verification/users');
+      
+      if (response.data.success) {
+        const responseData = response.data.data || {};
+        
+        // Set users with safer defaults if some expected data is missing
+        setUsers(responseData.users || []);
+        
+        // Set stats safely
+        setStats({
+          total: responseData.stats?.total || 0,
+          verified: responseData.stats?.verified || 0,
+          pending: responseData.stats?.pending || 0,
+          recentlyVerified: responseData.stats?.recently_verified || 0
         });
-        
-        setUsers(response.data);
-        
-        // Calculate stats
-        if (response.data) {
-          const pendingCount = response.data.filter(u => !u.is_verified).length;
-          const verifiedCount = response.data.filter(u => u.is_verified).length;
-          
-          setStats({
-            pending: pendingCount,
-            verified: verifiedCount,
-            total: response.data.length
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching user verification data:', error);
-        toast.error('Failed to load user verification data: ' + (error.response?.data?.message || error.message));
-        
-        // Set empty data as fallback
-        setUsers([]);
-      } finally {
-        setLoading(false);
+      } else {
+        setError(response.data.message || 'Failed to load user verification data');
+        toast.error('Error loading verification data');
       }
-    };
-
-    fetchData();
-  }, [user, filterStatus]);
-
-  // Handle refresh
-  const handleRefresh = () => {
-    setRefreshing(true);
-    // Re-fetch data - implementation similar to the useEffect above
-    setRefreshing(false);
-    toast.success('Feature coming soon');
+    } catch (error) {
+      console.error('Error fetching user verification data:', error);
+      setError('Failed to connect to the server. Please try again later.');
+      toast.error('Connection error: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Refresh data
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+      toast.success('Data refreshed successfully');
+    } catch (error) {
+      // Error handling is already in fetchData
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Call fetchData when component mounts
+  useEffect(() => {
+    if (user && user.is_admin) {
+      fetchData();
+    }
+  }, [user]);
 
   // Filter items based on search term
   const filteredUsers = users.filter(user =>
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
+
+  // Function to safely handle user data display with potential missing fields
+  const safeDisplay = (user) => {
+    // Ensure all fields have default values to prevent errors
+    return {
+      id: user.id || user.ic_number || 'Unknown ID',
+      name: user.name || 'Unknown User',
+      email: user.email || user.gmail || 'No Email',
+      phone: user.phone_number || 'No Phone',
+      created_at: user.created_at || new Date().toISOString(),
+      is_verified: !!user.is_verified
+    };
+  };
+
+  // Handle user verification
+  const handleVerifyUser = async (userId) => {
+    try {
+      const response = await api.post(`/admin/verification/users/${userId}/verify`);
+      
+      if (response.data.success) {
+        // Update the local state to reflect verification
+        setUsers(users.map(user => 
+          (user.id === userId || user.ic_number === userId) 
+            ? { ...user, is_verified: true } 
+            : user
+        ));
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          pending: Math.max(0, prev.pending - 1),
+          verified: prev.verified + 1
+        }));
+        
+        toast.success('User verified successfully');
+      } else {
+        toast.error(response.data.message || 'Verification failed');
+      }
+    } catch (error) {
+      console.error('Error verifying user:', error);
+      toast.error('Failed to verify user: ' + (error.response?.data?.message || error.message));
+    }
+  };
 
   // Handle status filter click
   const handleStatusFilter = (status) => {
@@ -135,7 +188,7 @@ export default function UserVerificationPanel() {
               </div>
               <div className="mt-4 sm:mt-0 flex space-x-3">
                 <button
-                  onClick={handleRefresh}
+                  onClick={refreshData}
                   className="inline-flex items-center px-4 py-2.5 border border-white border-opacity-30 text-sm font-medium rounded-md text-white bg-white bg-opacity-10 hover:bg-opacity-20 transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm"
                 >
                   <FaSyncAlt className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -235,16 +288,120 @@ export default function UserVerificationPanel() {
               <FaInfoCircle className="h-5 w-5 text-blue-600" aria-hidden="true" />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">User Verification Coming Soon</h3>
+              <h3 className="text-sm font-medium text-blue-800">User Verification</h3>
               <div className="mt-2 text-sm text-blue-700">
-                <p>This feature is under development. Soon you'll be able to verify users' identity documents and KYC information here.</p>
-                <p className="mt-1">User verification will enhance trust and security on the TrustChain platform.</p>
+                <p>Please review user documents and identity information carefully before verification.</p>
+                <p className="mt-1">User verification enhances trust and security on the TrustChain platform.</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Tab Navigation and Search */}
+        <div className="bg-white shadow-sm rounded-lg mb-6 overflow-hidden">
+          <div className="flex flex-row justify-between items-center border-b border-gray-200">
+            <div className="flex">
+              <button
+                onClick={() => handleStatusFilter('pending')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'pending' 
+                    ? 'border-yellow-500 text-yellow-600 bg-yellow-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaExclamationTriangle className={`mr-2 ${filterStatus === 'pending' ? 'text-yellow-500' : 'text-gray-400'}`} />
+                  Pending Verification
+                  <span className="ml-2 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.pending}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('verified')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'verified' 
+                    ? 'border-blue-500 text-blue-600 bg-blue-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaCheckCircle className={`mr-2 ${filterStatus === 'verified' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  Verified
+                  <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.verified}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('all')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'all' 
+                    ? 'border-purple-500 text-purple-600 bg-purple-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaListAlt className={`mr-2 ${filterStatus === 'all' ? 'text-purple-500' : 'text-gray-400'}`} />
+                  All Users
+                  <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.total}
+                  </span>
+                </div>
+              </button>
+            </div>
+            
+            {/* Search Box */}
+            <div className="relative px-4 py-2">
+              <div className="flex">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaSearch className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <input
+                    type="text"
+                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 sm:text-sm transition-colors duration-200"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Search users"
+                  />
+                  {searchTerm && (
+                    <button
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center" 
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Clear search"
+                    >
+                      <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-150">×</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Search Results Notification */}
+          {searchTerm && (
+            <div className="bg-purple-50 border-b border-purple-100 px-4 py-2">
+              <div className="flex items-center text-sm">
+                <FaInfoCircle className="text-purple-500 mr-2" />
+                <span className="text-purple-700">
+                  Found {filteredUsers.length} result{filteredUsers.length !== 1 ? 's' : ''} for "{searchTerm}"
+                </span>
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="ml-auto text-xs px-2.5 py-1 bg-white text-purple-600 rounded-md border border-purple-200 hover:bg-purple-600 hover:text-white transition-colors duration-200"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Content Area - Display User Data if Available */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg shadow-md">
             <div className="w-16 h-16 border-4 border-purple-200 border-t-4 border-t-purple-600 rounded-full animate-spin"></div>
@@ -252,23 +409,108 @@ export default function UserVerificationPanel() {
             <p className="mt-2 text-gray-500 text-sm">This may take a moment</p>
           </div>
         ) : (
-          <div className="bg-white shadow-md rounded-lg p-10 text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-purple-100 text-purple-500 mb-4">
-              <FaUser className="h-10 w-10" />
-            </div>
-            <h3 className="mt-4 text-xl font-medium text-gray-900">User Verification Module</h3>
-            <p className="mt-3 text-gray-600 max-w-lg mx-auto">
-              The User Verification feature is currently in development and will be available soon. This will allow admins to verify user identity documents and enhance platform security.
-            </p>
-            <div className="mt-8">
-              <Link
-                to="/admin/dashboard"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200"
-              >
-                <FaArrowLeft className="mr-2" />
-                Back to Verification Hub
-              </Link>
-            </div>
+          <div className="space-y-6">
+            {error && (
+              <div className="my-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-red-700 font-medium">{error}</p>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button 
+                    onClick={refreshData}
+                    className="px-4 py-2 bg-white text-red-600 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            )}
+            {filteredUsers.length > 0 ? (
+              <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredUsers.map(user => {
+                        const safeUser = safeDisplay(user);
+                        return (
+                          <tr key={safeUser.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="h-10 w-10 flex-shrink-0 bg-purple-100 rounded-full flex items-center justify-center">
+                                  <span className="text-lg font-medium text-purple-800">{safeUser.name.charAt(0) || 'U'}</span>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">{safeUser.name}</div>
+                                  <div className="text-sm text-gray-500">ID: {safeUser.id}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{safeUser.email}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{new Date(safeUser.created_at).toLocaleDateString()}</div>
+                              <div className="text-sm text-gray-500">{new Date(safeUser.created_at).toLocaleTimeString()}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {safeUser.is_verified ? (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                  Verified
+                                </span>
+                              ) : (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                  Pending
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              {!safeUser.is_verified ? (
+                                <button 
+                                  className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md hover:bg-blue-100 transition-colors"
+                                  onClick={() => handleVerifyUser(safeUser.id)}
+                                >
+                                  Verify
+                                </button>
+                              ) : (
+                                <span className="text-green-600 bg-green-50 px-3 py-1 rounded-md">
+                                  Verified ✓
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white shadow-md rounded-lg p-6 text-center">
+                <div className="flex flex-col items-center">
+                  <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900">No Users Found</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {searchTerm ? 'No users match your search criteria.' : 'There are no users waiting for verification.'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

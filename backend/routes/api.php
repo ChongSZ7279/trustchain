@@ -569,6 +569,10 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\AdminMiddleware::class])
     Route::get('/charities', [\App\Http\Controllers\AdminVerificationController::class, 'getCharities']);
     Route::post('/charities/{id}/verify', [\App\Http\Controllers\AdminVerificationController::class, 'verifyCharity']);
     
+    // User verification routes
+    Route::get('/users', [\App\Http\Controllers\AdminVerificationController::class, 'getUsers']);
+    Route::post('/users/{id}/verify', [\App\Http\Controllers\AdminVerificationController::class, 'verifyUser']);
+    
     // Dashboard stats
     Route::get('/stats', [\App\Http\Controllers\AdminVerificationController::class, 'getStats']);
 });

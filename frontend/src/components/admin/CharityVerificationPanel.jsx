@@ -56,14 +56,21 @@ export default function CharityVerificationPanel() {
         console.log('Charities API response:', response.data);
         setCharities(response.data);
         
-        // Calculate stats
-        const pendingCount = response.data.filter(charity => !charity.is_verified).length;
-        const verifiedCount = response.data.filter(charity => charity.is_verified).length;
+        // Get all charities for accurate stats, regardless of current filter
+        const allCharitiesResponse = await axios.get('/admin/verification/charities', {
+          params: { status: 'all' }
+        });
+        
+        const allCharities = allCharitiesResponse.data;
+        
+        // Calculate stats from all charities
+        const pendingCount = allCharities.filter(charity => !charity.is_verified).length;
+        const verifiedCount = allCharities.filter(charity => charity.is_verified).length;
         
         setStats({
           pending: pendingCount,
           verified: verifiedCount,
-          total: response.data.length
+          total: allCharities.length
         });
         
       } catch (error) {
@@ -89,14 +96,21 @@ export default function CharityVerificationPanel() {
         
         setCharities(response.data);
         
-        // Calculate stats
-        const pendingCount = response.data.filter(charity => !charity.is_verified).length;
-        const verifiedCount = response.data.filter(charity => charity.is_verified).length;
+        // Get all charities for accurate stats, regardless of current filter
+        const allCharitiesResponse = await axios.get('/admin/verification/charities', {
+          params: { status: 'all' }
+        });
+        
+        const allCharities = allCharitiesResponse.data;
+        
+        // Calculate stats from all charities
+        const pendingCount = allCharities.filter(charity => !charity.is_verified).length;
+        const verifiedCount = allCharities.filter(charity => charity.is_verified).length;
         
         setStats({
           pending: pendingCount,
           verified: verifiedCount,
-          total: response.data.length
+          total: allCharities.length
         });
         
         toast.success('Data refreshed successfully');
@@ -288,60 +302,106 @@ export default function CharityVerificationPanel() {
 
         {/* Search Bar */}
         <div className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-          <div className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              {/* Left Side: Filter Status */}
-              <div className="flex items-center text-gray-700 font-medium">
-                <FaFilter className="mr-2 text-indigo-500" />
-                <span>Status Filter:</span>
-                <span className="ml-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
-                  {filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Charities
-                </span>
-              </div>
-              
-              {/* Right Side: Search Box */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaSearch className="h-4 w-4 text-gray-400" />
+          <div className="flex flex-row justify-between items-center border-b border-gray-200">
+            <div className="flex">
+              <button
+                onClick={() => handleStatusFilter('pending')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'pending' 
+                    ? 'border-yellow-500 text-yellow-600 bg-yellow-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaExclamationTriangle className={`mr-2 ${filterStatus === 'pending' ? 'text-yellow-500' : 'text-gray-400'}`} />
+                  Pending Verification
+                  <span className="ml-2 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.pending}
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors duration-200"
-                  placeholder="Search charities by name or organization..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Search charities"
-                />
-                {searchTerm && (
-                  <button
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center" 
-                    onClick={() => setSearchTerm('')}
-                    aria-label="Clear search"
-                  >
-                    <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100">×</span>
-                  </button>
-                )}
-              </div>
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('verified')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'verified' 
+                    ? 'border-blue-500 text-blue-600 bg-blue-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaCheckCircle className={`mr-2 ${filterStatus === 'verified' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  Verified
+                  <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.verified}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('all')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'all' 
+                    ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaListAlt className={`mr-2 ${filterStatus === 'all' ? 'text-indigo-500' : 'text-gray-400'}`} />
+                  All Charities
+                  <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.total}
+                  </span>
+                </div>
+              </button>
             </div>
             
-            {/* Search Results Notification */}
-            {searchTerm && (
-              <div className="mt-4 px-4 py-2 bg-indigo-50 rounded-md border border-indigo-100 shadow-sm">
-                <div className="flex items-center">
-                  <FaInfoCircle className="text-indigo-500 mr-2" />
-                  <span className="text-sm text-indigo-700">
-                    Found {filteredCharities.length} result{filteredCharities.length !== 1 ? 's' : ''} for "{searchTerm}"
-                  </span>
-                  <button 
-                    onClick={() => setSearchTerm('')}
-                    className="ml-auto text-xs px-2 py-1 bg-white text-indigo-600 rounded-md border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
-                  >
-                    Clear
-                  </button>
+            {/* Search Box */}
+            <div className="relative px-4 py-2">
+              <div className="flex">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaSearch className="h-4 w-4 text-blue-400" />
+                  </div>
+                  <input
+                    type="text"
+                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-200"
+                    placeholder="Search charities..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Search charities"
+                  />
+                  {searchTerm && (
+                    <button
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center" 
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Clear search"
+                    >
+                      <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-150">×</span>
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
+          
+          {/* Search Results Notification */}
+          {searchTerm && (
+            <div className="bg-blue-50 border-b border-blue-100 px-4 py-2">
+              <div className="flex items-center text-sm">
+                <FaInfoCircle className="text-blue-500 mr-2" />
+                <span className="text-blue-700">
+                  Found {filteredCharities.length} result{filteredCharities.length !== 1 ? 's' : ''} for "{searchTerm}"
+                </span>
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="ml-auto text-xs px-2.5 py-1 bg-white text-blue-600 rounded-md border border-blue-200 hover:bg-blue-600 hover:text-white transition-colors duration-200"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}

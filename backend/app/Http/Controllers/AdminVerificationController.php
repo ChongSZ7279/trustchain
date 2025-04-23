@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Models\Task;
 use App\Models\Donation;
 use App\Models\Charity;
+use App\Models\User;
 use App\Services\BlockchainService;
 use App\Services\Web3Service;
 
@@ -96,6 +97,10 @@ class AdminVerificationController extends Controller
             $totalTasks = Task::count();
             $completedTasks = Task::where('status', 'verified')->where('funds_released', true)->count();
             
+            // Users stats
+            $totalUsers = User::where('is_admin', false)->count();
+            $verifiedUsers = User::where('is_admin', false)->where('is_verified', true)->count();
+            
             // Funds stats - sum of all transactions
             $totalFundsReleased = \App\Models\Transaction::where('status', 'completed')
                 ->where('type', 'charity')
@@ -117,6 +122,11 @@ class AdminVerificationController extends Controller
                     'completed' => $completedTasks,
                     'pending' => Task::where('status', 'pending')->count(),
                     'verified' => Task::where('status', 'verified')->where('funds_released', false)->count()
+                ],
+                'users' => [
+                    'total' => $totalUsers,
+                    'verified' => $verifiedUsers,
+                    'pending' => $totalUsers - $verifiedUsers
                 ],
                 'funds' => [
                     'released' => number_format($totalFundsReleased, 2)
@@ -654,5 +664,167 @@ class AdminVerificationController extends Controller
         
         // Add 0x prefix back
         return '0x' . $cleanHash;
+    }
+
+    /**
+     * Get users for verification
+     */
+    public function getUsers(Request $request)
+    {
+        // Skip auth check for testing
+        if (Auth::check() && !Auth::user()->is_admin) {
+            return response()->json(['message' => 'Unauthorized - Only admins can access this resource'], 403);
+        }
+
+        try {
+            $status = $request->input('status', 'pending');
+            
+            // Check which columns exist in the users table to avoid SQL errors
+            $hasColumns = Schema::hasColumns('users', ['id', 'name', 'gmail', 'phone_number', 'wallet_address', 'created_at', 'is_verified', 'is_admin']);
+            
+            // Log column information for debugging
+            Log::info('User table columns check', [
+                'columns_exist' => $hasColumns,
+                'table_exists' => Schema::hasTable('users')
+            ]);
+            
+            // Get basic user columns that we know exist
+            $query = User::query();
+            
+            // Only select columns that exist
+            $selectColumns = [];
+            if (Schema::hasColumn('users', 'id')) $selectColumns[] = 'id';
+            if (Schema::hasColumn('users', 'name')) $selectColumns[] = 'name';
+            if (Schema::hasColumn('users', 'gmail')) $selectColumns[] = 'gmail as email';
+            if (Schema::hasColumn('users', 'email')) $selectColumns[] = 'email';
+            if (Schema::hasColumn('users', 'phone_number')) $selectColumns[] = 'phone_number';
+            if (Schema::hasColumn('users', 'wallet_address')) $selectColumns[] = 'wallet_address';
+            if (Schema::hasColumn('users', 'created_at')) $selectColumns[] = 'created_at';
+            if (Schema::hasColumn('users', 'is_verified')) $selectColumns[] = 'is_verified';
+            
+            // Apply select if we have columns
+            if (!empty($selectColumns)) {
+                $query->select($selectColumns);
+            }
+            
+            // Filter by verification status if the column exists
+            if (Schema::hasColumn('users', 'is_verified')) {
+                if ($status === 'pending') {
+                    $query->where('is_verified', false);
+                } else if ($status === 'verified') {
+                    $query->where('is_verified', true);
+                }
+            }
+            
+            // Exclude admin users if the column exists
+            if (Schema::hasColumn('users', 'is_admin')) {
+                $query->where('is_admin', false);
+            }
+            
+            // Get users and order by created date if the column exists
+            if (Schema::hasColumn('users', 'created_at')) {
+                $query->orderBy('created_at', 'desc');
+            }
+            
+            $users = $query->get();
+            
+            // Log for debugging
+            Log::info('Admin user verification request', [
+                'status' => $status,
+                'count' => $users->count(),
+                'query' => $query->toSql(),
+                'user_id' => Auth::id(),
+            ]);
+            
+            return response()->json($users);
+        } catch (\Exception $e) {
+            Log::error('Error in getUsers', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to fetch users',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify a user
+     */
+    public function verifyUser(Request $request, $id)
+    {
+        // Skip auth check for testing
+        if (Auth::check() && !Auth::user()->is_admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized - Only admins can access this resource'], 403);
+        }
+
+        try {
+            // Find the user - User model uses ic_number as primary key
+            $user = User::find($id);
+            
+            // If not found by ID, try to find by ic_number
+            if (!$user) {
+                $user = User::where('ic_number', $id)->first();
+                
+                // If still not found, return error
+                if (!$user) {
+                    return response()->json(['success' => false, 'message' => 'User not found'], 404);
+                }
+            }
+
+            // Check if is_verified column exists before updating
+            if (!Schema::hasColumn('users', 'is_verified')) {
+                // First attempt to add column if it doesn't exist
+                try {
+                    Schema::table('users', function ($table) {
+                        if (!Schema::hasColumn('users', 'is_verified')) {
+                            $table->boolean('is_verified')->default(false)->after('is_admin');
+                        }
+                    });
+                    
+                    Log::info('Added is_verified column to users table');
+                } catch (\Exception $e) {
+                    Log::error('Failed to add is_verified column', [
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cannot verify user: is_verified column does not exist and could not be added'
+                    ], 500);
+                }
+            }
+
+            // Update user verification status
+            $user->is_verified = true;
+            $user->save();
+
+            // Log the verification
+            Log::info('User verified by admin', [
+                'user_id' => $user->ic_number,
+                'admin_id' => Auth::id(),
+                'timestamp' => now()->toDateTimeString()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User successfully verified',
+                'user' => $user
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error verifying user', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify user: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

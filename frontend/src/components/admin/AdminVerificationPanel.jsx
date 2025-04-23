@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -24,7 +24,7 @@ import {
   FaExternalLinkAlt
 } from 'react-icons/fa';
 
-export default function AdminVerificationPanel() {
+export default function TaskVerificationPanel() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -32,6 +32,8 @@ export default function AdminVerificationPanel() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('pending');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const filterButtonRef = useRef(null);
   const [stats, setStats] = useState({
     pending: 0,
     verified: 0,
@@ -58,13 +60,35 @@ export default function AdminVerificationPanel() {
         const tasksResponse = await axios.get('/admin/verification/tasks', {
           params: { status: filterStatus }
         });
-        setTasks(tasksResponse.data);
+        
+        // Map MySQL data fields to the expected format
+        const mappedTasks = tasksResponse.data.map(task => ({
+          ...task,
+          id: task.id,
+          name: task.name || 'Unnamed Task',
+          description: task.description || '',
+          amount: task.fund_targeted || task.amount || 0, 
+          proof: task.proof || task.task_proofs || null,
+          proof_images: task.pictures_count > 0 ? task.proof_images || [] : [],
+          status: task.status || 'pending',
+          charity: {
+            ...(task.charity || {}),
+            id: task.charity_id || (task.charity?.id || null),
+            name: task.charity?.name || task.charity_name || 'Unknown Charity',
+            organization: {
+              ...(task.charity?.organization || {}),
+              wallet_address: task.charity?.organization?.wallet_address || task.wallet_address || null
+            }
+          }
+        }));
+        
+        setTasks(mappedTasks);
         
         // Calculate stats if we get full data
         if (filterStatus === 'all') {
-          const pendingCount = tasksResponse.data.filter(task => task.status === 'pending').length;
-          const verifiedCount = tasksResponse.data.filter(task => task.status === 'verified').length;
-          const completedCount = tasksResponse.data.filter(task => task.status === 'completed').length;
+          const pendingCount = mappedTasks.filter(task => task.status === 'pending').length;
+          const verifiedCount = mappedTasks.filter(task => task.status === 'verified').length;
+          const completedCount = mappedTasks.filter(task => task.status === 'completed').length;
           
           setStats({
             pending: pendingCount,
@@ -77,9 +101,14 @@ export default function AdminVerificationPanel() {
             params: { status: 'all' }
           });
           
-          const pendingCount = allTasksResponse.data.filter(task => task.status === 'pending').length;
-          const verifiedCount = allTasksResponse.data.filter(task => task.status === 'verified').length;
-          const completedCount = allTasksResponse.data.filter(task => task.status === 'completed').length;
+          const allMappedTasks = allTasksResponse.data.map(task => ({
+            ...task,
+            status: task.status || 'pending'
+          }));
+          
+          const pendingCount = allMappedTasks.filter(task => task.status === 'pending').length;
+          const verifiedCount = allMappedTasks.filter(task => task.status === 'verified').length;
+          const completedCount = allMappedTasks.filter(task => task.status === 'completed').length;
           
           setStats({
             pending: pendingCount,
@@ -141,7 +170,15 @@ export default function AdminVerificationPanel() {
   const filteredTasks = tasks.filter(task =>
     task.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     task.charity?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).map(task => {
+    // Ensure task has all required properties based on MySQL data
+    return {
+      ...task,
+      amount: task.fund_targeted || task.amount,
+      proof: task.proof || (task.proof_document ? task.proof_document : null),
+      proof_images: task.pictures_count > 0 ? task.proof_images || [] : []
+    };
+  });
 
   // Handle task verification status update
   const handleTaskStatusUpdate = (taskId, newStatus) => {
@@ -176,6 +213,34 @@ export default function AdminVerificationPanel() {
     setIsFilterOpen(false);
     setSearchTerm(''); // Clear search when changing filters
   };
+
+  // Click outside to close filter dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      const dropdown = document.getElementById('filter-dropdown');
+      const filterButton = document.getElementById('filter-button');
+      
+      if (isFilterOpen && dropdown && !dropdown.contains(event.target) && !filterButton.contains(event.target)) {
+        setIsFilterOpen(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isFilterOpen]);
+
+  // Update dropdown position when the filter button is clicked
+  useEffect(() => {
+    if (isFilterOpen && filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 5,
+        left: rect.left + window.scrollX
+      });
+    }
+  }, [isFilterOpen]);
 
   if (!user || !user.is_admin) {
     return (
@@ -215,28 +280,28 @@ export default function AdminVerificationPanel() {
       {/* Header Section */}
       <div className="bg-gradient-to-r from-indigo-700 to-purple-800 text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
+          <div className="py-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center">
-                <div className="bg-white bg-opacity-20 rounded-full p-3">
+                <div className="bg-white bg-opacity-20 rounded-full p-3 shadow-lg">
                   <FaClipboardCheck className="h-8 w-8 text-white" />
                 </div>
                 <div className="ml-4">
-                  <h1 className="text-2xl font-bold">Task Verification</h1>
+                  <h1 className="text-3xl font-bold">Task Verification</h1>
                   <p className="text-sm text-indigo-100 mt-1">Review and approve task completion proofs</p>
                 </div>
               </div>
               <div className="mt-4 sm:mt-0 flex space-x-3">
                 <button
                   onClick={handleRefresh}
-                  className="inline-flex items-center px-3 py-2 border border-white border-opacity-30 text-sm font-medium rounded-md text-white bg-white bg-opacity-10 hover:bg-opacity-20 transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm"
+                  className="inline-flex items-center px-4 py-2.5 border border-white border-opacity-30 text-sm font-medium rounded-md text-white bg-white bg-opacity-10 hover:bg-opacity-20 transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm"
                 >
                   <FaSyncAlt className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                   Refresh Data
                 </button>
-                <Link to="/admin/dashboard" className="inline-flex items-center px-3 py-2 border border-white border-opacity-30 text-sm font-medium rounded-md text-white bg-white bg-opacity-10 hover:bg-opacity-20 transition-all duration-200 shadow-sm transform hover:-translate-y-0.5">
+                <Link to="/admin/dashboard" className="inline-flex items-center px-4 py-2.5 border border-white border-opacity-30 text-sm font-medium rounded-md text-white bg-white bg-opacity-10 hover:bg-opacity-20 transition-all duration-200 shadow-sm transform hover:-translate-y-0.5">
                   <FaArrowLeft className="mr-2" />
-                  Dashboard
+                  Back to Verification Hub
                 </Link>
               </div>
             </div>
@@ -245,221 +310,203 @@ export default function AdminVerificationPanel() {
       </div>
 
       {/* Stats Overview */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-yellow-500 transform transition-all duration-200 hover:shadow-lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-yellow-500 transform transition-all duration-200 hover:shadow-lg">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Pending Tasks</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.pending}</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.pending}</p>
               </div>
-              <div className="h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <FaRegClock className="h-6 w-6 text-yellow-600" />
+              <div className="h-14 w-14 bg-yellow-100 rounded-full flex items-center justify-center shadow-inner">
+                <FaRegClock className="h-7 w-7 text-yellow-600" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-5 border-t border-gray-100 pt-4">
               <button 
                 onClick={() => handleStatusFilter('pending')}
-                className={`text-sm font-medium ${filterStatus === 'pending' ? 'text-yellow-600' : 'text-gray-500 hover:text-yellow-600'}`}
+                className={`w-full text-sm font-medium py-2 rounded-md border ${
+                  filterStatus === 'pending' 
+                    ? 'text-yellow-700 bg-yellow-50 border-yellow-200' 
+                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-yellow-600'
+                } transition-colors duration-200`}
               >
-                {filterStatus === 'pending' ? 'Currently Viewing' : 'View Pending Tasks →'}
+                {filterStatus === 'pending' ? 'Currently Viewing' : 'View Pending Tasks'}
               </button>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-blue-500 transform transition-all duration-200 hover:shadow-lg">
+          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500 transform transition-all duration-200 hover:shadow-lg">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Verified Tasks</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.verified}</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.verified}</p>
               </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <FaThumbsUp className="h-6 w-6 text-blue-600" />
+              <div className="h-14 w-14 bg-blue-100 rounded-full flex items-center justify-center shadow-inner">
+                <FaThumbsUp className="h-7 w-7 text-blue-600" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-5 border-t border-gray-100 pt-4">
               <button 
                 onClick={() => handleStatusFilter('verified')}
-                className={`text-sm font-medium ${filterStatus === 'verified' ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'}`}
+                className={`w-full text-sm font-medium py-2 rounded-md border ${
+                  filterStatus === 'verified' 
+                    ? 'text-blue-700 bg-blue-50 border-blue-200' 
+                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-blue-600'
+                } transition-colors duration-200`}
               >
-                {filterStatus === 'verified' ? 'Currently Viewing' : 'View Verified Tasks →'}
+                {filterStatus === 'verified' ? 'Currently Viewing' : 'View Verified Tasks'}
               </button>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-green-500 transform transition-all duration-200 hover:shadow-lg">
+          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500 transform transition-all duration-200 hover:shadow-lg">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Completed Tasks</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.completed}</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.completed}</p>
               </div>
-              <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-                <FaCheckCircle className="h-6 w-6 text-green-600" />
+              <div className="h-14 w-14 bg-green-100 rounded-full flex items-center justify-center shadow-inner">
+                <FaCheckCircle className="h-7 w-7 text-green-600" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-5 border-t border-gray-100 pt-4">
               <button 
                 onClick={() => handleStatusFilter('completed')}
-                className={`text-sm font-medium ${filterStatus === 'completed' ? 'text-green-600' : 'text-gray-500 hover:text-green-600'}`}
+                className={`w-full text-sm font-medium py-2 rounded-md border ${
+                  filterStatus === 'completed' 
+                    ? 'text-green-700 bg-green-50 border-green-200' 
+                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-green-600'
+                } transition-colors duration-200`}
               >
-                {filterStatus === 'completed' ? 'Currently Viewing' : 'View Completed Tasks →'}
+                {filterStatus === 'completed' ? 'Currently Viewing' : 'View Completed Tasks'}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 shadow-sm">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <FaInfoCircle className="h-5 w-5 text-blue-600" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">About Transaction Hashes</h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>When verifying tasks in development/testing mode, the system generates mock transaction hashes that won't appear on Scrollscan.</p>
-                <p className="mt-1">In production, actual blockchain transactions will be generated and viewable on the blockchain explorer.</p>
-                <div className="mt-3">
-                  <button 
-                    onClick={() => window.open("https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84", "_blank")}
-                    className="inline-flex items-center px-4 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                  >
-                    <FaExternalLinkAlt className="mr-2 h-4 w-4" />
-                    View Contract on Scrollscan
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter and Search Bar */}
-        <div className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-          <div className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              {/* Left Side: Filter Controls */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                <div className="flex items-center text-gray-700 font-medium">
-                  <FaFileAlt className="mr-2 text-indigo-500" />
-                  <span>Currently Viewing:</span>
-                  <span className="ml-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
-                    {filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Tasks
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        
+        {/* Tab Navigation and Search */}
+        <div className="bg-white shadow-sm rounded-lg mb-6 overflow-hidden">
+          <div className="flex flex-row justify-between items-center border-b border-gray-200">
+            <div className="flex">
+              <button
+                onClick={() => handleStatusFilter('pending')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'pending' 
+                    ? 'border-yellow-500 text-yellow-600 bg-yellow-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaExclamationTriangle className={`mr-2 ${filterStatus === 'pending' ? 'text-yellow-500' : 'text-gray-400'}`} />
+                  Pending Verification
+                  <span className="ml-2 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.pending}
                   </span>
                 </div>
-                
-                {/* Status Filter Dropdown */}
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('verified')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'verified' 
+                    ? 'border-blue-500 text-blue-600 bg-blue-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaCheckCircle className={`mr-2 ${filterStatus === 'verified' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  Verified
+                  <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.verified}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('completed')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'completed' 
+                    ? 'border-green-500 text-green-600 bg-green-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaCheckCircle className={`mr-2 ${filterStatus === 'completed' ? 'text-green-500' : 'text-gray-400'}`} />
+                  Completed
+                  <span className="ml-2 bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.completed}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleStatusFilter('all')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 ${
+                  filterStatus === 'all' 
+                    ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center">
+                  <FaListAlt className={`mr-2 ${filterStatus === 'all' ? 'text-indigo-500' : 'text-gray-400'}`} />
+                  All Tasks
+                  <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
+                    {stats.pending + stats.verified + stats.completed}
+                  </span>
+                </div>
+              </button>
+            </div>
+            
+            {/* Search Box */}
+            <div className="relative px-4 py-2">
+              <div className="flex">
                 <div className="relative">
-                  <button 
-                    onClick={() => setIsFilterOpen(!isFilterOpen)} 
-                    className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-                    aria-label="Filter tasks by status"
-                  >
-                    <FaFilter className="mr-2 text-gray-500" />
-                    <span>Change Filter</span>
-                    <FaChevronDown className="ml-2 h-4 w-4 text-gray-500" />
-                  </button>
-                  
-                  {isFilterOpen && (
-                    <div className="origin-top-left absolute left-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 transition-all duration-200 z-10 divide-y divide-gray-100">
-                      <div className="py-1">
-                        <button 
-                          className={`w-full text-left px-4 py-2.5 text-sm ${filterStatus === 'pending' ? 'bg-indigo-50 text-indigo-800 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                          onClick={() => handleStatusFilter('pending')}
-                        >
-                          <div className="flex items-center">
-                            <FaExclamationTriangle className={`mr-2 ${filterStatus === 'pending' ? 'text-yellow-500' : 'text-gray-400'}`} />
-                            Pending Verification
-                            <span className="ml-auto bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs">
-                              {stats.pending}
-                            </span>
-                          </div>
-                        </button>
-                        <button 
-                          className={`w-full text-left px-4 py-2.5 text-sm ${filterStatus === 'verified' ? 'bg-indigo-50 text-indigo-800 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                          onClick={() => handleStatusFilter('verified')}
-                        >
-                          <div className="flex items-center">
-                            <FaCheckCircle className={`mr-2 ${filterStatus === 'verified' ? 'text-blue-500' : 'text-gray-400'}`} />
-                            Verified (Ready for Fund Release)
-                            <span className="ml-auto bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
-                              {stats.verified}
-                            </span>
-                          </div>
-                        </button>
-                        <button 
-                          className={`w-full text-left px-4 py-2.5 text-sm ${filterStatus === 'completed' ? 'bg-indigo-50 text-indigo-800 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                          onClick={() => handleStatusFilter('completed')}
-                        >
-                          <div className="flex items-center">
-                            <FaCheckCircle className={`mr-2 ${filterStatus === 'completed' ? 'text-green-500' : 'text-gray-400'}`} />
-                            Completed (Funds Released)
-                            <span className="ml-auto bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs">
-                              {stats.completed}
-                            </span>
-                          </div>
-                        </button>
-                        <button 
-                          className={`w-full text-left px-4 py-2.5 text-sm ${filterStatus === 'all' ? 'bg-indigo-50 text-indigo-800 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                          onClick={() => handleStatusFilter('all')}
-                        >
-                          <div className="flex items-center">
-                            <FaListAlt className={`mr-2 ${filterStatus === 'all' ? 'text-indigo-500' : 'text-gray-400'}`} />
-                            All Tasks
-                            <span className="ml-auto bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
-                              {stats.pending + stats.verified + stats.completed}
-                            </span>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaSearch className="h-4 w-4 text-indigo-400" />
+                  </div>
+                  <input
+                    type="text"
+                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors duration-200"
+                    placeholder="Search tasks or charities..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Search tasks or charities"
+                  />
+                  {searchTerm && (
+                    <button
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center" 
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Clear search"
+                    >
+                      <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-150">×</span>
+                    </button>
                   )}
                 </div>
               </div>
-              
-              {/* Right Side: Search Box */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaSearch className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors duration-200"
-                  placeholder="Search tasks or charities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Search tasks or charities"
-                />
-                {searchTerm && (
-                  <button
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center" 
-                    onClick={() => setSearchTerm('')}
-                    aria-label="Clear search"
-                  >
-                    <span className="h-5 w-5 text-gray-400 hover:text-gray-600 flex items-center justify-center rounded-full bg-gray-100">×</span>
-                  </button>
-                )}
+            </div>
+          </div>
+          
+          {/* Search Results Notification */}
+          {searchTerm && (
+            <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-2">
+              <div className="flex items-center text-sm">
+                <FaInfoCircle className="text-indigo-500 mr-2" />
+                <span className="text-indigo-700">
+                  Found {filteredTasks.length} result{filteredTasks.length !== 1 ? 's' : ''} for "{searchTerm}"
+                </span>
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="ml-auto text-xs px-2.5 py-1 bg-white text-indigo-600 rounded-md border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+                >
+                  Clear
+                </button>
               </div>
             </div>
-            
-            {/* Search Stats */}
-            {searchTerm && (
-              <div className="mt-4 px-4 py-2 bg-indigo-50 rounded-md border border-indigo-100 shadow-sm">
-                <div className="flex items-center">
-                  <FaInfoCircle className="text-indigo-500 mr-2" />
-                  <span className="text-sm text-indigo-700">
-                    Found {filteredTasks.length} result{filteredTasks.length !== 1 ? 's' : ''} for "{searchTerm}"
-                  </span>
-                  <button 
-                    onClick={() => setSearchTerm('')}
-                    className="ml-auto text-xs px-2 py-1 bg-white text-indigo-600 rounded-md border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Task List */}

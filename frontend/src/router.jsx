@@ -34,6 +34,8 @@ import SponsorshipPartners from './components/SponsorshipPartners';
 import BlockchainBasics from './pages/BlockchainBasics';
 import AdminVerificationPanel from './components/admin/AdminVerificationPanel';
 import OrganizationVerificationPanel from './components/admin/OrganizationVerificationPanel';
+import UserVerificationPanel from './components/admin/UserVerificationPanel';
+import CharityVerificationPanel from './components/admin/CharityVerificationPanel';
 import AdminDashboard from './components/admin/AdminDashboard';
 import CarbonMarket from './components/CarbonMarket';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -261,12 +263,20 @@ const router = createBrowserRouter([
         element: <AdminDashboard />
       },
       {
-        path: '/admin/verification',
+        path: '/admin/verification/tasks',
         element: <AdminVerificationPanel />
       },
       {
         path: '/admin/verification/organizations',
         element: <OrganizationVerificationPanel />
+      },
+      {
+        path: '/admin/verification/charities',
+        element: <CharityVerificationPanel />
+      },
+      {
+        path: '/admin/verification/users',
+        element: <UserVerificationPanel />
       }
     ]
   },

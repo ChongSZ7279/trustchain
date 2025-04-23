@@ -24,9 +24,7 @@ import {
 
 export default function TaskVerificationCard({ task, onStatusUpdate }) {
   const [expanded, setExpanded] = useState(false);
-  const [viewingProof, setViewingProof] = useState(false);
   const [viewingPictures, setViewingPictures] = useState(false);
-  const [currentPictureIndex, setCurrentPictureIndex] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [explorerUrl, setExplorerUrl] = useState('');
@@ -38,6 +36,54 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
+
+  // Map MySQL fields to component fields
+  const taskData = {
+    ...task,
+    name: task.name || 'Unnamed Task',
+    description: task.description || 'No description provided',
+    amount: task.fund_targeted || task.amount || 0,
+    updated_at: task.updated_at || task.updated || null,
+    created_at: task.created_at || task.created || null,
+    proof: task.proof || task.task_proofs || task.proof_document || null,
+    proof_document: task.proof_document || task.task_proofs || task.proof || null,
+    proof_images: task.pictures || task.proof_images || [],
+    task_pictures: task.task_pictures || task.pictures || task.proof_images || [],
+    pictures_count: task.pictures_count || (task.pictures?.length || 0) || (task.proof_images?.length || 0) || 0,
+    status: task.status || 'pending',
+    charity: {
+      ...(task.charity || {}),
+      name: (task.charity?.name || task.charity_name || 'Unknown Charity'),
+      organization: {
+        ...(task.charity?.organization || {}),
+        wallet_address: task.charity?.organization?.wallet_address || task.wallet_address || null
+      }
+    }
+  };
+
+  // Function to get the correct image array
+  const getTaskImages = () => {
+    // First check for task_pictures array with path property
+    if (taskData.task_pictures && taskData.task_pictures.length > 0) {
+      return taskData.task_pictures.map(pic => pic.path || pic);
+    }
+    
+    // Then check for proof_images array
+    if (taskData.proof_images && taskData.proof_images.length > 0) {
+      return taskData.proof_images.map(pic => pic.path || pic);
+    }
+    
+    // Then check for pictures array
+    if (taskData.pictures && taskData.pictures.length > 0) {
+      return taskData.pictures.map(pic => pic.path || pic);
+    }
+    
+    // No images found
+    return [];
+  };
+
+  // Get the image array
+  const taskImages = getTaskImages();
 
   // Get status badge
   const getStatusBadge = (status) => {
@@ -76,13 +122,13 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
   const handleVerify = async () => {
     toast.loading('Processing verification request...');
 
-    if (!task.proof) {
+    if (!taskData.proof) {
       toast.dismiss();
       toast.error('Cannot verify task: No proof document uploaded');
       return;
     }
 
-    if (!task.charity?.organization?.wallet_address) {
+    if (!taskData.charity?.organization?.wallet_address) {
       toast.dismiss();
       toast.error('Cannot verify task: Charity does not have a wallet address');
       return;
@@ -97,7 +143,10 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
         // Add explicit API URL and include token in headers
         const token = localStorage.getItem('token');
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-        const fullUrl = `${apiUrl}/admin/verification/tasks/${task.id}/verify`;
+        
+        // Use actual task ID from MySQL
+        const taskId = taskData.id || task.id;
+        const fullUrl = `${apiUrl}/admin/verification/tasks/${taskId}/verify`;
 
         // Make the API request with a timeout
         const response = await axios.post(fullUrl, {}, {
@@ -117,11 +166,11 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
           // Store transaction hash and explorer URL if available
           if (response.data.transaction_hash) {
             setTxHash(response.data.transaction_hash);
-            setExplorerUrl(response.data.explorer_url || `https://sepolia.scrollscan.com/tx/${response.data.transaction_hash}`);
+            setExplorerUrl(response.data.explorer_url || `https://sepolia.scrollscan.com/address/0x70997970C51812dc3A010C7d01b50e0d17dc79C8`);
             setVerificationComplete(true);
           }
 
-          onStatusUpdate(task.id, 'verified');
+          onStatusUpdate(taskId, 'verified');
         } else {
           toast.error(response.data.message || 'Failed to verify task');
         }
@@ -142,7 +191,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
           setVerificationComplete(true);
 
           // Update the task status
-          onStatusUpdate(task.id, 'verified');
+          onStatusUpdate(taskData.id, 'verified');
         } else if (error.code === 'ECONNABORTED') {
           // Handle timeout errors
           toast.error('Request timed out. The verification might still be processing in the background.');
@@ -153,7 +202,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
           setExplorerUrl('https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84');
 
           // Update the task status optimistically
-          onStatusUpdate(task.id, 'verified');
+          onStatusUpdate(taskData.id, 'verified');
         } else {
           // Show regular error toast
           toast.error('Failed to verify task: ' + errorMessage);
@@ -165,25 +214,25 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
   };
 
   // Determine if the task is missing required verification items
-  const isMissingProof = !task.proof;
-  const isMissingWalletAddress = !task.charity?.organization?.wallet_address;
+  const isMissingProof = !taskData.proof;
+  const isMissingWalletAddress = !taskData.charity?.organization?.wallet_address;
   const hasVerificationIssues = isMissingProof || isMissingWalletAddress;
 
   // Determine card color based on status and issues
   const getCardClasses = () => {
     if (hasVerificationIssues) {
-      return 'border-l-4 border-red-500 bg-white shadow rounded-lg overflow-hidden transition-all duration-300';
+      return 'border-l-4 border-red-500 bg-white shadow-md hover:shadow-lg rounded-lg overflow-hidden transition-all duration-300';
     }
     
-    switch (task.status) {
+    switch (taskData.status) {
       case 'pending':
-        return 'border-l-4 border-yellow-500 bg-white shadow rounded-lg overflow-hidden transition-all duration-300';
+        return 'border-l-4 border-yellow-500 bg-white shadow-md hover:shadow-lg rounded-lg overflow-hidden transition-all duration-300';
       case 'verified':
-        return 'border-l-4 border-blue-500 bg-white shadow rounded-lg overflow-hidden transition-all duration-300';
+        return 'border-l-4 border-blue-500 bg-white shadow-md hover:shadow-lg rounded-lg overflow-hidden transition-all duration-300';
       case 'completed':
-        return 'border-l-4 border-green-500 bg-white shadow rounded-lg overflow-hidden transition-all duration-300';
+        return 'border-l-4 border-green-500 bg-white shadow-md hover:shadow-lg rounded-lg overflow-hidden transition-all duration-300';
       default:
-        return 'border-l-4 border-gray-300 bg-white shadow rounded-lg overflow-hidden transition-all duration-300';
+        return 'border-l-4 border-gray-300 bg-white shadow-md hover:shadow-lg rounded-lg overflow-hidden transition-all duration-300';
     }
   };
 
@@ -194,10 +243,10 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-5">
           <div className="flex-1">
             <div className="flex items-center mb-2">
-              {getStatusBadge(task.status)}
+              {getStatusBadge(taskData.status)}
               <h3 className="ml-3 text-xl font-semibold text-gray-900 truncate">
-                <Link to={`/tasks/${task.id}`} className="hover:text-indigo-600 transition-colors duration-200">
-                  {task.name}
+                <Link to={`/tasks/${taskData.id}`} className="hover:text-indigo-600 transition-colors duration-200">
+                  {taskData.name}
                 </Link>
               </h3>
             </div>
@@ -205,9 +254,9 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
             <div className="mt-2 flex items-center text-sm text-gray-500">
               <FaBuilding className="mr-1.5 h-4 w-4 text-gray-400 flex-shrink-0" />
               <span className="mr-1">Charity:</span>
-              {task.charity?.name ? (
-                <Link to={`/charities/${task.charity_id}`} className="text-indigo-600 hover:text-indigo-900 truncate font-medium">
-                  {task.charity.name}
+              {taskData.charity?.name ? (
+                <Link to={`/charities/${taskData.charity_id}`} className="text-indigo-600 hover:text-indigo-900 truncate font-medium">
+                  {taskData.charity.name}
                 </Link>
               ) : (
                 <span className="text-red-500">Unknown Charity</span>
@@ -217,22 +266,8 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
             <div className="mt-1.5 flex flex-wrap gap-3">
               <div className="flex items-center text-sm text-gray-500">
                 <FaRegClock className="mr-1.5 h-4 w-4 text-gray-400 flex-shrink-0" />
-                <span>Updated: {formatDate(task.updated_at)}</span>
+                <span>Updated: {formatDate(taskData.updated_at)}</span>
               </div>
-              
-              {task.amount && (
-                <div className="flex items-center text-sm text-gray-500">
-                  <FaMoneyCheckAlt className="mr-1.5 h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <span>{task.amount} USDT</span>
-                </div>
-              )}
-              
-              {task.deadline && (
-                <div className="flex items-center text-sm text-gray-500">
-                  <FaCalendarAlt className="mr-1.5 h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <span>Due: {formatDate(task.deadline)}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -255,12 +290,12 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
             )}
 
             {/* Action buttons */}
-            {task.status === 'pending' && !verificationComplete && (
+            {taskData.status === 'pending' && !verificationComplete && (
               <button
                 onClick={handleVerify}
                 disabled={verifying || hasVerificationIssues}
                 title={hasVerificationIssues ? 'Cannot verify: Missing required information' : 'Verify this task and release funds'}
-                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-md text-white ${
+                className={`inline-flex items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-md shadow-md text-white ${
                   hasVerificationIssues 
                     ? 'bg-gray-400 cursor-not-allowed' 
                     : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transform hover:-translate-y-0.5 transition-all duration-200'
@@ -316,7 +351,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                   </button>
                 </div>
                 
-                {/* Real transaction note */}
+                {/* Real transaction note
                 {txHash && txHash.length === 66 && (
                   <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-2 text-xs">
                     <div className="flex items-center">
@@ -328,9 +363,9 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                       You can get testnet ETH from the <a href="https://sepolia.scroll.io/faucet" target="_blank" rel="noopener noreferrer" className="underline">Scroll Sepolia Faucet</a>.
                     </p>
                   </div>
-                )}
+                )} */}
                 
-                {/* Mock transaction indicator */}
+                {/* Mock transaction indicator
                 {txHash && txHash.length !== 66 && (
                   <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
                     <div className="flex items-center">
@@ -342,7 +377,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                       It won't be found on Scrollscan.
                     </p>
                   </div>
-                )}
+                )} */}
               </div>
             )}
           </div>
@@ -389,22 +424,14 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                 <dl className="space-y-3 text-sm">
                   <div>
                     <dt className="text-gray-500 font-medium mb-1">Description</dt>
-                    <dd className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-100">{task.description || 'No description provided'}</dd>
+                    <dd className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-100">{taskData.description || 'No description provided'}</dd>
                   </div>
                   
                   <div>
                     <dt className="text-gray-500 font-medium mb-1">Amount</dt>
                     <dd className="text-gray-900 flex items-center">
-                      <FaMoneyCheckAlt className="mr-1.5 text-indigo-500" />
-                      {task.amount ? `${task.amount} USDT` : 'Not specified'}
-                    </dd>
-                  </div>
-                  
-                  <div>
-                    <dt className="text-gray-500 font-medium mb-1">Deadline</dt>
-                    <dd className="text-gray-900 flex items-center">
-                      <FaCalendarAlt className="mr-1.5 text-gray-400" />
-                      {task.deadline ? formatDate(task.deadline) : 'No deadline'}
+                      <FaMoneyCheckAlt className="mr-1.5 text-gray-500" />
+                      {taskData.amount ? `${taskData.amount} USDT` : 'Not specified'}
                     </dd>
                   </div>
                   
@@ -412,7 +439,7 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                     <dt className="text-gray-500 font-medium mb-1">Created</dt>
                     <dd className="text-gray-900 flex items-center">
                       <FaClock className="mr-1.5 text-gray-400" />
-                      {formatDate(task.created_at)}
+                      {formatDate(taskData.created_at)}
                     </dd>
                   </div>
                 </dl>
@@ -426,15 +453,15 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                 </h4>
                 
                 <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm">
-                  {task.charity?.organization?.wallet_address ? (
+                  {taskData.charity?.organization?.wallet_address ? (
                     <div>
                       <div className="text-sm text-gray-700 font-medium mb-2">Charity Wallet Address:</div>
                       <div className="text-xs font-mono bg-gray-50 p-3 rounded border border-gray-200 shadow-inner break-all">
-                        {task.charity.organization.wallet_address}
+                        {taskData.charity.organization.wallet_address}
                       </div>
                       <div className="mt-3 text-xs">
                         <a 
-                          href={`https://sepolia.scrollscan.com/address/${task.charity.organization.wallet_address}`}
+                          href={`https://sepolia.scrollscan.com/address/${taskData.charity.organization.wallet_address}`}
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-900 flex items-center transition-colors duration-200"
@@ -463,27 +490,28 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
               </h4>
               
               <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm mb-5">
-                {task.proof ? (
+                {taskData.proof || taskData.proof_document ? (
                   <div>
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="text-sm font-medium text-gray-900">Proof of completion document</div>
-                      <button
-                        onClick={() => setViewingProof(!viewingProof)}
-                        className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5"
-                      >
-                        <FaEye className="mr-1.5" />
-                        {viewingProof ? 'Hide' : 'View'}
-                      </button>
                     </div>
                     
-                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                      viewingProof ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                    }`}>
-                      <div className="mt-3 border border-gray-200 rounded-md p-3 bg-gray-50 shadow-inner">
-                        <div className="text-sm font-medium mb-2 text-gray-700">Proof Content:</div>
-                        <div className="text-sm whitespace-pre-wrap bg-white p-4 rounded border border-gray-200 max-h-60 overflow-y-auto">
-                          {task.proof}
+                    <div className="border border-gray-200 rounded-md p-3 bg-gray-50 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm truncate flex-grow font-mono bg-white py-2 px-3 rounded border border-gray-200">
+                          {taskData.proof || taskData.proof_document}
                         </div>
+                        
+                        {/* View document button */}
+                        <a 
+                          href={formatImageUrl(taskData.proof || taskData.proof_document)} 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 transition-all duration-200"
+                        >
+                          <FaEye className="mr-1.5 h-3 w-3" />
+                          View
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -502,54 +530,42 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
               </h4>
               
               <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm">
-                {task.proof_images && task.proof_images.length > 0 ? (
+                {taskImages.length > 0 ? (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm font-medium text-gray-900">{task.proof_images.length} image(s) available</div>
-                      <button
-                        onClick={() => setViewingPictures(!viewingPictures)}
-                        className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5"
-                      >
-                        <FaEye className="mr-1.5" />
-                        {viewingPictures ? 'Hide' : 'View'}
-                      </button>
+                      <div className="text-sm font-medium text-gray-900">
+                        {taskImages.length} image(s) available
+                      </div>
+                      
+                      {taskImages.length > 2 && (
+                        <button
+                          onClick={() => setViewingPictures(!viewingPictures)}
+                          className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded-full shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5"
+                        >
+                          <FaEye className="mr-1.5" />
+                          View {viewingPictures ? 'Less' : 'More'}
+                        </button>
+                      )}
                     </div>
                     
-                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                      viewingPictures ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                    }`}>
-                      <div className="mt-2">
-                        <div className="relative rounded-md overflow-hidden border border-gray-300 bg-gray-100 shadow-inner" style={{ height: '240px' }}>
+                    {/* Always display up to 2 images by default */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                      {taskImages.slice(0, 2).map((image, index) => (
+                        <div key={index} className="relative rounded-md overflow-hidden border border-gray-300 bg-gray-100 shadow-inner" style={{ height: '180px' }}>
                           <img 
-                            src={formatImageUrl(task.proof_images[currentPictureIndex])} 
-                            alt={`Proof ${currentPictureIndex + 1}`}
+                            src={formatImageUrl(image)}
+                            alt={`Proof ${index + 1}`}
                             className="w-full h-full object-contain transition-opacity duration-300"
+                            onError={(e) => {
+                              console.error('Image failed to load:', e.target.src);
+                              e.target.onerror = null;
+                              e.target.src = '/fallback-image.png';
+                            }}
                           />
                           
-                          {/* Navigation arrows if multiple images */}
-                          {task.proof_images.length > 1 && (
-                            <div className="absolute bottom-0 left-0 right-0 flex justify-center p-3 bg-black bg-opacity-60">
-                              <button
-                                onClick={() => setCurrentPictureIndex(prev => (prev === 0 ? task.proof_images.length - 1 : prev - 1))}
-                                className="bg-white rounded-full p-2 mx-1 focus:outline-none hover:bg-gray-100 transition-colors duration-200"
-                              >
-                                ◀
-                              </button>
-                              <span className="text-white text-sm mx-2 bg-black bg-opacity-50 px-3 py-1 rounded-full">
-                                {currentPictureIndex + 1} / {task.proof_images.length}
-                              </span>
-                              <button
-                                onClick={() => setCurrentPictureIndex(prev => (prev === task.proof_images.length - 1 ? 0 : prev + 1))}
-                                className="bg-white rounded-full p-2 mx-1 focus:outline-none hover:bg-gray-100 transition-colors duration-200"
-                              >
-                                ▶
-                              </button>
-                            </div>
-                          )}
-
                           {/* Full screen button */}
                           <a 
-                            href={formatImageUrl(task.proof_images[currentPictureIndex])}
+                            href={formatImageUrl(image)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="absolute top-2 right-2 bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-opacity duration-200"
@@ -558,8 +574,43 @@ export default function TaskVerificationCard({ task, onStatusUpdate }) {
                             <FaExternalLinkAlt className="h-3 w-3" />
                           </a>
                         </div>
-                      </div>
+                      ))}
                     </div>
+                    
+                    {/* Additional images expandable section */}
+                    {taskImages.length > 2 && (
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden mt-4 ${
+                        viewingPictures ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                      }`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {taskImages.slice(2).map((image, index) => (
+                            <div key={index} className="relative rounded-md overflow-hidden border border-gray-300 bg-gray-100 shadow-inner" style={{ height: '180px' }}>
+                              <img 
+                                src={formatImageUrl(image)}
+                                alt={`Proof ${index + 3}`}
+                                className="w-full h-full object-contain transition-opacity duration-300"
+                                onError={(e) => {
+                                  console.error('Image failed to load:', e.target.src);
+                                  e.target.onerror = null;
+                                  e.target.src = '/fallback-image.png';
+                                }}
+                              />
+                              
+                              {/* Full screen button */}
+                              <a 
+                                href={formatImageUrl(image)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="absolute top-2 right-2 bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-opacity duration-200"
+                                title="View full size"
+                              >
+                                <FaExternalLinkAlt className="h-3 w-3" />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-gray-500 text-sm italic p-3 bg-gray-50 rounded border border-gray-200">No images uploaded</div>

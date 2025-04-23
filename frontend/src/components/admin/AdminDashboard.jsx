@@ -9,7 +9,8 @@ import {
   FaTasks, 
   FaHandshake, 
   FaChartLine,
-  FaExclamationTriangle 
+  FaExclamationTriangle,
+  FaUser
 } from 'react-icons/fa';
 
 export default function AdminDashboard() {
@@ -92,17 +93,33 @@ export default function AdminDashboard() {
       title: 'Task Verification',
       description: 'Review and approve task completion proofs to release funds to charities',
       icon: <FaTasks className="h-6 w-6 text-white" />,
-      link: '/admin/verification',
+      link: '/admin/verification/tasks',
       color: 'from-indigo-600 to-indigo-700',
       hoverColor: 'from-indigo-700 to-indigo-800'
     },
     {
       title: 'Organization Verification',
-      description: 'Verify organization and charity registration documents for platform approval',
+      description: 'Verify organization registration documents for platform approval',
       icon: <FaBuilding className="h-6 w-6 text-white" />,
       link: '/admin/verification/organizations',
       color: 'from-emerald-600 to-emerald-700',
       hoverColor: 'from-emerald-700 to-emerald-800'
+    },
+    {
+      title: 'Charity Verification',
+      description: 'Verify charity registration documents and eligibility',
+      icon: <FaHandshake className="h-6 w-6 text-white" />,
+      link: '/admin/verification/charities',
+      color: 'from-blue-600 to-blue-700',
+      hoverColor: 'from-blue-700 to-blue-800'
+    },
+    {
+      title: 'User Verification',
+      description: 'Verify user identity and documentation for enhanced trust',
+      icon: <FaUser className="h-6 w-6 text-white" />,
+      link: '/admin/verification/users',
+      color: 'from-purple-600 to-purple-700',
+      hoverColor: 'from-purple-700 to-purple-800'
     }
   ];
 

@@ -1,34 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import OrganizationVerificationCard from './OrganizationVerificationCard';
-import api from '../../utils/api';
 import {
   FaCheckCircle,
   FaExclamationTriangle,
   FaFilter,
   FaSearch,
   FaSyncAlt,
-  FaBuilding,
+  FaHandshake,
   FaArrowLeft,
   FaListAlt,
+  FaChevronDown,
   FaInfoCircle,
   FaThumbsUp,
   FaRegClock
 } from 'react-icons/fa';
 
-export default function OrganizationVerificationPanel() {
+export default function CharityVerificationPanel() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [organizations, setOrganizations] = useState([]);
+  const [charities, setCharities] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('pending');
   const [stats, setStats] = useState({
-    totalOrganizations: 0,
-    pendingOrganizations: 0,
-    verifiedOrganizations: 0
+    pending: 0,
+    verified: 0,
+    total: 0
   });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -47,29 +48,27 @@ export default function OrganizationVerificationPanel() {
 
       setLoading(true);
       try {
-        console.log(`Fetching organizations verification data with status:`, filterStatus);
-        
-        // Fetch organizations that need verification
-        const response = await api.get(`/admin/verification/organizations`, {
+        // Fetch charities that need verification
+        const response = await axios.get('/admin/verification/charities', {
           params: { status: filterStatus }
         });
-        console.log('Organizations API response:', response.data);
-        setOrganizations(response.data);
         
-        // Get stats
-        try {
-          const statsResp = await api.get('/check-verification-organizations');
-          setStats({
-            totalOrganizations: statsResp.data.organizations_count || 0,
-            pendingOrganizations: statsResp.data.pending_organizations_sample?.length || 0,
-            verifiedOrganizations: statsResp.data.verified_organizations_sample?.length || 0
-          });
-        } catch (err) {
-          console.error('Error fetching organization stats:', err);
-        }
+        console.log('Charities API response:', response.data);
+        setCharities(response.data);
+        
+        // Calculate stats
+        const pendingCount = response.data.filter(charity => !charity.is_verified).length;
+        const verifiedCount = response.data.filter(charity => charity.is_verified).length;
+        
+        setStats({
+          pending: pendingCount,
+          verified: verifiedCount,
+          total: response.data.length
+        });
+        
       } catch (error) {
-        console.error(`Error fetching organizations verification data:`, error);
-        toast.error(`Failed to load organizations verification data: ` + (error.response?.data?.message || error.message));
+        console.error('Error fetching charity verification data:', error);
+        toast.error('Failed to load charity verification data: ' + (error.response?.data?.message || error.message));
       } finally {
         setLoading(false);
       }
@@ -81,28 +80,25 @@ export default function OrganizationVerificationPanel() {
   // Handle refresh
   const handleRefresh = () => {
     setRefreshing(true);
-    // Re-fetch data
     const fetchData = async () => {
       try {
-        // Fetch organizations that need verification
-        const response = await api.get(`/admin/verification/organizations`, {
+        // Fetch charities that need verification
+        const response = await axios.get('/admin/verification/charities', {
           params: { status: filterStatus }
         });
-        setOrganizations(response.data);
-        console.log('Organizations response:', response.data);
         
-        // Get stats
-        try {
-          const statsResp = await api.get('/check-verification-organizations');
-          setStats({
-            totalOrganizations: statsResp.data.organizations_count || 0,
-            pendingOrganizations: statsResp.data.pending_organizations_sample?.length || 0,
-            verifiedOrganizations: statsResp.data.verified_organizations_sample?.length || 0
-          });
-        } catch (err) {
-          console.error('Error fetching organization stats:', err);
-        }
-
+        setCharities(response.data);
+        
+        // Calculate stats
+        const pendingCount = response.data.filter(charity => !charity.is_verified).length;
+        const verifiedCount = response.data.filter(charity => charity.is_verified).length;
+        
+        setStats({
+          pending: pendingCount,
+          verified: verifiedCount,
+          total: response.data.length
+        });
+        
         toast.success('Data refreshed successfully');
       } catch (error) {
         console.error('Error refreshing data:', error);
@@ -116,27 +112,33 @@ export default function OrganizationVerificationPanel() {
   };
 
   // Filter items based on search term
-  const filteredItems = organizations.filter(org => 
-    org.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    org.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCharities = charities.filter(charity =>
+    charity.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    charity.organization?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Handle verification status update
+  // Handle charity verification status update
   const handleStatusUpdate = (id, newStatus) => {
-    setOrganizations(organizations.map(org =>
-      org.id === id ? { ...org, is_verified: newStatus === 'verified' } : org
+    setCharities(charities.map(charity =>
+      charity.id === id ? { ...charity, is_verified: newStatus === 'verified' } : charity
     ));
 
     if (newStatus === 'verified' && filterStatus === 'pending') {
-      setOrganizations(organizations.filter(org => org.id !== id));
+      setCharities(charities.filter(charity => charity.id !== id));
     }
     
     // Update stats
     setStats(prev => ({
       ...prev,
-      pendingOrganizations: Math.max(0, prev.pendingOrganizations - 1),
-      verifiedOrganizations: prev.verifiedOrganizations + 1
+      pending: prev.pending - 1,
+      verified: prev.verified + 1
     }));
+  };
+
+  // Handle status filter click
+  const handleStatusFilter = (status) => {
+    setFilterStatus(status);
+    setSearchTerm(''); // Clear search when changing filters
   };
 
   if (!user || !user.is_admin) {
@@ -157,27 +159,20 @@ export default function OrganizationVerificationPanel() {
     );
   }
 
-  // Get stats for current entity type and status
-  const currentStats = {
-    total: stats.totalOrganizations || 0,
-    pending: stats.pendingOrganizations || 0,
-    verified: stats.verifiedOrganizations || 0
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-emerald-700 to-green-800 text-white shadow-md">
+      <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center">
                 <div className="bg-white bg-opacity-20 rounded-full p-3 shadow-lg">
-                  <FaBuilding className="h-8 w-8 text-white" />
+                  <FaHandshake className="h-8 w-8 text-white" />
                 </div>
                 <div className="ml-4">
-                  <h1 className="text-3xl font-bold">Organization Verification</h1>
-                  <p className="text-sm text-green-100 mt-1">Verify organization registration documents for platform approval</p>
+                  <h1 className="text-3xl font-bold">Charity Verification</h1>
+                  <p className="text-sm text-blue-100 mt-1">Verify charity registration documents and eligibility</p>
                 </div>
               </div>
               <div className="mt-4 sm:mt-0 flex space-x-3">
@@ -204,8 +199,8 @@ export default function OrganizationVerificationPanel() {
           <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-yellow-500 transform transition-all duration-200 hover:shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Pending Organizations</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900">{currentStats.pending}</p>
+                <p className="text-sm font-medium text-gray-500">Pending Charities</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.pending}</p>
               </div>
               <div className="h-14 w-14 bg-yellow-100 rounded-full flex items-center justify-center shadow-inner">
                 <FaRegClock className="h-7 w-7 text-yellow-600" />
@@ -213,79 +208,79 @@ export default function OrganizationVerificationPanel() {
             </div>
             <div className="mt-5 border-t border-gray-100 pt-4">
               <button 
-                onClick={() => setFilterStatus('pending')}
+                onClick={() => handleStatusFilter('pending')}
                 className={`w-full text-sm font-medium py-2 rounded-md border ${
                   filterStatus === 'pending' 
                     ? 'text-yellow-700 bg-yellow-50 border-yellow-200' 
                     : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-yellow-600'
                 } transition-colors duration-200`}
               >
-                {filterStatus === 'pending' ? 'Currently Viewing' : 'View Pending Organizations'}
+                {filterStatus === 'pending' ? 'Currently Viewing' : 'View Pending Charities'}
               </button>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500 transform transition-all duration-200 hover:shadow-lg">
+          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500 transform transition-all duration-200 hover:shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Verified Organizations</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900">{currentStats.verified}</p>
+                <p className="text-sm font-medium text-gray-500">Verified Charities</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.verified}</p>
               </div>
-              <div className="h-14 w-14 bg-green-100 rounded-full flex items-center justify-center shadow-inner">
-                <FaThumbsUp className="h-7 w-7 text-green-600" />
+              <div className="h-14 w-14 bg-blue-100 rounded-full flex items-center justify-center shadow-inner">
+                <FaThumbsUp className="h-7 w-7 text-blue-600" />
               </div>
             </div>
             <div className="mt-5 border-t border-gray-100 pt-4">
               <button 
-                onClick={() => setFilterStatus('verified')}
+                onClick={() => handleStatusFilter('verified')}
                 className={`w-full text-sm font-medium py-2 rounded-md border ${
                   filterStatus === 'verified' 
-                    ? 'text-green-700 bg-green-50 border-green-200' 
-                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-green-600'
+                    ? 'text-blue-700 bg-blue-50 border-blue-200' 
+                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-blue-600'
                 } transition-colors duration-200`}
               >
-                {filterStatus === 'verified' ? 'Currently Viewing' : 'View Verified Organizations'}
+                {filterStatus === 'verified' ? 'Currently Viewing' : 'View Verified Charities'}
               </button>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-emerald-500 transform transition-all duration-200 hover:shadow-lg">
+          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-indigo-500 transform transition-all duration-200 hover:shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Organizations</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900">{currentStats.total}</p>
+                <p className="text-sm font-medium text-gray-500">Total Charities</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.total}</p>
               </div>
-              <div className="h-14 w-14 bg-emerald-100 rounded-full flex items-center justify-center shadow-inner">
-                <FaBuilding className="h-7 w-7 text-emerald-600" />
+              <div className="h-14 w-14 bg-indigo-100 rounded-full flex items-center justify-center shadow-inner">
+                <FaHandshake className="h-7 w-7 text-indigo-600" />
               </div>
             </div>
             <div className="mt-5 border-t border-gray-100 pt-4">
               <button 
-                onClick={() => setFilterStatus('all')}
+                onClick={() => handleStatusFilter('all')}
                 className={`w-full text-sm font-medium py-2 rounded-md border ${
                   filterStatus === 'all' 
-                    ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
-                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-emerald-600'
+                    ? 'text-indigo-700 bg-indigo-50 border-indigo-200' 
+                    : 'text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-indigo-600'
                 } transition-colors duration-200`}
               >
-                {filterStatus === 'all' ? 'Currently Viewing' : 'View All Organizations'}
+                {filterStatus === 'all' ? 'Currently Viewing' : 'View All Charities'}
               </button>
             </div>
           </div>
         </div>
       </div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-5 mb-6 shadow-sm">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6 shadow-sm">
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <FaInfoCircle className="h-5 w-5 text-green-600" aria-hidden="true" />
+              <FaInfoCircle className="h-5 w-5 text-blue-600" aria-hidden="true" />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">About Organization Verification</h3>
-              <div className="mt-2 text-sm text-green-700">
-                <p>Please review all submitted documents carefully before verifying an organization.</p>
-                <p className="mt-1">Verification ensures that only legitimate entities can participate on the TrustChain platform.</p>
+              <h3 className="text-sm font-medium text-blue-800">About Charity Verification</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>Please review all submitted documents carefully before verifying a charity.</p>
+                <p className="mt-1">Verification ensures that only legitimate charities can receive funds on the TrustChain platform.</p>
               </div>
             </div>
           </div>
@@ -297,10 +292,10 @@ export default function OrganizationVerificationPanel() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               {/* Left Side: Filter Status */}
               <div className="flex items-center text-gray-700 font-medium">
-                <FaFilter className="mr-2 text-emerald-500" />
+                <FaFilter className="mr-2 text-indigo-500" />
                 <span>Status Filter:</span>
-                <span className="ml-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
-                  {filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Organizations
+                <span className="ml-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+                  {filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Charities
                 </span>
               </div>
               
@@ -311,11 +306,11 @@ export default function OrganizationVerificationPanel() {
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-colors duration-200"
-                  placeholder="Search organizations by name or email..."
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors duration-200"
+                  placeholder="Search charities by name or organization..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Search organizations"
+                  aria-label="Search charities"
                 />
                 {searchTerm && (
                   <button
@@ -331,15 +326,15 @@ export default function OrganizationVerificationPanel() {
             
             {/* Search Results Notification */}
             {searchTerm && (
-              <div className="mt-4 px-4 py-2 bg-emerald-50 rounded-md border border-emerald-100 shadow-sm">
+              <div className="mt-4 px-4 py-2 bg-indigo-50 rounded-md border border-indigo-100 shadow-sm">
                 <div className="flex items-center">
-                  <FaInfoCircle className="text-emerald-500 mr-2" />
-                  <span className="text-sm text-emerald-700">
-                    Found {filteredItems.length} result{filteredItems.length !== 1 ? 's' : ''} for "{searchTerm}"
+                  <FaInfoCircle className="text-indigo-500 mr-2" />
+                  <span className="text-sm text-indigo-700">
+                    Found {filteredCharities.length} result{filteredCharities.length !== 1 ? 's' : ''} for "{searchTerm}"
                   </span>
                   <button 
                     onClick={() => setSearchTerm('')}
-                    className="ml-auto text-xs px-2 py-1 bg-white text-emerald-600 rounded-md border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-colors duration-200"
+                    className="ml-auto text-xs px-2 py-1 bg-white text-indigo-600 rounded-md border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
                   >
                     Clear
                   </button>
@@ -352,18 +347,18 @@ export default function OrganizationVerificationPanel() {
         {/* Content */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg shadow-md">
-            <div className="w-16 h-16 border-4 border-emerald-200 border-t-4 border-t-emerald-600 rounded-full animate-spin"></div>
-            <p className="mt-6 text-gray-700 text-lg font-medium">Loading organization verification data...</p>
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-4 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="mt-6 text-gray-700 text-lg font-medium">Loading charity verification data...</p>
             <p className="mt-2 text-gray-500 text-sm">Retrieving the latest information</p>
           </div>
         ) : (
           <div className="space-y-6">
-            {filteredItems.length > 0 ? (
-              filteredItems.map(organization => (
+            {filteredCharities.length > 0 ? (
+              filteredCharities.map(charity => (
                 <OrganizationVerificationCard
-                  key={organization.id}
-                  entity={organization}
-                  entityType="organizations"
+                  key={charity.id}
+                  entity={charity}
+                  entityType="charities"
                   onStatusUpdate={handleStatusUpdate}
                 />
               ))
@@ -376,17 +371,17 @@ export default function OrganizationVerificationPanel() {
                     <FaCheckCircle className="h-10 w-10" />
                   )}
                 </div>
-                <h3 className="mt-4 text-xl font-medium text-gray-900">No organizations found</h3>
+                <h3 className="mt-4 text-xl font-medium text-gray-900">No charities found</h3>
                 <p className="mt-3 text-gray-600 max-w-lg mx-auto">
                   {searchTerm
-                    ? "No organizations match your search criteria. Try using different keywords or clear your search."
-                    : `There are currently no organizations with status "${filterStatus}". Try selecting a different status filter.`}
+                    ? "No charities match your search criteria. Try using different keywords or clear your search."
+                    : `There are currently no charities with status "${filterStatus}". Try selecting a different status filter.`}
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   {searchTerm && (
                     <button
                       onClick={() => setSearchTerm('')}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all duration-200"
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                     >
                       <FaSearch className="mr-2 text-gray-400" />
                       Clear Search
@@ -394,17 +389,17 @@ export default function OrganizationVerificationPanel() {
                   )}
                   {filterStatus !== 'all' && (
                     <button
-                      onClick={() => setFilterStatus('all')}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all duration-200"
+                      onClick={() => handleStatusFilter('all')}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                     >
                       <FaListAlt className="mr-2 text-gray-400" />
-                      View All Organizations
+                      View All Charities
                     </button>
                   )}
-                  {filterStatus === 'all' && filteredItems.length === 0 && (
-                    <div className="inline-flex items-center px-4 py-3 bg-emerald-50 rounded-md text-sm text-emerald-700">
+                  {filterStatus === 'all' && filteredCharities.length === 0 && (
+                    <div className="inline-flex items-center px-4 py-3 bg-indigo-50 rounded-md text-sm text-indigo-700">
                       <FaInfoCircle className="mr-2" />
-                      No organizations are currently available in the system
+                      No charities are currently available in the system
                     </div>
                   )}
                 </div>

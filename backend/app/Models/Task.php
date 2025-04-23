@@ -51,6 +51,14 @@ class Task extends Model
         return $this->hasMany(TaskPicture::class);
     }
 
+    /**
+     * Get the pictures for the task (alias for pictures).
+     */
+    public function taskPictures()
+    {
+        return $this->hasMany(TaskPicture::class);
+    }
+
     public function verificationComplete()
     {
         return $this->pictures()->count() >= self::REQUIRED_PICTURES && $this->proof !== null;

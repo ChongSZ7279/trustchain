@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 
 class OrganizationSeeder extends Seeder
@@ -15,6 +16,11 @@ class OrganizationSeeder extends Seeder
      */
     public function run(): void
     {
+        // Get stored paths from DatabaseSeeder
+        $logoImages = DatabaseSeeder::$imagePaths['organization_logos'];
+        $coverImages = DatabaseSeeder::$imagePaths['organization_covers'];
+        $documents = DatabaseSeeder::$imagePaths['organization_documents'];
+        
         // Define wallet addresses
         $walletAddresses = [
             'org1' => '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
@@ -61,8 +67,8 @@ class OrganizationSeeder extends Seeder
         $organizations = [
             [
                 'name' => 'Tech for Education Malaysia',
-                'logo' => 'organizations/tech-edu-logo.jpg',
-                'cover_photo' => 'organizations/tech-edu-cover.jpg',
+                'logo' => $this->getImagePath($logoImages, 0, 'organization_logos/default-logo.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 0, 'organization_covers/default-cover.jpg'),
                 'category' => 'Education',
                 'description' => 'We leverage technology to enhance educational opportunities for underprivileged children across Malaysia. Through partnerships with schools, tech companies, and community centers, we provide digital resources, training for educators, and hands-on learning experiences for students.',
                 'objectives' => 'To bridge the digital divide in education and empower students with tech skills for the future. We aim to reach 100 schools and impact 50,000 students by 2025, focusing on rural and underserved urban areas.',
@@ -78,8 +84,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Green Earth Malaysia',
-                'logo' => 'organizations/green-earth-logo.jpg',
-                'cover_photo' => 'organizations/green-earth-cover.jpg',
+                'logo' => $this->getImagePath($logoImages, 1, 'organization_logos/default-logo.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 1, 'organization_covers/default-cover.jpg'),
                 'category' => 'Environment',
                 'description' => 'Dedicated to environmental conservation and sustainability initiatives throughout Malaysia. We work with local communities, government agencies, and international partners to protect natural habitats, reduce pollution, and promote eco-friendly practices.',
                 'objectives' => 'To protect Malaysian biodiversity, promote sustainable practices, and combat climate change effects. Our goals include planting 1 million trees by 2030, establishing 20 community conservation areas, and reducing plastic waste by 50% in target communities.',
@@ -95,8 +101,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Healthcare For All',
-                'logo' => 'organizations/healthcare-logo.jpg',
-                'cover_photo' => 'organizations/healthcare-cover.jpg',
+                'logo' => $this->getImagePath($logoImages, 2, 'organization_logos/default-logo.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 2, 'organization_covers/default-cover.jpg'),
                 'category' => 'Healthcare',
                 'description' => 'Working to ensure access to quality healthcare services for all Malaysians, especially in rural areas. Our programs include mobile clinics, telemedicine services, health screenings, and medical training for community health workers.',
                 'objectives' => 'To improve healthcare accessibility, provide medical resources, and health education to underserved communities. We aim to reach 500,000 individuals with basic healthcare services and establish sustainable healthcare solutions in 200 rural villages.',
@@ -112,8 +118,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Feed The Hungry',
-                'logo' => 'organizations/feed-hungry-logo.jpg',
-                'cover_photo' => 'organizations/feed-hungry-cover.jpg',
+                'logo' => $this->getImagePath($logoImages, 3, 'organization_logos/default-logo.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 3, 'organization_covers/default-cover.jpg'),
                 'category' => 'Poverty Relief',
                 'description' => 'Combating hunger and food insecurity across Malaysian communities. We operate food banks, community kitchens, meal delivery services, and urban farming projects to provide nutritious food to those in need.',
                 'objectives' => 'To eliminate hunger through food distribution programs, community kitchens, and sustainable food systems. Our goals include providing 10 million meals annually, establishing 50 food banks nationwide, and teaching 10,000 families to grow their own food.',
@@ -129,8 +135,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Rebuild Malaysia',
-                'logo' => 'organizations/rebuild-logo.jpg',
-                'cover_photo' => 'organizations/rebuild-cover.jpg',
+                'logo' => $this->getImagePath($logoImages, 4, 'organization_logos/default-logo.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 4, 'organization_covers/default-cover.jpg'),
                 'category' => 'Disaster Relief',
                 'description' => 'Providing immediate assistance and long-term recovery support for communities affected by natural disasters. We specialize in emergency response, shelter construction, infrastructure rehabilitation, and disaster preparedness training.',
                 'objectives' => 'To build resilience, provide emergency relief, and support reconstruction after disasters. We aim to respond to every major disaster in Malaysia within 24 hours, help rebuild 5,000 homes, and train 100,000 Malaysians in disaster preparedness by 2025.',
@@ -155,6 +161,10 @@ class OrganizationSeeder extends Seeder
             // Create with varying timestamps
             $createdAt = now()->subMonths(rand(1, 12));
             
+            // Calculate document indices
+            $statutoryIndex = $index % count($documents);
+            $verifiedIndex = ($index + 1) % count($documents);
+            
             // Additional social media fields
             $others = [];
             if (isset($orgData['twitter'])) $others['twitter'] = $orgData['twitter'];
@@ -170,8 +180,8 @@ class OrganizationSeeder extends Seeder
                 'description' => $orgData['description'],
                 'objectives' => $orgData['objectives'],
                 'representative_id' => $orgData['representative_id'],
-                'statutory_declaration' => 'documents/org' . ($index + 1) . '-statutory.pdf',
-                'verified_document' => 'documents/org' . ($index + 1) . '-verified.pdf',
+                'statutory_declaration' => $this->getDocumentPath($documents, $statutoryIndex, 'organization_documents/default-statutory.pdf'),
+                'verified_document' => $this->getDocumentPath($documents, $verifiedIndex, 'organization_documents/default-verified.pdf'),
                 'wallet_address' => $orgData['wallet_address'],
                 'register_address' => $orgData['register_address'],
                 'gmail' => $orgData['gmail'],
@@ -188,5 +198,31 @@ class OrganizationSeeder extends Seeder
         }
         
         echo "Created " . count($organizations) . " organizations.\n";
+    }
+    
+    /**
+     * Get image path with fallback
+     * 
+     * @param array $images Available images
+     * @param int $index Index of image to get
+     * @param string $fallback Fallback path if image not available
+     * @return string The image path
+     */
+    private function getImagePath(array $images, int $index, string $fallback): string
+    {
+        return !empty($images) && isset($images[$index]) ? $images[$index] : $fallback;
+    }
+    
+    /**
+     * Get document path with fallback
+     * 
+     * @param array $documents Available documents
+     * @param int $index Index of document to get
+     * @param string $fallback Fallback path if document not available
+     * @return string The document path
+     */
+    private function getDocumentPath(array $documents, int $index, string $fallback): string
+    {
+        return !empty($documents) && isset($documents[$index]) ? $documents[$index] : $fallback;
     }
 } 

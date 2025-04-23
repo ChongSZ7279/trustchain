@@ -6,6 +6,7 @@ use App\Models\Charity;
 use App\Models\Organization;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class CharitySeeder extends Seeder
 {
@@ -22,6 +23,10 @@ class CharitySeeder extends Seeder
             echo "No organizations found. Please run the OrganizationSeeder first.\n";
             return;
         }
+        
+        // Get available images and documents from DatabaseSeeder
+        $charityImages = DatabaseSeeder::$imagePaths['charity_pictures'];
+        $charityDocuments = DatabaseSeeder::$imagePaths['charity_documents'];
         
         // Get organization IDs by name to avoid hardcoding IDs
         $orgMap = [];
@@ -47,8 +52,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To provide digital resources to 50 rural schools across Malaysia by the end of 2023.',
                 'fund_targeted' => 250000.00,
                 'people_affected' => 5000,
-                'picture_path' => 'charities/digital-classroom.jpg',
-                'verified_document' => 'documents/digital-classroom-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 0, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 0, 'charity_documents/default-verified.pdf')
             ],
             [
                 'organization_id' => $techEduId,
@@ -58,8 +63,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To introduce 1000 children to coding basics and develop their problem-solving skills.',
                 'fund_targeted' => 120000.00,
                 'people_affected' => 1000,
-                'picture_path' => 'charities/coding-kids.jpg',
-                'verified_document' => 'documents/coding-kids-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 1, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 1, 'charity_documents/default-verified.pdf')
             ],
             
             // Green Earth Malaysia
@@ -71,8 +76,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To plant 50,000 mangrove seedlings and create community stewardship programs in coastal areas.',
                 'fund_targeted' => 180000.00,
                 'people_affected' => 15000,
-                'picture_path' => 'charities/mangrove-restoration.jpg',
-                'verified_document' => 'documents/mangrove-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 2, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 2, 'charity_documents/default-verified.pdf')
             ],
             [
                 'organization_id' => $greenEarthId,
@@ -82,8 +87,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To establish 20 community recycling centers and reduce landfill waste by 30% in participating areas.',
                 'fund_targeted' => 95000.00,
                 'people_affected' => 25000,
-                'picture_path' => 'charities/zero-waste.jpg',
-                'verified_document' => 'documents/zero-waste-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 3, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 3, 'charity_documents/default-verified.pdf')
             ],
             
             // Healthcare For All
@@ -95,8 +100,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To provide basic healthcare services to 10,000 people in rural areas who lack access to medical facilities.',
                 'fund_targeted' => 350000.00,
                 'people_affected' => 10000,
-                'picture_path' => 'charities/mobile-clinics.jpg',
-                'verified_document' => 'documents/mobile-clinics-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 4, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 4, 'charity_documents/default-verified.pdf')
             ],
             [
                 'organization_id' => $healthcareId,
@@ -106,8 +111,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To reduce stigma around mental health issues and provide support services to youth and vulnerable populations.',
                 'fund_targeted' => 120000.00,
                 'people_affected' => 7500,
-                'picture_path' => 'charities/mental-health.jpg',
-                'verified_document' => 'documents/mental-health-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 5, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 5, 'charity_documents/default-verified.pdf')
             ],
             
             // Feed The Hungry
@@ -119,8 +124,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To create a sustainable food distribution system that supports 5,000 families monthly.',
                 'fund_targeted' => 200000.00,
                 'people_affected' => 20000,
-                'picture_path' => 'charities/food-banks.jpg',
-                'verified_document' => 'documents/food-banks-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 6, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 6, 'charity_documents/default-verified.pdf')
             ],
             [
                 'organization_id' => $feedHungryId,
@@ -130,8 +135,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To establish 30 community gardens and train 500 families in urban farming techniques.',
                 'fund_targeted' => 150000.00,
                 'people_affected' => 2000,
-                'picture_path' => 'charities/urban-farming.jpg',
-                'verified_document' => 'documents/urban-farming-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 7, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 7, 'charity_documents/default-verified.pdf')
             ],
             
             // Rebuild Malaysia
@@ -143,8 +148,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To deliver emergency supplies, temporary shelter, and reconstruction support to flood victims.',
                 'fund_targeted' => 300000.00,
                 'people_affected' => 12000,
-                'picture_path' => 'charities/flood-relief.jpg',
-                'verified_document' => 'documents/flood-relief-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 8, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 8, 'charity_documents/default-verified.pdf')
             ],
             [
                 'organization_id' => $rebuildId,
@@ -154,8 +159,8 @@ class CharitySeeder extends Seeder
                 'objective' => 'To equip 100 communities with disaster management skills and early warning systems.',
                 'fund_targeted' => 135000.00,
                 'people_affected' => 8000,
-                'picture_path' => 'charities/disaster-preparedness.jpg',
-                'verified_document' => 'documents/disaster-preparedness-verified.pdf'
+                'picture_path' => $this->getImagePath($charityImages, 9, 'charity_pictures/default-charity.jpg'),
+                'verified_document' => $this->getDocumentPath($charityDocuments, 9, 'charity_documents/default-verified.pdf')
             ]
         ];
 
@@ -195,5 +200,31 @@ class CharitySeeder extends Seeder
         }
         
         echo "Created " . count($charities) . " charities.\n";
+    }
+    
+    /**
+     * Get image path with fallback
+     * 
+     * @param array $images Available images
+     * @param int $index Index of image to get
+     * @param string $fallback Fallback path if image not available
+     * @return string The image path
+     */
+    private function getImagePath(array $images, int $index, string $fallback): string
+    {
+        return !empty($images) && isset($images[$index]) ? $images[$index] : $fallback;
+    }
+    
+    /**
+     * Get document path with fallback
+     * 
+     * @param array $documents Available documents
+     * @param int $index Index of document to get
+     * @param string $fallback Fallback path if document not available
+     * @return string The document path
+     */
+    private function getDocumentPath(array $documents, int $index, string $fallback): string
+    {
+        return !empty($documents) && isset($documents[$index]) ? $documents[$index] : $fallback;
     }
 } 

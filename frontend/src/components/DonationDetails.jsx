@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import AdminFundReleaseButton from './AdminFundReleaseButton';
+import TransactionVerifier from './TransactionVerifier';
 import {
   FaArrowLeft,
   FaCheckCircle,
@@ -33,7 +34,7 @@ import { DonationContractABI } from '../contracts/DonationContractABI';
 import { formatImageUrl } from '../utils/helpers';
 import BackButton from './BackToHistory';
 import { SCROLL_CONFIG } from '../utils/scrollConfig';
-import { getDonationDetails } from '../services/donationService';
+import { getDonationDetails, verifyTransaction } from '../services/donationService';
 
 export default function DonationDetails() {
   const { id } = useParams();
@@ -188,12 +189,12 @@ export default function DonationDetails() {
   };
 
   const viewOnBlockExplorer = () => {
-    // Update to use Sepolia block explorer
-    window.open(`https://sepolia.etherscan.io/tx/${donation.transaction_hash}`, '_blank');
+    // Update to use Scroll Sepolia contract address
+    window.open('https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84', '_blank');
   };
 
-  const getBlockExplorerLink = (hash) => {
-    return `${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/tx/${hash}`;
+  const getBlockExplorerLink = () => {
+    return `${SCROLL_CONFIG.NETWORK.BLOCK_EXPLORER_URL}/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`;
   };
 
   // Format date to a readable format
@@ -415,83 +416,86 @@ export default function DonationDetails() {
           </div>
 
           {/* Blockchain Verification Section */}
-          {donation.payment_method === 'blockchain' && donation.transaction_hash && (
+          {donation.transaction_hash && (
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
 
-              <div className="mt-4">
-                <div className="flex items-center mb-4">
-                  <div className={`flex-shrink-0 h-5 w-5 rounded-full ${donation.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'} mr-2`}></div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {donation.status === 'completed' ? 'Verified on Blockchain' : 'Pending Verification'}
-                  </p>
-                </div>
+              {/* Use the TransactionVerifier component */}
+              <TransactionVerifier
+                transactionHash={donation.transaction_hash}
+                autoVerify={true}
+                onVerificationComplete={(result) => {
+                  console.log('Transaction verification result:', result);
+                  if (result.verified || result.success) {
+                    toast.success('Transaction verified on blockchain!');
+                  } else if (result.isMockHash) {
+                    toast.warning('This appears to be a test transaction that does not exist on the blockchain');
+                  } else {
+                    toast.error('Could not verify transaction on blockchain. It may be pending or not found.');
+                  }
+                }}
+              />
 
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
-                      <dd className="mt-1 text-sm text-gray-900 break-all">{donation.transaction_hash}</dd>
-                    </div>
-
-                    {donation.smart_contract_data && (
-                      <>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">From Address</dt>
-                          <dd className="mt-1 text-sm text-gray-900 break-all">
-                            {JSON.parse(donation.smart_contract_data).from}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">To Address (Contract)</dt>
-                          <dd className="mt-1 text-sm text-gray-900 break-all">
-                            {JSON.parse(donation.smart_contract_data).to}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">Block Number</dt>
-                          <dd className="mt-1 text-sm text-gray-900">
-                            {JSON.parse(donation.smart_contract_data).blockNumber}
-                          </dd>
-                        </div>
-                      </>
-                    )}
+              <div className="mt-4 bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs font-medium text-gray-500">Transaction Hash</dt>
+                    <dd className="mt-1 text-sm text-gray-900 break-all">
+                      {donation.transaction_hash}
+                      <a
+                        href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-indigo-600 hover:text-indigo-800 inline-flex items-center"
+                      >
+                        <FaExternalLinkAlt className="h-3 w-3 mr-1" />
+                        View Contract on Scrollscan
+                      </a>
+                    </dd>
                   </div>
 
-                  <div className="mt-4">
-                    <a
-                      href={getBlockExplorerLink(donation.transaction_hash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-indigo-600 hover:text-indigo-900 inline-flex items-center"
-                    >
-                      View on Scroll Explorer
-                      <FaExternalLinkAlt className="ml-1 h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-
-                {donation.status === 'completed' && (
-                  <div className="mt-4 p-4 bg-green-50 rounded-md">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
+                  {donation.smart_contract_data && (
+                    <>
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500">From Address</dt>
+                        <dd className="mt-1 text-sm text-gray-900 break-all">
+                          {JSON.parse(donation.smart_contract_data).from}
+                        </dd>
                       </div>
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-green-800">Blockchain Verification Successful</h3>
-                        <div className="mt-2 text-sm text-green-700">
-                          <p>
-                            This donation has been verified on the blockchain, ensuring transparency and immutability.
-                            The funds have been securely transferred according to the smart contract rules.
-                          </p>
-                        </div>
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500">To Address (Contract)</dt>
+                        <dd className="mt-1 text-sm text-gray-900 break-all">
+                          {JSON.parse(donation.smart_contract_data).to}
+                        </dd>
                       </div>
-                    </div>
-                  </div>
-                )}
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500">Block Number</dt>
+                        <dd className="mt-1 text-sm text-gray-900">
+                          {JSON.parse(donation.smart_contract_data).blockNumber}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
+
+              {donation.status === 'completed' && (
+                <div className="mt-4 p-4 bg-green-50 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaCheckCircle className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">Funds Successfully Transferred</h3>
+                      <div className="mt-2 text-sm text-green-700">
+                        <p>
+                          This donation has been verified and the funds have been securely transferred to the charity's wallet.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

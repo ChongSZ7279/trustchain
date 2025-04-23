@@ -11,7 +11,7 @@ class DonationSyncHelper
 {
     /**
      * Sync a donation with the transactions table
-     * 
+     *
      * @param Donation|int $donation The donation model or ID
      * @return bool Success status
      */
@@ -52,7 +52,7 @@ class DonationSyncHelper
             $transaction->user_ic = $donation->user_id;
             $transaction->charity_id = $donation->cause_id;
             $transaction->amount = $donation->amount;
-            $transaction->type = 'donation';
+            $transaction->type = 'charity'; // Using 'charity' type for donations as per the enum constraint
             $transaction->status = $donation->status;
             $transaction->transaction_hash = $donation->transaction_hash;
             $transaction->message = $donation->donor_message;
@@ -81,7 +81,7 @@ class DonationSyncHelper
 
     /**
      * Sync all donations that don't have corresponding transactions
-     * 
+     *
      * @return array Result statistics
      */
     public static function syncAllDonations()

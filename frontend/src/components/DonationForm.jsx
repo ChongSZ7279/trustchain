@@ -22,6 +22,9 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'transak', or 'alchemypay'
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [donationHash, setDonationHash] = useState('');
+  const [donationId, setDonationId] = useState(null);
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -119,7 +122,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     // Prevent multiple simultaneous connection attempts
     if (connectionInProgress) {
       console.log('Wallet connection already in progress, please wait...');
-      toast.info('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
+      toast('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
       return false;
     }
 
@@ -149,34 +152,50 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         return true;
       }
 
-      // If not already connected, initialize Web3
-      const { chainId } = await initWeb3();
-      const connected = isWalletConnected();
-      console.log('Wallet connected:', connected, 'Chain ID:', chainId);
-
-      setWalletConnected(connected);
-
-      // Check if we're on Scroll network
-      const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
-      setIsScrollNetwork(isScroll);
-
-      // If not on Scroll network, try to switch
-      if (connected && !isScroll) {
-        console.log('Connected but not on Scroll network. Attempting to switch...');
-        await switchToScrollNetwork();
+      // Make sure MetaMask is installed
+      if (!window.ethereum) {
+        toast.error('MetaMask is not installed. Please install MetaMask to continue.');
+        return false;
       }
 
-      return connected;
+      // Directly request accounts to trigger the MetaMask popup
+      console.log('Requesting accounts directly from MetaMask...');
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts && accounts.length > 0) {
+          console.log('Successfully connected to account:', accounts[0]);
+
+          // Now initialize Web3 with the connected account
+          const { chainId } = await initWeb3();
+          setWalletConnected(true);
+
+          // Check if we're on Scroll network
+          const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+          setIsScrollNetwork(isScroll);
+
+          // If not on Scroll network, try to switch
+          if (!isScroll) {
+            console.log('Connected but not on Scroll network. Attempting to switch...');
+            await switchToScrollNetwork();
+          }
+
+          toast.success('Wallet connected successfully!');
+          return true;
+        } else {
+          throw new Error('No accounts returned from MetaMask');
+        }
+      } catch (requestError) {
+        if (requestError.code === -32002) {
+          toast('MetaMask request already pending. Please open MetaMask and check for pending requests.');
+        } else if (requestError.code === 4001) {
+          toast.error('You rejected the connection request. Please approve the MetaMask connection to continue.');
+        } else {
+          toast.error(`Failed to connect wallet: ${requestError.message}`);
+        }
+        throw requestError;
+      }
     } catch (error) {
       console.error('Error connecting wallet:', error);
-
-      // Handle specific error codes
-      if (error.code === -32002) {
-        toast.info('MetaMask request already pending. Please open MetaMask and confirm any pending requests.');
-      } else {
-        toast.error(`Failed to connect wallet: ${error.message}`);
-      }
-
       return false;
     } finally {
       setConnectionInProgress(false);
@@ -234,10 +253,13 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       console.log('Donation result:', result);
 
       if (result.success) {
+        setDonationHash(result.transactionHash);
+        setDonationId(result.databaseId);
+        setIsSuccess(true);
+        
         if (result.databaseError) {
           // Show a warning to user that transaction was successful but not saved to database
-          const errorMessage = result.error || 'Unknown database error';
-          toast.warning(`Warning: Your donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash.`);
+          toast.warning(`Warning: Your donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash: ${result.transactionHash}`);
         } else {
           // Everything went well
           toast.success(`Donation successful!`);
@@ -245,11 +267,6 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
 
         if (onDonate) {
           onDonate(donationAmount, result.transactionHash, true, result.databaseId);
-        }
-
-        // Redirect to donation details if ID is available
-        if (result.databaseId) {
-          navigate(`/donations/${result.databaseId}`);
         }
       } else {
         throw new Error(result.error || 'Failed to process donation');
@@ -287,6 +304,9 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       result.donation?.transaction_hash ||
       (result.transaction_hash || `fiat-${Date.now()}`);
 
+    setDonationHash(transactionHash);
+    setDonationId(donationId);
+
     // If we received a fake ID, try to create a real donation via simple-donation endpoint
     if (typeof donationId === 'string' && donationId.startsWith('fake_')) {
       console.log('Detected fake donation ID, attempting to create real donation record');
@@ -308,6 +328,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         if (response.data.success) {
           // Update donation ID with the real one
           donationId = response.data.id;
+          setDonationId(donationId);
         }
       } catch (err) {
         console.error('Failed to create real donation record:', err);
@@ -323,19 +344,20 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       );
     }
 
+    setIsSuccess(true);
+
     // For test mode or missing donation ID, show success toast and redirect to charity page
     if (result.test_mode && (!donationId || typeof donationId === 'string' && donationId.startsWith('fake_'))) {
-      navigate(`/charities/${charityId}`);
+      // Just show success screen, don't navigate yet
       toast.success('Test donation successful!');
     }
-    // For successful donations with ID, navigate to donation details page
+    // For successful donations with ID, navigate to donation details page after a delay
     else if (donationId && (typeof donationId === 'number' || !isNaN(parseInt(donationId)))) {
-      navigate(`/donations/${donationId}`);
       toast.success('Donation successful! Viewing details...');
     }
     // Fallback for any other case
     else {
-      navigate(`/charities/${charityId}`);
+      // Just show success screen, don't navigate yet
       toast.success('Donation successful!');
     }
   };
@@ -356,6 +378,37 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     toast.error(`Payment failed: ${errorMessage}`);
   };
 
+  // Success screen component
+  const SuccessScreen = () => (
+    <div className="p-8 text-center">
+      <div className="bg-green-100 rounded-full p-5 w-20 h-20 flex items-center justify-center mx-auto mb-6">
+        <FaCheckCircle className="text-green-600 text-4xl" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-3">Donation Successful!</h2>
+      <p className="text-gray-600 mb-4">
+        Thank you for your {paymentMethod === 'blockchain' ? `${amount} SCROLL` : `$${amount}`} donation.
+        Your generosity makes a real difference.
+      </p>
+      <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+        <button
+          onClick={() => navigate(-1)}
+          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
+        >
+          Close
+        </button>
+        
+        {donationId && (
+          <button
+            onClick={() => navigate(`/donations/${donationId}`)}
+            className="px-6 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
+          >
+            View Donation Details
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative bg-white rounded-xl shadow-lg max-w-lg mx-auto h-[550px] overflow-y-auto">
       {/* Close Button */}
@@ -367,12 +420,14 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         <FaTimes size={20} />
       </button>
 
-      {/* Improved Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-500 p-6 text-white">
-        <h2 className="text-xl font-bold flex items-center">
-          <FaHandHoldingHeart className="mr-2" />
-          Make a Donation
-        </h2>
+      {/* Header - Updated to match SubscriptionDonation styling */}
+      <div className="bg-indigo-600 px-6 py-5 text-white">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold flex items-center">
+            <FaHandHoldingHeart className="mr-2" />
+            Make a Donation
+          </h2>
+        </div>
         <p className="mt-1 text-indigo-100">
           Your contribution makes a real difference
         </p>
@@ -391,12 +446,9 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                   : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-center mb-1">
-                <FaEthereum className={`mr-1 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
-                <span className={`text-xs font-bold ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`}>SCROLL</span>
-              </div>
+              <FaEthereum className={`mb-1 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
               <span className={`font-medium text-sm ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-700'}`}>
-                Wallet
+                Scroll Wallet
               </span>
             </button>
             <button
@@ -421,21 +473,20 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         {paymentMethod === 'blockchain' ? (
           <>
             {!walletConnected && (
-              <div className="mb-5 p-4 bg-yellow-50 rounded-lg border border-yellow-100">
+              <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-100">
                 <div className="flex items-start">
-                  <FaExclamationTriangle className="text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <FaWallet className="text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-yellow-700 font-medium">
-                      Wallet connection required
+                    <p className="text-sm text-blue-700 font-medium">
+                      Connect your wallet
                     </p>
-                    <p className="text-xs text-yellow-600 mb-3">
-                      Please connect your crypto wallet to make a blockchain donation
+                    <p className="text-xs text-blue-600 mb-3">
+                      Connect your crypto wallet to make a donation via Scroll
                     </p>
                     <button
                       onClick={connectWallet}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
                     >
-                      <FaWallet className="mr-2" />
                       Connect Wallet
                     </button>
                   </div>
@@ -508,7 +559,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               {/* Amount Field - Improved consistency */}
               <div>
                 <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount
+                  Donation Amount
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -523,35 +574,30 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
-                    className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+                    className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
                     disabled={processingDonation || !walletConnected}
                   />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <div className="flex items-center text-gray-500 font-medium">
-                      <span>SCROLL</span>
-                    </div>
-                  </div>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Minimum donation: 0.001 SCROLL</p>
+                <p className="mt-1 text-sm text-gray-500">Minimum donation: 0.001 SCROLL</p>
               </div>
 
               {/* Message Field */}
               <div>
                 <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-2">
-                  Message (Optional)
+                  Add a Message (Optional)
                 </label>
                 <textarea
                   id="donationMessage"
-                  placeholder="Add a message with your donation"
+                  placeholder="Share why you're supporting this organization..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+                  className="w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
                   disabled={processingDonation || !walletConnected}
-                  rows="3"
+                  rows="2"
                 />
               </div>
 
-              {/* Anonymous Donation Option - Added for consistency */}
+              {/* Anonymous Donation Option */}
               <div>
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
@@ -560,7 +606,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                       type="checkbox"
                       checked={isAnonymous}
                       onChange={(e) => setIsAnonymous(e.target.checked)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       disabled={processingDonation || !walletConnected}
                     />
                   </div>
@@ -568,8 +614,8 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                     <label htmlFor="isAnonymous" className="font-medium text-gray-700">
                       Make my donation anonymous
                     </label>
-                    <p className="text-gray-500 text-xs mt-1">
-                      Your identity will not be shown publicly with your donation.
+                    <p className="text-gray-500">
+                      Your name won't be displayed publicly.
                     </p>
                   </div>
                 </div>
@@ -603,16 +649,14 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               {/* Submit Button - Improved consistency */}
               <button
                 type="submit"
-                className={`w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white shadow-sm transition-colors ${
-                  processingDonation || !walletConnected
-                    ? 'bg-indigo-300 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                className={`w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                  processingDonation || !walletConnected ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
                 disabled={processingDonation || !walletConnected}
               >
                 {processingDonation ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -646,29 +690,21 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         ) : paymentMethod === 'transak' ? (
           <div className="space-y-5">
             {/* Transak Information Box - Improved styling */}
-            <div className="bg-indigo-50 p-4 rounded-lg mb-4 border border-indigo-100">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-medium text-indigo-800 flex items-center">
-                  <FaExchangeAlt className="mr-2" />
-                  Transak Integration
-                </h3>
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                  Test Mode
-                </span>
-              </div>
-              <p className="text-indigo-700 text-sm">
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                <FaExchangeAlt className="text-indigo-500 mr-2" />
+                Transak Payment
+              </h3>
+              <p className="text-gray-600 text-sm">
                 Transak allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
                 You'll be redirected to Transak's secure payment page to complete your purchase.
-              </p>
-              <p className="text-indigo-700 text-xs mt-2">
-                <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
               </p>
             </div>
 
             {/* Amount Input - Consistent styling */}
             <div>
               <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                Amount
+                Donation Amount
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -679,33 +715,28 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                   id="donationAmount"
                   placeholder="10.00"
                   step="0.01"
-                  min="0.10"
+                  min="1.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+                  className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
                 />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <div className="flex items-center text-gray-500 font-medium">
-                    <span>USD</span>
-                  </div>
-                </div>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Will be converted to SCROLL for donation</p>
+              <p className="mt-1 text-sm text-gray-500">Minimum donation: $1.00</p>
             </div>
 
             {/* Message field - Consistent styling */}
             <div>
               <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-2">
-                Message (Optional)
+                Add a Message (Optional)
               </label>
               <textarea
                 id="donationMessage"
-                placeholder="Add a message with your donation"
+                placeholder="Share why you're supporting this organization..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-                rows="3"
+                className="w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
+                rows="2"
               />
             </div>
 
@@ -718,15 +749,15 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                     type="checkbox"
                     checked={isAnonymous}
                     onChange={(e) => setIsAnonymous(e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
                 </div>
                 <div className="ml-3 text-sm">
                   <label htmlFor="isAnonymousTransak" className="font-medium text-gray-700">
                     Make my donation anonymous
                   </label>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Your identity will not be shown publicly with your donation.
+                  <p className="text-gray-500">
+                    Your name won't be displayed publicly.
                   </p>
                 </div>
               </div>
@@ -743,8 +774,13 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
               />
             )}
           </div>
+
         ) : null}
       </div>
+
+      {isSuccess && (
+        <SuccessScreen />
+      )}
     </div>
   );
 };

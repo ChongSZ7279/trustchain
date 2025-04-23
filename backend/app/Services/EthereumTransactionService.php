@@ -4,6 +4,10 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Web3\Web3;
+use Web3\Providers\HttpProvider;
+use Web3\RequestManagers\HttpRequestManager;
+use Web3\Contract;
 
 class EthereumTransactionService
 {
@@ -12,6 +16,7 @@ class EthereumTransactionService
     protected $adminAddress;
     protected $contractAddress;
     protected $chainId;
+    protected $web3;
 
     public function __construct()
     {
@@ -20,6 +25,10 @@ class EthereumTransactionService
         $this->adminAddress = env('BLOCKCHAIN_ADMIN_ADDRESS');
         $this->contractAddress = env('CONTRACT_ADDRESS');
         $this->chainId = 534351; // Scroll Sepolia chain ID
+
+        // Initialize Web3
+        $provider = new HttpProvider(new HttpRequestManager($this->providerUrl));
+        $this->web3 = new Web3($provider);
     }
 
     /**
@@ -47,31 +56,36 @@ class EthereumTransactionService
                 'amount' => $amount
             ]);
 
-            // Get the current nonce for the admin address
-            $nonce = $this->getNonce($this->adminAddress);
+            // Convert amount to wei (1 ETH = 10^18 wei)
+            $amountWei = bcmul((string)$amount, '1000000000000000000');
 
-            // Create the raw transaction
-            $rawTransaction = [
-                'nonce' => '0x' . dechex($nonce),
-                'gasPrice' => '0x' . dechex(20000000000), // 20 Gwei
-                'gasLimit' => '0x' . dechex(21000), // Standard gas limit for ETH transfer
+            $txHash = null;
+            $eth = $this->web3->eth;
+
+            // Send transaction
+            $eth->sendTransaction([
+                'from' => $this->adminAddress,
                 'to' => $charityWallet,
-                'value' => '0x' . dechex($amount * 1e18), // Convert to wei
-                'data' => '',
+                'value' => '0x' . dechex($amount * 1e18),
+                'gas' => '0x' . dechex(21000),
+                'gasPrice' => '0x' . dechex(20000000000), // 20 Gwei
                 'chainId' => $this->chainId
-            ];
+            ], function ($err, $transaction) use (&$txHash) {
+                if ($err !== null) {
+                    throw new \Exception('Failed to send transaction: ' . $err->getMessage());
+                }
 
-            // For demonstration purposes, we'll log what would be sent
-            // In a real implementation, you would sign this transaction with the private key
-            Log::info('Transaction prepared', ['transaction' => $rawTransaction]);
+                $txHash = $transaction;
+                Log::info('Transaction sent successfully', ['hash' => $txHash]);
+            });
 
-            // For testing purposes, we'll use a mock transaction hash
-            // In a real implementation, you would sign and send the transaction
-            $txHash = '0x' . bin2hex(random_bytes(32));
+            if (!$txHash) {
+                throw new \Exception('Transaction failed to process');
+            }
 
             return [
                 'success' => true,
-                'message' => 'Funds sent successfully (mock)',
+                'message' => 'Funds sent successfully',
                 'transaction_hash' => $txHash,
                 'explorer_url' => "https://sepolia.scrollscan.com/tx/{$txHash}"
             ];
@@ -115,38 +129,44 @@ class EthereumTransactionService
                 'contract' => $this->contractAddress
             ]);
 
-            // Prepare the function call data for the contract
-            // Function: withdrawFunds(address recipient, uint256 amount)
-            $functionSignature = '0x' . substr(hash('sha256', 'withdrawFunds(address,uint256)'), 0, 8);
-            $encodedRecipient = str_pad(substr($charityWallet, 2), 64, '0', STR_PAD_LEFT);
-            $encodedAmount = str_pad(dechex($amount * 1e18), 64, '0', STR_PAD_LEFT); // Convert to wei
-            $data = $functionSignature . $encodedRecipient . $encodedAmount;
+            // Get contract ABI
+            $contractAbi = json_decode(file_get_contents(base_path('resources/contracts/DonationContract.json')), true)['abi'];
 
-            // Get the current nonce for the admin address
-            $nonce = $this->getNonce($this->adminAddress);
+            // Initialize contract
+            $contract = new Contract($this->web3->provider, $contractAbi);
 
-            // Create the raw transaction
-            $rawTransaction = [
-                'nonce' => '0x' . dechex($nonce),
-                'gasPrice' => '0x' . dechex(20000000000), // 20 Gwei
-                'gasLimit' => '0x' . dechex(200000), // Higher gas limit for contract interaction
-                'to' => $this->contractAddress,
-                'value' => '0x0', // No ETH sent directly
-                'data' => $data,
-                'chainId' => $this->chainId
-            ];
+            // Convert amount to wei (1 ETH = 10^18 wei)
+            $amountWei = bcmul((string)$amount, '1000000000000000000');
 
-            // For demonstration purposes, we'll log what would be sent
-            // In a real implementation, you would sign this transaction with the private key
-            Log::info('Contract transaction prepared', ['transaction' => $rawTransaction]);
+            $txHash = null;
 
-            // For testing purposes, we'll use a mock transaction hash
-            // In a real implementation, you would sign and send the transaction
-            $txHash = '0x' . bin2hex(random_bytes(32));
+            // Call the contract function
+            $contract->at($this->contractAddress)->send(
+                'withdrawFunds',
+                $charityWallet,
+                $amountWei,
+                [
+                    'from' => $this->adminAddress,
+                    'gas' => '0x' . dechex(200000),
+                    'gasPrice' => '0x' . dechex(20000000000), // 20 Gwei
+                ],
+                function ($err, $result) use (&$txHash) {
+                    if ($err !== null) {
+                        throw new \Exception('Failed to call contract: ' . $err->getMessage());
+                    }
+
+                    $txHash = $result;
+                    Log::info('Contract function called successfully', ['hash' => $txHash]);
+                }
+            );
+
+            if (!$txHash) {
+                throw new \Exception('Contract transaction failed to process');
+            }
 
             return [
                 'success' => true,
-                'message' => 'Funds released successfully through contract (mock)',
+                'message' => 'Funds released successfully through contract',
                 'transaction_hash' => $txHash,
                 'explorer_url' => "https://sepolia.scrollscan.com/tx/{$txHash}"
             ];

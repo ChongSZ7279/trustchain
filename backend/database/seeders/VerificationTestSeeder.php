@@ -228,7 +228,7 @@ class VerificationTestSeeder extends Seeder
                 'charity_id' => $charity->id,
                 'task_id' => $task->id,
                 'amount' => $task->fund_targeted * 0.9, // 90% of the targeted amount
-                'type' => 'fund_release',
+                'type' => 'charity', // Using 'charity' instead of 'fund_release' to avoid ENUM constraint issues
                 'status' => 'completed',
                 'transaction_hash' => $txHash,
                 'contract_address' => $contractAddress,

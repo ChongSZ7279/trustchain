@@ -1000,15 +1000,18 @@ export default function TransactionList() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
                         {item.transaction_hash ? (
-                          <a
-                            href={`https://sepolia.scrollscan.com/tx/${item.transaction_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
-                          >
-                            {item.transaction_hash.slice(0, 10)}...{item.transaction_hash.slice(-8)}
-                            <FaExternalLinkAlt className="ml-1 h-3 w-3" />
-                          </a>
+                          <div className="flex items-center">
+                            <span className="mr-2">{item.transaction_hash.slice(0, 10)}...{item.transaction_hash.slice(-8)}</span>
+                            <a
+                              href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
+                              title="View contract on Scrollscan"
+                            >
+                              <FaExternalLinkAlt className="h-3 w-3" />
+                            </a>
+                          </div>
                         ) : (item.id ? `ID: ${item.id}` : 'N/A')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

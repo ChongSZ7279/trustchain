@@ -382,22 +382,41 @@ const recordBlockchainDonation = async (charityId, amount, transactionHash, mess
 
 export const verifyTransaction = async (transactionHash) => {
   try {
-    const web3 = await initWeb3();
-    const transaction = await web3.eth.getTransaction(transactionHash);
-    const receipt = await web3.eth.getTransactionReceipt(transactionHash);
+    // Import the verification function from blockchainUtils
+    const { verifyTransaction: verifyTx } = await import('../utils/blockchainUtils');
+
+    console.log('Verifying transaction hash:', transactionHash);
+
+    // Check if it's a mock transaction hash
+    if (transactionHash.startsWith('0x') && transactionHash.length !== 66) {
+      console.warn('This appears to be a mock transaction hash that will not be found on Scrollscan');
+      return {
+        success: false,
+        verified: false,
+        isMockHash: true,
+        message: 'This appears to be a test/mock transaction hash that does not exist on the blockchain',
+        scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
+      };
+    }
+
+    // Use the blockchain utils verification function
+    const result = await verifyTx(transactionHash);
+    console.log('Transaction verification result:', result);
 
     return {
-      success: true,
-      transaction,
-      receipt,
-      confirmed: receipt && receipt.status === 1n,
-      blockNumber: receipt ? receipt.blockNumber : null
+      ...result,
+      success: result.verified, // Ensure both success and verified properties exist
+      verified: result.verified,
+      scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
     };
   } catch (error) {
     console.error('Error verifying transaction:', error);
     return {
       success: false,
-      error: error.message
+      verified: false,
+      error: error.message,
+      message: error.message,
+      scrollscanUrl: `https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84`
     };
   }
 };

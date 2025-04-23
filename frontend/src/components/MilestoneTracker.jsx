@@ -17,18 +17,18 @@ const MilestoneTracker = ({ milestones, charityId, contract, account }) => {
     }
 
     setUploadingId(milestoneId);
-    
+
     try {
       const formData = new FormData();
       formData.append('proof', proofFile);
       formData.append('milestone_id', milestoneId);
-      
+
       await axios.post(`/api/milestones/${milestoneId}/proof`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
-      
+
       alert('Proof uploaded successfully. Waiting for verification.');
       setProofFile(null);
       // Refresh milestones
@@ -46,14 +46,14 @@ const MilestoneTracker = ({ milestones, charityId, contract, account }) => {
       alert('Web3 not initialized. Please connect your wallet.');
       return;
     }
-    
+
     setVerifyingId(milestoneId);
-    
+
     try {
       await contract.methods.verifyMilestone(charityId, milestoneId).send({
         from: account
       });
-      
+
       alert('Milestone verified successfully. Funds have been released to the charity.');
       // Refresh milestones
       window.location.reload();
@@ -79,15 +79,15 @@ const MilestoneTracker = ({ milestones, charityId, contract, account }) => {
                 <p>{milestone.description}</p>
                 <p><strong>Funds to release:</strong> {milestone.amount_to_release} ETH</p>
                 <p><strong>Status:</strong> {milestone.status}</p>
-                
+
                 {milestone.status === 'pending' && account === milestone.charity_wallet && (
                   <div className="mt-3">
-                    <input 
-                      type="file" 
-                      className="form-control mb-2" 
-                      onChange={handleFileChange} 
+                    <input
+                      type="file"
+                      className="form-control mb-2"
+                      onChange={handleFileChange}
                     />
-                    <button 
+                    <button
                       className="btn btn-primary btn-sm"
                       onClick={() => uploadProof(milestone.id)}
                       disabled={uploadingId === milestone.id}
@@ -96,20 +96,20 @@ const MilestoneTracker = ({ milestones, charityId, contract, account }) => {
                     </button>
                   </div>
                 )}
-                
+
                 {milestone.status === 'proof_submitted' && (
                   <div className="mt-3">
-                    <a 
-                      href={milestone.proof_url} 
-                      target="_blank" 
+                    <a
+                      href={milestone.proof_url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-info btn-sm me-2"
                     >
                       View Proof
                     </a>
-                    
+
                     {account === milestone.verifier_wallet && (
-                      <button 
+                      <button
                         className="btn btn-success btn-sm"
                         onClick={() => verifyMilestone(milestone.id)}
                         disabled={verifyingId === milestone.id}
@@ -119,20 +119,20 @@ const MilestoneTracker = ({ milestones, charityId, contract, account }) => {
                     )}
                   </div>
                 )}
-                
+
                 {milestone.status === 'completed' && (
                   <div className="mt-3">
                     <span className="badge bg-success">Completed</span>
                     <p className="text-muted mt-1">
                       Verified on: {new Date(milestone.verified_at).toLocaleString()}
                     </p>
-                    <a 
-                      href={`https://etherscan.io/tx/${milestone.transaction_hash}`}
-                      target="_blank" 
+                    <a
+                      href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm btn-outline-secondary"
                     >
-                      View Transaction
+                      View Contract on Scrollscan
                     </a>
                   </div>
                 )}
@@ -145,4 +145,4 @@ const MilestoneTracker = ({ milestones, charityId, contract, account }) => {
   );
 };
 
-export default MilestoneTracker; 
+export default MilestoneTracker;

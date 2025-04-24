@@ -51,7 +51,7 @@ class DonationSeeder extends Seeder
                 $charity = $charities->random();
 
                 // Create donation
-                $amount = round(rand(5, 100) / 10, 1); // Between 0.5 and 10.0 SCROLL
+                $amount = round(rand(1, 50) / 10, 1); // Between 0.1 and 5.0 SCROLL
                 $isAnonymous = (rand(0, 10) < 2); // 20% chance of anonymous donation
 
                 // Create a unique hash-like transaction ID - ALWAYS provide a transaction hash
@@ -97,7 +97,7 @@ class DonationSeeder extends Seeder
             $donationsData[] = [
                 'user_id' => $user->ic_number,
                 'transaction_hash' => $txHash,
-                'amount' => round(rand(1, 5) / 10, 1), // Smaller amounts for subscriptions
+                'amount' => round(rand(1, 50) / 10, 1), // Between 0.1 and 5.0 SCROLL
                 'currency_type' => 'SCROLL',
                 'cause_id' => $charity->id,
                 'status' => 'completed',
@@ -129,7 +129,7 @@ class DonationSeeder extends Seeder
             $donationsData[] = [
                 'user_id' => $user->ic_number,
                 'transaction_hash' => $txHash, // Add transaction hash to pending donations
-                'amount' => round(rand(5, 100) / 10, 1),
+                'amount' => round(rand(1, 50) / 10, 1),
                 'currency_type' => 'SCROLL',
                 'cause_id' => $charity->id,
                 'status' => 'verified',

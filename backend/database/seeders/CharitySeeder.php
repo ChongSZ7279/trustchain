@@ -50,7 +50,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Education',
                 'description' => 'Equipping rural schools with computers, internet access, and digital learning tools to bridge the education gap.',
                 'objective' => 'To provide digital resources to 50 rural schools across Malaysia by the end of 2023.',
-                'fund_targeted' => 250000.00,
+                'fund_targeted' => 250.00,
                 'people_affected' => 5000,
                 'picture_path' => $this->getImagePath($charityImages, 0, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 0, 'charity_documents/default-verified.pdf')
@@ -61,7 +61,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Education',
                 'description' => 'Teaching programming and computational thinking to children from disadvantaged backgrounds.',
                 'objective' => 'To introduce 1000 children to coding basics and develop their problem-solving skills.',
-                'fund_targeted' => 120000.00,
+                'fund_targeted' => 120.00,
                 'people_affected' => 1000,
                 'picture_path' => $this->getImagePath($charityImages, 1, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 1, 'charity_documents/default-verified.pdf')
@@ -74,7 +74,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Environment',
                 'description' => 'Restoring mangrove ecosystems along Malaysia\'s coastlines to protect against erosion and provide wildlife habitats.',
                 'objective' => 'To plant 50,000 mangrove seedlings and create community stewardship programs in coastal areas.',
-                'fund_targeted' => 180000.00,
+                'fund_targeted' => 180.00,
                 'people_affected' => 15000,
                 'picture_path' => $this->getImagePath($charityImages, 2, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 2, 'charity_documents/default-verified.pdf')
@@ -85,7 +85,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Environment',
                 'description' => 'Implementing waste reduction and recycling programs in urban neighborhoods.',
                 'objective' => 'To establish 20 community recycling centers and reduce landfill waste by 30% in participating areas.',
-                'fund_targeted' => 95000.00,
+                'fund_targeted' => 95.00,
                 'people_affected' => 25000,
                 'picture_path' => $this->getImagePath($charityImages, 3, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 3, 'charity_documents/default-verified.pdf')
@@ -98,7 +98,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Healthcare',
                 'description' => 'Bringing healthcare services to remote and underserved communities via mobile medical units.',
                 'objective' => 'To provide basic healthcare services to 10,000 people in rural areas who lack access to medical facilities.',
-                'fund_targeted' => 350000.00,
+                'fund_targeted' => 350.00,
                 'people_affected' => 10000,
                 'picture_path' => $this->getImagePath($charityImages, 4, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 4, 'charity_documents/default-verified.pdf')
@@ -109,7 +109,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Healthcare',
                 'description' => 'Promoting mental health awareness and providing counseling services to those in need.',
                 'objective' => 'To reduce stigma around mental health issues and provide support services to youth and vulnerable populations.',
-                'fund_targeted' => 120000.00,
+                'fund_targeted' => 120.00,
                 'people_affected' => 7500,
                 'picture_path' => $this->getImagePath($charityImages, 5, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 5, 'charity_documents/default-verified.pdf')
@@ -122,7 +122,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Poverty Relief',
                 'description' => 'Establishing food banks in urban areas to provide nutritious food to families in need.',
                 'objective' => 'To create a sustainable food distribution system that supports 5,000 families monthly.',
-                'fund_targeted' => 200000.00,
+                'fund_targeted' => 200.00,
                 'people_affected' => 20000,
                 'picture_path' => $this->getImagePath($charityImages, 6, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 6, 'charity_documents/default-verified.pdf')
@@ -133,7 +133,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Poverty Relief',
                 'description' => 'Teaching urban communities to grow their own food using sustainable farming methods.',
                 'objective' => 'To establish 30 community gardens and train 500 families in urban farming techniques.',
-                'fund_targeted' => 150000.00,
+                'fund_targeted' => 150.00,
                 'people_affected' => 2000,
                 'picture_path' => $this->getImagePath($charityImages, 7, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 7, 'charity_documents/default-verified.pdf')
@@ -146,7 +146,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Disaster Relief',
                 'description' => 'Providing immediate assistance to families affected by seasonal flooding in East Malaysia.',
                 'objective' => 'To deliver emergency supplies, temporary shelter, and reconstruction support to flood victims.',
-                'fund_targeted' => 300000.00,
+                'fund_targeted' => 300.00,
                 'people_affected' => 12000,
                 'picture_path' => $this->getImagePath($charityImages, 8, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 8, 'charity_documents/default-verified.pdf')
@@ -157,7 +157,7 @@ class CharitySeeder extends Seeder
                 'category' => 'Disaster Relief',
                 'description' => 'Training communities in disaster-prone areas on emergency preparedness and response.',
                 'objective' => 'To equip 100 communities with disaster management skills and early warning systems.',
-                'fund_targeted' => 135000.00,
+                'fund_targeted' => 135.00,
                 'people_affected' => 8000,
                 'picture_path' => $this->getImagePath($charityImages, 9, 'charity_pictures/default-charity.jpg'),
                 'verified_document' => $this->getDocumentPath($charityDocuments, 9, 'charity_documents/default-verified.pdf')
@@ -183,8 +183,8 @@ class CharitySeeder extends Seeder
             // Create with varying timestamps
             $createdAt = now()->subDays(rand(7, 120));
             
-            // Add some random fund received amounts to make data more realistic
-            $fundReceived = rand(0, 70) / 100 * $charityData['fund_targeted'];
+            // Modify the fund received calculation to be more realistic
+            $fundReceived = rand(0, min(70, $charityData['fund_targeted'])) / 100 * $charityData['fund_targeted'];
             
             // Merge with default values
             $charityData = array_merge($charityData, $defaultValues, [

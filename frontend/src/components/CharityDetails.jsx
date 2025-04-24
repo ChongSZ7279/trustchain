@@ -1716,7 +1716,7 @@ export default function CharityDetails() {
                                     </h4>
                                     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                       <FundingProgress
-                                        current={task.current_amount || 0}
+                                        current={task.fund_received || 0}
                                         target={task.fund_targeted || 0}
                                         donorCount={task.donor_count}
                                         endDate={task.end_date}

@@ -30,7 +30,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 1,
                 'name' => 'Computer Lab Setup',
                 'description' => 'Set up a fully equipped computer lab with 20 desktops, networking, and educational software at SK Kampung Dato Abu Bakar Baginda in Selangor.',
-                'fund_targeted' => 45000.00,
+                'fund_targeted' => 45.00,
+                'fund_received' => 32.00,
                 'status' => 'in_progress',
                 'proof' => 'task_proofs/1.pdf',
                 'pictures' => [
@@ -52,7 +53,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 1,
                 'name' => 'Teacher Training Workshop',
                 'description' => 'Conduct a 3-day digital literacy workshop for 30 teachers from rural schools to enhance their tech skills and digital teaching methods.',
-                'fund_targeted' => 12000.00,
+                'fund_targeted' => 12.00,
+                'fund_received' => 12.00,
                 'status' => 'completed',
                 'proof' => 'task_proofs/2.pdf',
                 'pictures' => [
@@ -70,7 +72,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 2,
                 'name' => 'Laptop Distribution',
                 'description' => 'Purchase and distribute 50 laptops to underprivileged children for the coding program.',
-                'fund_targeted' => 60000.00,
+                'fund_targeted' => 60.00,
+                'fund_received' => 15.00,
                 'status' => 'pending',
                 'proof' => null,
                 'pictures' => [
@@ -88,7 +91,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 3,
                 'name' => 'Mangrove Planting Event',
                 'description' => 'Organize a community mangrove planting event in Kuala Selangor involving 100 volunteers to plant 5,000 mangrove seedlings.',
-                'fund_targeted' => 25000.00,
+                'fund_targeted' => 25.00,
+                'fund_received' => 18.00,
                 'status' => 'in_progress',
                 'proof' => null,
                 'pictures' => [
@@ -112,7 +116,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 5,
                 'name' => 'Purchase Medical Vehicle',
                 'description' => 'Purchase and outfit a mobile medical van with basic equipment to serve as a traveling clinic.',
-                'fund_targeted' => 180000.00,
+                'fund_targeted' => 180.00,
+                'fund_received' => 180.00,
                 'status' => 'completed',
                 'proof' => 'task_proofs/3.pdf',
                 'pictures' => [
@@ -130,7 +135,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 7,
                 'name' => 'Food Distribution Center',
                 'description' => 'Establish a central food distribution center in Klang Valley to coordinate food bank operations.',
-                'fund_targeted' => 85000.00,
+                'fund_targeted' => 85.00,
+                'fund_received' => 45.00,
                 'status' => 'in_progress',
                 'proof' => null,
                 'pictures' => [
@@ -148,7 +154,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 9,
                 'name' => 'Emergency Supply Kits',
                 'description' => 'Assemble and distribute 500 emergency supply kits to families in flood-prone areas of Kelantan.',
-                'fund_targeted' => 45000.00,
+                'fund_targeted' => 45.00,
+                'fund_received' => 20.00,
                 'status' => 'pending',
                 'proof' => null,
                 'pictures' => [
@@ -165,7 +172,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 1,
                 'name' => 'Verified Task for Digital Classroom Initiative',
                 'description' => 'This task has been verified and is ready for fund release.',
-                'fund_targeted' => 4276.00,
+                'fund_targeted' => 42.76,
+                'fund_received' => 42.76,
                 'status' => 'verified',
                 'proof' => 'proofs/verified-task-proof.pdf',
                 'pictures' => []
@@ -174,7 +182,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 2,
                 'name' => 'Verified Task for Coding for Kids',
                 'description' => 'This task has been verified and is ready for fund release.',
-                'fund_targeted' => 4658.00,
+                'fund_targeted' => 46.58,
+                'fund_received' => 46.58,
                 'status' => 'verified',
                 'proof' => 'proofs/verified-task-proof.pdf',
                 'pictures' => []
@@ -183,7 +192,8 @@ class TaskSeeder extends Seeder
                 'charity_id' => 3,
                 'name' => 'Verified Task for Mangrove Restoration Project',
                 'description' => 'This task has been verified and is ready for fund release.',
-                'fund_targeted' => 1081.00,
+                'fund_targeted' => 10.81,
+                'fund_received' => 10.81,
                 'status' => 'verified',
                 'proof' => 'proofs/verified-task-proof.pdf',
                 'pictures' => []

@@ -314,6 +314,7 @@ Route::get('/create-test-donation', function() {
         $donation->status = 'completed';
         $donation->donor_message = 'This is a test donation';
         $donation->is_anonymous = false;
+        $donation->fund_received = 0;
         $donation->save();
 
         return response()->json([
@@ -634,7 +635,8 @@ Route::get('/create-test-charity', function() {
             'current_amount' => 0,
             'start_date' => now(),
             'end_date' => now()->addMonths(3),
-            'status' => 'active'
+            'status' => 'active',
+            'fund_received' => 0,
         ]);
 
         return response()->json([

@@ -15,7 +15,7 @@ const CarbonListingCard = ({
     : isCurrentAccount(listing.buyer);
 
   // Action button text
-  const actionText = type === 'sell' ? 'Buy Credits' : 'Sell Credits';
+  const actionText = type === 'sell' ? 'Buy' : 'Sell';
   
   // Determine the owner address
   const ownerAddress = type === 'sell' ? listing.seller : listing.buyer;
@@ -69,7 +69,7 @@ const CarbonListingCard = ({
         {/* Card body */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-            <div className="text-xs text-gray-500 mb-1">Carbon Credits</div>
+            <div className="text-xs text-gray-500 mb-1">Carbon</div>
             <div className="flex items-center">
               <FaTree className="text-green-500 mr-2" />
               <span className="font-semibold">{listing.carbonTons} tons</span>
@@ -79,7 +79,7 @@ const CarbonListingCard = ({
             <div className="text-xs text-gray-500 mb-1">Rate</div>
             <div className="flex items-center">
               <FaEthereum className="text-indigo-500 mr-1" />
-              <span className="font-semibold">{listing.rate} ETH/ton</span>
+              <span className="font-semibold">{listing.rate} </span>
             </div>
           </div>
         </div>

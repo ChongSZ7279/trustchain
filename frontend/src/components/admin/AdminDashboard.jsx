@@ -315,18 +315,6 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="mt-6 bg-white rounded-lg shadow-sm p-6 text-center">
-            <div className="animate-pulse flex flex-col items-center">
-              <div className="h-8 w-8 bg-indigo-200 rounded-full"></div>
-              <div className="h-4 w-48 bg-indigo-100 rounded mt-3"></div>
-              <div className="h-3 w-32 bg-indigo-50 rounded mt-2"></div>
-            </div>
-            <p className="text-gray-500 mt-3">Loading dashboard data...</p>
-          </div>
-        )}
       </div>
     </div>
   );

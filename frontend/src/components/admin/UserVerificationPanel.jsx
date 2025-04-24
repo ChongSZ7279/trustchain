@@ -15,9 +15,146 @@ import {
   FaChevronDown,
   FaInfoCircle,
   FaThumbsUp,
-  FaRegClock
+  FaRegClock,
+  FaIdCard,
+  FaTimes,
+  FaEye
 } from 'react-icons/fa';
 import api from '../../utils/api';
+
+// User Details Modal Component
+const UserDetailsModal = ({ user, onClose, onVerify }) => {
+  if (!user) return null;
+  
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">User Details</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <FaTimes />
+          </button>
+        </div>
+        
+        <div className="space-y-6">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-medium text-lg mb-3">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Name</p>
+                <p className="font-medium">{user.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">IC Number</p>
+                <p className="font-medium">{user.ic_number}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-medium">{user.gmail}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Phone</p>
+                <p className="font-medium">{user.phone_number}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Wallet Address</p>
+                <p className="font-medium truncate">{user.wallet_address}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Status</p>
+                <p className={`font-medium ${user.is_verified ? 'text-green-600' : 'text-yellow-600'}`}>
+                  {user.is_verified ? 'Verified' : 'Pending Verification'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-medium text-lg mb-3">IC Pictures</h3>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Front IC</p>
+                {user.front_ic_picture ? (
+                  <div className="relative aspect-[3/2] rounded-lg overflow-hidden border border-gray-200">
+                    <img 
+                      src={user.front_ic_picture}
+                      alt="Front IC" 
+                      className="w-full h-full object-cover"
+                    />
+                    <a 
+                      href={user.front_ic_picture}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-md text-sm hover:bg-opacity-70"
+                    >
+                      View Full Size
+                    </a>
+                  </div>
+                ) : (
+                  <div className="aspect-[3/2] rounded-lg bg-gray-100 flex items-center justify-center">
+                    <p className="text-sm text-gray-500">No front IC picture available</p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Back IC</p>
+                {user.back_ic_picture ? (
+                  <div className="relative aspect-[3/2] rounded-lg overflow-hidden border border-gray-200">
+                    <img 
+                      src={user.back_ic_picture}
+                      alt="Back IC" 
+                      className="w-full h-full object-cover"
+                    />
+                    <a 
+                      href={user.back_ic_picture}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-md text-sm hover:bg-opacity-70"
+                    >
+                      View Full Size
+                    </a>
+                  </div>
+                ) : (
+                  <div className="aspect-[3/2] rounded-lg bg-gray-100 flex items-center justify-center">
+                    <p className="text-sm text-gray-500">No back IC picture available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border rounded-md hover:bg-gray-50"
+          >
+            Close
+          </button>
+          {!user.is_verified && (
+            <button
+              onClick={() => onVerify(user.ic_number)}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              Verify User
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function UserVerificationPanel() {
   const { user } = useAuth();
@@ -33,6 +170,8 @@ export default function UserVerificationPanel() {
   });
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [viewingUser, setViewingUser] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Redirect if not admin
   useEffect(() => {
@@ -48,25 +187,37 @@ export default function UserVerificationPanel() {
     setError(null);
     
     try {
-      // Fetch user verification data
-      const response = await api.get('/admin/verification/users');
+      // Update the API endpoint to match your Laravel backend
+      const response = await api.get('/admin/users');
       
-      if (response.data.success) {
-        const responseData = response.data.data || {};
+      if (response.data) {
+        // Transform the data to match our expected format
+        const transformedUsers = response.data.map(user => ({
+          ic_number: user.ic_number,
+          name: user.name,
+          gmail: user.gmail,
+          phone_number: user.phone_number,
+          created_at: user.created_at,
+          is_verified: user.is_verified,
+          front_ic_picture: user.front_ic_picture,
+          back_ic_picture: user.back_ic_picture,
+          profile_picture: user.profile_picture,
+          wallet_address: user.wallet_address
+        }));
+
+        setUsers(transformedUsers);
         
-        // Set users with safer defaults if some expected data is missing
-        setUsers(responseData.users || []);
+        // Calculate stats
+        const pendingCount = transformedUsers.filter(user => !user.is_verified).length;
+        const verifiedCount = transformedUsers.filter(user => user.is_verified).length;
         
-        // Set stats safely
         setStats({
-          total: responseData.stats?.total || 0,
-          verified: responseData.stats?.verified || 0,
-          pending: responseData.stats?.pending || 0,
-          recentlyVerified: responseData.stats?.recently_verified || 0
+          total: transformedUsers.length,
+          verified: verifiedCount,
+          pending: pendingCount
         });
-      } else {
-        setError(response.data.message || 'Failed to load user verification data');
-        toast.error('Error loading verification data');
+
+        console.log('Fetched users:', transformedUsers); // Debug log
       }
     } catch (error) {
       console.error('Error fetching user verification data:', error);
@@ -98,33 +249,50 @@ export default function UserVerificationPanel() {
   }, [user]);
 
   // Filter items based on search term
-  const filteredUsers = users.filter(user =>
-    (user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(user => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (user.name?.toLowerCase() || '').includes(searchLower) ||
+      (user.gmail?.toLowerCase() || '').includes(searchLower) ||
+      (user.ic_number?.toLowerCase() || '').includes(searchLower) ||
+      (user.phone_number?.toLowerCase() || '').includes(searchLower)
+    );
+  }).filter(user => {
+    if (filterStatus === 'pending') return !user.is_verified;
+    if (filterStatus === 'verified') return user.is_verified;
+    return true; // 'all' filter
+  });
 
   // Function to safely handle user data display with potential missing fields
   const safeDisplay = (user) => {
-    // Ensure all fields have default values to prevent errors
     return {
-      id: user.id || user.ic_number || 'Unknown ID',
+      ic_number: user.ic_number || '',
       name: user.name || 'Unknown User',
-      email: user.email || user.gmail || 'No Email',
-      phone: user.phone_number || 'No Phone',
+      gmail: user.gmail || 'No Email',
+      phone_number: user.phone_number || 'No Phone',
       created_at: user.created_at || new Date().toISOString(),
-      is_verified: !!user.is_verified
+      is_verified: !!user.is_verified,
+      front_ic_picture: user.front_ic_picture || null,
+      back_ic_picture: user.back_ic_picture || null,
+      profile_picture: user.profile_picture || null,
+      wallet_address: user.wallet_address || 'No Wallet Address'
     };
   };
 
   // Handle user verification
-  const handleVerifyUser = async (userId) => {
+  const handleVerifyUser = async (icNumber) => {
+    if (!icNumber) {
+      toast.error('Cannot verify user: Invalid IC number');
+      return;
+    }
+
     try {
-      const response = await api.post(`/admin/verification/users/${userId}/verify`);
+      const response = await api.post(`/admin/users/${icNumber}/verify`);
       
       if (response.data.success) {
         // Update the local state to reflect verification
         setUsers(users.map(user => 
-          (user.id === userId || user.ic_number === userId) 
+          user.ic_number === icNumber 
             ? { ...user, is_verified: true } 
             : user
         ));
@@ -152,6 +320,40 @@ export default function UserVerificationPanel() {
     setSearchTerm(''); // Clear search when changing filters
   };
 
+  // Open modal with user details
+  const openViewDetailsModal = async (icNumber) => {
+    try {
+      // Find the user in our existing data
+      const foundUser = users.find(user => user.ic_number === icNumber);
+      
+      if (foundUser) {
+        // Transform the user data to ensure all required fields are present
+        const userDetails = {
+          ...foundUser,
+          front_ic_picture: foundUser.front_ic_picture ? foundUser.front_ic_picture : null,
+          back_ic_picture: foundUser.back_ic_picture ? foundUser.back_ic_picture : null,
+          profile_picture: foundUser.profile_picture ? foundUser.profile_picture : null,
+        };
+        
+        setViewingUser(userDetails);
+        setShowDetailsModal(true);
+        
+        console.log('Viewing user details:', userDetails); // Debug log
+      } else {
+        toast.error('User details not found');
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      toast.error('Failed to fetch user details: ' + (error.response?.data?.message || error.message));
+    }
+  };
+  
+  // Close the details modal
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setViewingUser(null);
+  };
+
   if (!user || !user.is_admin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -171,7 +373,7 @@ export default function UserVerificationPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Header Section */}
       <div className="bg-gradient-to-r from-purple-700 to-indigo-800 text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -445,20 +647,31 @@ export default function UserVerificationPanel() {
                       {filteredUsers.map(user => {
                         const safeUser = safeDisplay(user);
                         return (
-                          <tr key={safeUser.id}>
+                          <tr key={safeUser.ic_number}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="h-10 w-10 flex-shrink-0 bg-purple-100 rounded-full flex items-center justify-center">
-                                  <span className="text-lg font-medium text-purple-800">{safeUser.name.charAt(0) || 'U'}</span>
+                                <div className="h-10 w-10 flex-shrink-0">
+                                  {safeUser.profile_picture ? (
+                                    <img 
+                                      src={`/storage/${safeUser.profile_picture}`}
+                                      alt=""
+                                      className="h-10 w-10 rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                      <span className="text-lg font-medium text-purple-800">{safeUser.name.charAt(0) || 'U'}</span>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="ml-4">
                                   <div className="text-sm font-medium text-gray-900">{safeUser.name}</div>
-                                  <div className="text-sm text-gray-500">ID: {safeUser.id}</div>
+                                  <div className="text-sm text-gray-500">IC: {safeUser.ic_number}</div>
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{safeUser.email}</div>
+                              <div className="text-sm text-gray-900">{safeUser.gmail}</div>
+                              <div className="text-sm text-gray-500">{safeUser.phone_number}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">{new Date(safeUser.created_at).toLocaleDateString()}</div>
@@ -476,18 +689,22 @@ export default function UserVerificationPanel() {
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              {!safeUser.is_verified ? (
+                              <div className="flex justify-end space-x-2">
+                                {!safeUser.is_verified && (
+                                  <button 
+                                    className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md hover:bg-blue-100 transition-colors"
+                                    onClick={() => handleVerifyUser(safeUser.ic_number)}
+                                  >
+                                    Verify
+                                  </button>
+                                )}
                                 <button 
-                                  className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md hover:bg-blue-100 transition-colors"
-                                  onClick={() => handleVerifyUser(safeUser.id)}
+                                  className="text-purple-600 hover:text-purple-900 bg-purple-50 px-3 py-1 rounded-md hover:bg-purple-100 transition-colors"
+                                  onClick={() => openViewDetailsModal(safeUser.ic_number)}
                                 >
-                                  Verify
+                                  View Details
                                 </button>
-                              ) : (
-                                <span className="text-green-600 bg-green-50 px-3 py-1 rounded-md">
-                                  Verified ✓
-                                </span>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -514,6 +731,16 @@ export default function UserVerificationPanel() {
           </div>
         )}
       </div>
+      
+        {/* User Details Modal */}
+        {showDetailsModal && (
+          <UserDetailsModal 
+            user={viewingUser}
+            onClose={closeDetailsModal}
+            onVerify={handleVerifyUser}
+          />
+        )}
     </div>
+    
   );
-} 
+}

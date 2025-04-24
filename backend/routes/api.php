@@ -555,6 +555,13 @@ Route::get('/test-admin-middleware', function() {
     return response()->json(['message' => 'Admin middleware is working!']);
 })->middleware(\App\Http\Middleware\AdminMiddleware::class);
 
+// Admin routes
+Route::middleware(['auth:sanctum', \App\Http\Middleware\AdminMiddleware::class])->prefix('admin')->group(function () {
+    // User verification routes
+    Route::get('/users', [\App\Http\Controllers\UserController::class, 'getAllUsers']);
+    Route::post('/users/{ic_number}/verify', [\App\Http\Controllers\UserController::class, 'verifyUser']);
+});
+
 // Admin verification routes
 Route::middleware(['auth:sanctum', \App\Http\Middleware\AdminMiddleware::class])->prefix('admin/verification')->group(function () {
     // Task verification routes

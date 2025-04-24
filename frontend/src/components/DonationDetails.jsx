@@ -224,6 +224,11 @@ export default function DonationDetails() {
     navigate(`/donations/${id}/invoice`);
   };
 
+  // Add this function near your other permission check functions
+  const isOwner = () => {
+    return user?.id === donation.user_id;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -380,41 +385,43 @@ export default function DonationDetails() {
           </div>
 
           {/* Invoice Section */}
-          <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Donation Receipt</h3>
+          {isOwner() && (
+            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Donation Receipt</h3>
 
-            <div className="mt-4 bg-gray-50 p-4 rounded-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <FaFileInvoice className="h-5 w-5 text-indigo-500 mr-2" />
-                  <span className="text-sm font-medium text-gray-700">
-                    Invoice #{donation.id}
-                  </span>
+              <div className="mt-4 bg-gray-50 p-4 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <FaFileInvoice className="h-5 w-5 text-indigo-500 mr-2" />
+                    <span className="text-sm font-medium text-gray-700">
+                      Invoice #{donation.id}
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={viewInvoice}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <FaFileAlt className="mr-1" /> View Invoice
+                    </button>
+                    <button
+                      onClick={() => navigate(`/donations/${id}/invoice?download=true`)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <FaDownload className="mr-1" /> Download
+                    </button>
+                  </div>
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={viewInvoice}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    <FaFileAlt className="mr-1" /> View Invoice
-                  </button>
-                  <button
-                    onClick={() => navigate(`/donations/${id}/invoice?download=true`)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    <FaDownload className="mr-1" /> Download
-                  </button>
-                </div>
-              </div>
 
-              <div className="mt-3">
-                <p className="text-xs text-gray-500">
-                  This donation receipt serves as your official record for tax purposes.
-                  View or download the full invoice for detailed information.
-                </p>
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500">
+                    This donation receipt serves as your official record for tax purposes.
+                    View or download the full invoice for detailed information.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Blockchain Verification Section */}
           {donation.transaction_hash && (

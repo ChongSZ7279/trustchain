@@ -7,7 +7,7 @@ import axios from 'axios';
  */
 export const getTransactionDetails = async (id) => {
   try {
-    const response = await axios.get(`/transactions/${id}`);
+    const response = await axios.get(`/api/transactions/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching transaction details:', error);

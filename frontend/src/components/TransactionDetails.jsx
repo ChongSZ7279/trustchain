@@ -77,7 +77,7 @@ export default function TransactionDetails() {
           }
         } catch (apiError) {
           // If that fails, try without /api prefix
-          const response = await axios.get(`/transactions/${id}`);
+          const response = await axios.get(`/api/transactions/${id}`);
           const data = response.data;
           setTransaction(data);
           

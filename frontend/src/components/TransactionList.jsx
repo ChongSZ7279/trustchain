@@ -220,10 +220,10 @@ export default function TransactionList() {
           endpoint = '/donations';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'donations-direct' }));
         } else if (dataSource === 'combined') {
-          endpoint = '/transactions';
+          endpoint = '/api/transactions';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'combined' }));
         } else {
-          endpoint = '/transactions';
+          endpoint = '/api/transactions';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'transactions' }));
         }
       }

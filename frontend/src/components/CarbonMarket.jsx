@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaLeaf, 
-  FaChartLine, 
-  FaPlus, 
-  FaTimes, 
-  FaArrowRight, 
-  FaEthereum, 
+import {
+  FaLeaf,
+  FaChartLine,
+  FaPlus,
+  FaTimes,
+  FaArrowRight,
+  FaEthereum,
   FaInfoCircle,
   FaExclamationTriangle,
   FaExclamationCircle,
@@ -27,22 +27,21 @@ const CarbonMarket = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState(null);
-  const [modalType, setModalType] = useState(''); // 'sell' or 'buy'
+  const [modalType, setModalType] = useState(''); // 'donate' or 'offer'
   const [processingTransaction, setProcessingTransaction] = useState(false);
   const [newListing, setNewListing] = useState({
-    company: '',
+    organization: '',
     carbonTons: '',
     price: '',
     rate: ''
   });
-  
-  const { 
+
+  const {
     account,
     isConnected,
     isScrollNetwork,
     loading,
     carbonCreditPool,
-    carbonCredits,
     sellerListings,
     buyerListings,
     connectWallet,
@@ -67,17 +66,17 @@ const CarbonMarket = () => {
     if (!isConnected) {
       connectWallet().then(success => {
         if (success) {
-          tradingMarketRef.current?.scrollIntoView({ 
+          tradingMarketRef.current?.scrollIntoView({
             behavior: 'smooth',
             block: 'start'
           });
         }
       });
     } else {
-    tradingMarketRef.current?.scrollIntoView({ 
-      behavior: 'smooth',
-      block: 'start'
-    });
+      tradingMarketRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
     }
   };
 
@@ -86,7 +85,7 @@ const CarbonMarket = () => {
       toast.info("Please connect your wallet first");
       return;
     }
-    
+
     if (!isScrollNetwork) {
       toast.warning("Please switch to Scroll network before creating a listing");
       return;
@@ -94,7 +93,7 @@ const CarbonMarket = () => {
 
     setModalType(type);
     setNewListing({
-      company: '',
+      organization: '',
       carbonTons: '',
       rate: ''
     });
@@ -103,34 +102,34 @@ const CarbonMarket = () => {
 
   const handleSubmitListing = async (e) => {
     e.preventDefault();
-    
-    if (!newListing.company || !newListing.carbonTons || !newListing.rate) {
+
+    if (!newListing.organization || !newListing.carbonTons || !newListing.rate) {
       toast.error("Please fill in all fields");
       return;
     }
-    
+
     try {
       setProcessingTransaction(true);
-      
+
       let success = false;
 
-    if (modalType === 'sell') {
+      if (modalType === 'donate') {
         success = await createSellerListing(
-          newListing.company, 
-          parseInt(newListing.carbonTons), 
+          newListing.organization,
+          parseInt(newListing.carbonTons),
           parseFloat(newListing.rate)
         );
-    } else {
+      } else {
         success = await createBuyerListing(
-          newListing.company, 
-          parseInt(newListing.carbonTons), 
+          newListing.organization,
+          parseInt(newListing.carbonTons),
           parseFloat(newListing.rate)
         );
       }
-      
+
       if (success) {
-    setIsCreateModalOpen(false);
-        setNewListing({ company: '', carbonTons: '', rate: '' });
+        setIsCreateModalOpen(false);
+        setNewListing({ organization: '', carbonTons: '', rate: '' });
         refreshData();
       }
     } catch (error) {
@@ -146,12 +145,12 @@ const CarbonMarket = () => {
       toast.info("Please connect your wallet first");
       return;
     }
-    
+
     if (!isScrollNetwork) {
       toast.warning("Please switch to Scroll network");
       return;
     }
-    
+
     setSelectedListing(listing);
     setModalType(type);
     setIsConfirmModalOpen(true);
@@ -160,22 +159,22 @@ const CarbonMarket = () => {
   const handleConfirmTransaction = async () => {
     try {
       setProcessingTransaction(true);
-      
+
       let success = false;
-      
-    if (modalType === 'buy') {
+
+      if (modalType === 'offer') {
         // Extract numeric part of price and convert to wei
         const priceString = selectedListing.price.replace(' ETH', '');
         const priceInWei = ethToWei(priceString);
-        
+
         success = await buyCarbonCredits(selectedListing.id, priceInWei);
-    } else {
+      } else {
         success = await sellCarbonCredits(selectedListing.id);
       }
-      
+
       if (success) {
-    setIsConfirmModalOpen(false);
-    setSelectedListing(null);
+        setIsConfirmModalOpen(false);
+        setSelectedListing(null);
         refreshData();
       }
     } catch (error) {
@@ -190,16 +189,16 @@ const CarbonMarket = () => {
     <div className="min-h-screen bg-gray-50 pt-12 pb-24 px-4 sm:px-6 lg:px-8">
       <ToastContainer position="top-right" />
       <CarbonLoadingOverlay isVisible={processingTransaction} />
-      
+
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Carbon Credit Marketplace</h1>
+        <div className="flex justify-between items-center mb-3">
+          <h1 className="text-3xl font-bold text-gray-900">Carbon Marketplace</h1>
           <CarbonWalletButton />
         </div>
-        
+
         {/* Hero Section */}
-        <motion.div 
+        <motion.div
           className="bg-gradient-to-r from-green-50 via-indigo-50 to-blue-50 rounded-2xl p-8 mb-12 shadow-md overflow-hidden relative"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -209,7 +208,7 @@ const CarbonMarket = () => {
           <div className="absolute -right-16 -bottom-16 w-64 h-64 rounded-full bg-green-100 opacity-40 z-0"></div>
           <div className="absolute right-24 top-16 w-24 h-24 rounded-full bg-indigo-100 opacity-40 z-0"></div>
           <div className="absolute left-16 bottom-8 w-32 h-32 rounded-full bg-blue-100 opacity-40 z-0"></div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
             <div className="flex flex-col justify-center">
               <div className="flex items-center mb-2">
@@ -217,12 +216,12 @@ const CarbonMarket = () => {
                 <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Powered by Scroll Network</span>
               </div>
               <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-indigo-700 mb-4">
-                Trade Carbon Credits Transparently
+                Offset Carbon. Fund Impact.
               </h2>
               <p className="text-lg text-gray-700 mb-6">
-                Our Carbon Credit Marketplace enables companies to buy and sell carbon credits on the Scroll network with full transparency, security, and efficiency.
+                Donate to verified charities and reduce your footprint—securely on the Scroll network.
               </p>
-              
+
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-center">
                   <FaGlobe className="mx-auto text-indigo-500 mb-1" />
@@ -240,21 +239,21 @@ const CarbonMarket = () => {
                   <div className="text-xs text-gray-500">Blockchain-based</div>
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap space-y-3 sm:space-y-0 sm:space-x-4">
-                <motion.button 
-              onClick={handleGetStarted}
+                <motion.button
+                  onClick={handleGetStarted}
                   className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
-            >
-              Get Started
+                >
+                  Get Started
                   <FaArrowRight className="ml-2" />
                 </motion.button>
-                
-                <motion.a 
-                  href="https://scroll.io/bridge" 
-                  target="_blank" 
+
+                <motion.a
+                  href="https://scroll.io/bridge"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto border border-indigo-200 text-indigo-600 px-6 py-3 rounded-lg hover:bg-indigo-50 transition-all duration-200 flex items-center justify-center"
                   whileHover={{ scale: 1.03 }}
@@ -264,10 +263,10 @@ const CarbonMarket = () => {
                   Scroll Bridge
                 </motion.a>
               </div>
-              
+
               <AnimatePresence>
                 {!isConnected && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
@@ -275,12 +274,12 @@ const CarbonMarket = () => {
                     className="mt-6 text-sm text-indigo-800 flex items-center bg-indigo-50 p-3 rounded-lg border border-indigo-100"
                   >
                     <FaInfoCircle className="text-indigo-600 mr-2 flex-shrink-0" />
-                    <span>Connect your wallet to start trading carbon credits on the Scroll network</span>
+                    <span>Connect your wallet to start trading carbon on the Scroll network</span>
                   </motion.div>
                 )}
-                
+
                 {isConnected && !isScrollNetwork && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
@@ -290,14 +289,14 @@ const CarbonMarket = () => {
                     <FaExclamationCircle className="text-orange-500 mr-2 flex-shrink-0" />
                     <div>
                       <span className="text-sm font-medium text-orange-800">
-                        Please switch to Scroll network to trade carbon credits
+                        Please switch to Scroll network to trade carbon
                       </span>
                     </div>
                   </motion.div>
                 )}
-                
+
                 {isConnected && isScrollNetwork && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
@@ -314,9 +313,9 @@ const CarbonMarket = () => {
                 )}
               </AnimatePresence>
             </div>
-            
+
             <div className="flex items-center justify-center">
-              <motion.div 
+              <motion.div
                 className="relative w-full max-w-md"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -331,34 +330,24 @@ const CarbonMarket = () => {
                     </div>
                     <div className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">Live</div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="text-gray-600 text-sm">Total Pool</div>
+                      <div className="text-gray-600 text-sm">Total Carbon Reduction Pool</div>
                       <div className="font-bold text-gray-900">{carbonCreditPool} TONS</div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 bg-indigo-50 rounded-lg text-center">
-                        <div className="text-xs text-indigo-600 mb-1">Active Sellers</div>
+                        <div className="text-xs text-indigo-600 mb-1">Active Charities</div>
                         <div className="font-bold text-indigo-800">{sellerListings.length}</div>
-          </div>
-                      <div className="p-3 bg-green-50 rounded-lg text-center">
-                        <div className="text-xs text-green-600 mb-1">Active Buyers</div>
-                        <div className="font-bold text-green-800">{buyerListings.length}</div>
-          </div>
-        </div>
-                    
-                    {isConnected && (
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="text-xs text-blue-600 mb-1">Your Balance</div>
-                        <div className="font-bold text-blue-900 flex items-center justify-center">
-                          <FaTree className="mr-2 text-green-500" />
-                          {carbonCredits} Carbon Credits
-                        </div>
                       </div>
-                    )}
-                    
+                      <div className="p-3 bg-green-50 rounded-lg text-center">
+                        <div className="text-xs text-green-600 mb-1">Active Companies</div>
+                        <div className="font-bold text-green-800">{buyerListings.length}</div>
+                      </div>
+                    </div>
+
                     <div className="flex justify-center">
                       <motion.button
                         onClick={handleGetStarted}
@@ -378,8 +367,8 @@ const CarbonMarket = () => {
         </motion.div>
 
         {/* Trading Market Section */}
-        <motion.div 
-          ref={tradingMarketRef} 
+        <motion.div
+          ref={tradingMarketRef}
           className="bg-white rounded-2xl shadow-lg p-8 mb-12 scroll-mt-24 border border-gray-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -388,7 +377,7 @@ const CarbonMarket = () => {
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center">
               <FaChartLine className="text-indigo-600 mr-2" />
-              Carbon Credit Trading Market
+              Market Analysis
             </h2>
             {isConnected && (
               <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center">
@@ -399,35 +388,28 @@ const CarbonMarket = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-center mb-8 w-full">
-                <div className="w-32 h-32 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <div className="text-center mb-5 w-full">
+                <div className="w-32 h-32 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner mt-5">
                   <FaLeaf className="w-16 h-16 text-green-500" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Carbon Credit Pool</h3>
-            <div className="flex items-center justify-center">
-                  <span className="text-4xl font-bold text-gray-900 mr-2">{carbonCreditPool}</span>
-                  <span className="text-gray-600 uppercase text-lg">TONS</span>
+                <div className="flex items-center justify-center">
+                  <span className="text-6xl font-bold text-gray-900 mr-2 mb-6 mt-4">{carbonCreditPool}</span>
+                  <span className="text-gray-800 uppercase text-lg mb-6 mt-4">TONS</span>
                 </div>
-                <div className="w-full max-w-xs mx-auto bg-gray-200 h-1 my-4 rounded-full overflow-hidden">
-                  <motion.div 
+                <h3 className="text-xl font-semibold mb-6">Total Carbon Reduction Pool</h3>
+                <p className="text-m mb-6">Since July 2025</p>
+                {/* <div className="w-full max-w-xs mx-auto bg-gray-200 h-1 my-4 rounded-full overflow-hidden">
+                  <motion.div
                     className="h-full bg-green-500 rounded-full"
                     initial={{ width: 0 }}
                     animate={{ width: '70%' }}
                     transition={{ duration: 1, delay: 0.5 }}
                   />
-                </div>
-                
-                {isConnected && (
-                  <div className="mt-4 p-4 bg-indigo-50 rounded-lg inline-block shadow-sm">
-                    <p className="text-sm text-indigo-700">
-                      Your balance: <span className="font-bold">{carbonCredits}</span> carbon credits
-                    </p>
-                  </div>
-                )}
+                </div> */}
               </div>
-              
-              {isConnected && carbonCredits === 0 && (
-                <motion.div 
+
+              {/* {isConnected && carbonCreditPool === 0 && (
+                <motion.div
                   className="p-4 bg-yellow-50 border border-yellow-100 rounded-lg w-full max-w-md shadow-sm"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -436,14 +418,14 @@ const CarbonMarket = () => {
                   <div className="flex items-start">
                     <FaExclamationTriangle className="text-yellow-500 mr-3 mt-1 flex-shrink-0" />
                     <div>
-                      <h4 className="font-medium text-yellow-800 mb-1">No Carbon Credits</h4>
+                      <h4 className="font-medium text-yellow-800 mb-1">No carbon</h4>
                       <p className="text-sm text-yellow-700">
-                        You don't have any carbon credits yet. For testing purposes, 
+                        You don't have any carbon yet. For testing purposes,
                         the contract owner can mint credits to your account.
                       </p>
                       {isConnected && isScrollNetwork && (
                         <motion.button
-                          onClick={() => toast.info("Please contact the admin to get test carbon credits")}
+                          onClick={() => toast.info("Please contact the admin to get test carbon")}
                           className="mt-2 text-xs bg-yellow-200 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-300 transition-colors"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
@@ -454,9 +436,9 @@ const CarbonMarket = () => {
                     </div>
                   </div>
                 </motion.div>
-              )}
+              )} */}
             </div>
-            
+
             <div className="flex items-center justify-center">
               <div className="w-full">
                 <div className="flex items-center justify-between mb-4">
@@ -469,37 +451,37 @@ const CarbonMarket = () => {
                     Updated 24h ago
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4 h-64 flex items-center justify-center border border-gray-100 shadow-inner">
-                  <img 
-                    src="/market-chart.svg" 
-                    alt="Market Chart" 
-                    className="w-full h-full object-contain" 
-                    onError={(e) => {
-                      e.target.src = 'https://placehold.co/800x400/f8fafc/60a5fa?text=Carbon+Market+Trends';
-                    }}
-                  />
-                </div>
+                <div className="bg-white-50 rounded-lg p-0.5 h-64 flex items-center justify-center border border-gray-100 shadow-inner overflow-hidden">
+                    <img 
+                      src="/images/stock-performance-card.png"
+                      alt="Market Chart" 
+                      className="w-full h-full rounded-md" 
+                      onError={(e) => {
+                        e.target.src = 'https://placehold.co/800x400/f8fafc/60a5fa?text=Carbon+Market+Trends';
+                      }}
+                    />
+                  </div>
                 <div className="grid grid-cols-3 gap-4 mt-4">
-                  <motion.div 
+                  <motion.div
                     className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200 shadow-sm"
                     whileHover={{ y: -2, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   >
                     <div className="text-sm text-gray-500 mb-1">Price (AVG)</div>
                     <div className="font-bold text-green-700 flex items-center">
-                      +12.3% 
+                      +12.3%
                       <svg className="ml-1 w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
                       </svg>
                     </div>
                   </motion.div>
-                  <motion.div 
+                  <motion.div
                     className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200 shadow-sm"
                     whileHover={{ y: -2, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   >
                     <div className="text-sm text-gray-500 mb-1">Volume</div>
                     <div className="font-bold text-blue-700">234 tons</div>
                   </motion.div>
-                  <motion.div 
+                  <motion.div
                     className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200 shadow-sm"
                     whileHover={{ y: -2, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   >
@@ -517,7 +499,7 @@ const CarbonMarket = () => {
         {/* Listings Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Seller Listings */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -528,24 +510,25 @@ const CarbonMarket = () => {
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-2">
                   <FaLeaf className="text-green-600" />
                 </div>
-                Sell Listings
+                Charity Listings
               </h3>
-              <button 
-                onClick={() => handleCreateListing('sell')}
-                disabled={!isConnected || !isScrollNetwork || (isConnected && carbonCredits <= 0)}
+              <button
+                onClick={() => handleCreateListing('donate')}
+                disabled={!isConnected || !isScrollNetwork || (isConnected && carbonCreditPool <= 0)}
                 className={`
                   inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all
-                  ${(!isConnected || !isScrollNetwork || (isConnected && carbonCredits <= 0)) 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  ${(!isConnected || !isScrollNetwork || (isConnected && carbonCreditPool <= 0))
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-md'}
                 `}
-                title={!isConnected ? "Connect wallet first" : !isScrollNetwork ? "Switch to Scroll network" : carbonCredits <= 0 ? "You need carbon credits to sell" : "Create a sell listing"}
+                title={!isConnected ? "Connect wallet first" : !isScrollNetwork ? "Switch to Scroll network" : carbonCreditPool <= 0 ? "You need carbon to sell" : "Create a sell listing"}
               >
                 <FaPlus className="mr-1" /> Create Listing
               </button>
             </div>
-            
-            {loading ? (
+
+            {
+            loading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
               </div>
@@ -555,14 +538,14 @@ const CarbonMarket = () => {
                   <FaLeaf className="h-8 w-8 text-gray-300" />
                 </div>
                 <p className="text-gray-500 mb-4">No seller listings available</p>
-                {isConnected && carbonCredits > 0 && (
+                {isConnected && carbonCreditPool > 0 && (
                   <motion.button
-                    onClick={() => handleCreateListing('sell')}
+                    onClick={() => handleCreateListing('donate')}
                     className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md shadow-sm text-sm hover:bg-green-700"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <FaPlus className="mr-1" /> Create Sell Listing
+                    <FaPlus className="mr-1" /> Create Listing
                   </motion.button>
                 )}
               </div>
@@ -582,9 +565,9 @@ const CarbonMarket = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                       </svg>
-                        </button>
-            </div>
-          </div>
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
                   <AnimatePresence>
                     {sellerListings.map((listing) => (
@@ -597,8 +580,8 @@ const CarbonMarket = () => {
                       >
                         <CarbonListingCard
                           listing={listing}
-                          type="sell"
-                          onAction={(listing) => handleBuySell(listing, 'buy')}
+                          type="donate"
+                          onAction={(listing) => handleBuySell(listing, 'offer')}
                         />
                       </motion.div>
                     ))}
@@ -609,7 +592,7 @@ const CarbonMarket = () => {
           </motion.div>
 
           {/* Buyer Listings */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -620,15 +603,15 @@ const CarbonMarket = () => {
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
                   <FaEthereum className="text-blue-600" />
                 </div>
-                Buy Listings
+                Company Listings
               </h3>
-              <button 
-                onClick={() => handleCreateListing('buy')}
+              <button
+                onClick={() => handleCreateListing('offer')}
                 disabled={!isConnected || !isScrollNetwork}
                 className={`
                   inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all
-                  ${(!isConnected || !isScrollNetwork) 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  ${(!isConnected || !isScrollNetwork)
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-md'}
                 `}
                 title={!isConnected ? "Connect wallet first" : !isScrollNetwork ? "Switch to Scroll network" : "Create a buy listing"}
@@ -636,7 +619,7 @@ const CarbonMarket = () => {
                 <FaPlus className="mr-1" /> Create Listing
               </button>
             </div>
-            
+
             {loading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
@@ -649,12 +632,12 @@ const CarbonMarket = () => {
                 <p className="text-gray-500 mb-4">No buyer listings available</p>
                 {isConnected && (
                   <motion.button
-                    onClick={() => handleCreateListing('buy')}
+                    onClick={() => handleCreateListing('offer')}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm hover:bg-blue-700"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <FaPlus className="mr-1" /> Create Buy Listing
+                    <FaPlus className="mr-1" /> Create Listing
                   </motion.button>
                 )}
               </div>
@@ -674,9 +657,9 @@ const CarbonMarket = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                       </svg>
-                        </button>
-            </div>
-          </div>
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
                   <AnimatePresence>
                     {buyerListings.map((listing) => (
@@ -689,8 +672,8 @@ const CarbonMarket = () => {
                       >
                         <CarbonListingCard
                           listing={listing}
-                          type="buy"
-                          onAction={(listing) => handleBuySell(listing, 'sell')}
+                          type="offer"
+                          onAction={(listing) => handleBuySell(listing, 'donate')}
                         />
                       </motion.div>
                     ))}
@@ -705,7 +688,7 @@ const CarbonMarket = () => {
       {/* Create Listing Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <motion.div 
+          <motion.div
             className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl border border-gray-100"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -713,13 +696,13 @@ const CarbonMarket = () => {
           >
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-700 flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${modalType === 'sell' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                  {modalType === 'sell' 
-                    ? <FaLeaf className="text-green-600" /> 
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${modalType === 'donate' ? 'bg-green-100' : 'bg-blue-100'}`}>
+                  {modalType === 'donate'
+                    ? <FaLeaf className="text-green-600" />
                     : <FaEthereum className="text-blue-600" />
                   }
                 </div>
-                Create {modalType === 'sell' ? 'Seller' : 'Buyer'} Listing
+                Create {modalType === 'donate' ? 'Charity' : 'Company'} Listing
               </h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
@@ -728,83 +711,80 @@ const CarbonMarket = () => {
                 <FaTimes className="text-lg" />
               </button>
             </div>
-            
-            {modalType === 'sell' && carbonCredits <= 0 && (
+
+            {/* {modalType === 'donate' && carbonCreditPool <= 0 && (
               <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-100">
                 <div className="flex items-start">
                   <FaExclamationTriangle className="text-red-500 mr-2 mt-1" />
                   <div>
                     <p className="text-sm text-red-800 font-medium">
-                      You don't have any carbon credits to sell
+                      You don't have any carbon to sell
                     </p>
                     <p className="text-xs text-red-700 mt-1">
-                      You need to have carbon credits in your wallet to create a sell listing.
-                      <br/>
+                      You need to have carbon in your wallet to create a sell listing.
+                      <br />
                       Please contact the contract owner to mint some credits for testing.
                     </p>
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
             
+            {/* listing form */}
             <form onSubmit={handleSubmitListing}>
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {modalType === 'donate' ? 'Organization Name' : 'Company Name'}
+                  </label>
                   <input
                     type="text"
                     required
-                    value={newListing.company}
-                    onChange={(e) => setNewListing({...newListing, company: e.target.value})}
+                    value={newListing.organization}
+                    onChange={(e) => setNewListing({ ...newListing, organization: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    placeholder="Enter your company name"
+                    placeholder={modalType === 'donate' ? "Enter your organization name" : "Enter your company name"}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Carbon Credits (Tons)
+                    Carbon (Tons)
                   </label>
                   <input
                     type="number"
                     required
                     min="1"
                     value={newListing.carbonTons}
-                    onChange={(e) => setNewListing({...newListing, carbonTons: e.target.value})}
+                    onChange={(e) => setNewListing({ ...newListing, carbonTons: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    placeholder="Enter amount in tons"
+                    placeholder={modalType === 'donate' ? "Enter amount of carbon you can reduce" : "Enter amount of carbon you wish to reduce"}
                   />
-                  {modalType === 'sell' && carbonCredits > 0 && (
-                    <p className="mt-1 text-xs text-gray-500 flex items-center">
-                      <FaInfoCircle className="mr-1" />
-                      Available: <span className="font-semibold text-indigo-600 ml-1">{carbonCredits} tons</span>
-                    </p>
-                  )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price Per Ton (ETH)
+                    Price Per Ton (Scroll)
                   </label>
                   <div className="relative rounded-lg shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <FaEthereum className="text-gray-400" />
-                </div>
-                  <input
-                    type="number"
-                    required
+                    </div>
+                    <input
+                      type="number"
+                      required
                       min="0.0001"
                       step="0.0001"
-                    value={newListing.rate}
-                    onChange={(e) => setNewListing({...newListing, rate: e.target.value})}
+                      value={newListing.rate}
+                      onChange={(e) => setNewListing({ ...newListing, rate: e.target.value })}
                       className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                       placeholder="0.0"
-                  />
+                    />
                   </div>
                 </div>
-                
+
                 {newListing.carbonTons && newListing.rate && (
-                  <motion.div 
+                  <motion.div
                     className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -814,7 +794,7 @@ const CarbonMarket = () => {
                       <span className="text-sm text-gray-600">Total Price:</span>
                       <span className="font-bold text-indigo-700 flex items-center">
                         <FaEthereum className="mr-1" />
-                        {(parseFloat(newListing.carbonTons) * parseFloat(newListing.rate)).toFixed(4)} ETH
+                        {(parseFloat(newListing.carbonTons) * parseFloat(newListing.rate)).toFixed(4)} Scroll
                       </span>
                     </div>
                     <div className="flex justify-between items-center mt-1">
@@ -825,23 +805,23 @@ const CarbonMarket = () => {
                     </div>
                   </motion.div>
                 )}
-                
+
                 <motion.button
                   type="submit"
-                  disabled={modalType === 'sell' && carbonCredits <= 0}
-                  whileHover={modalType === 'sell' && carbonCredits <= 0 ? {} : { scale: 1.02 }}
-                  whileTap={modalType === 'sell' && carbonCredits <= 0 ? {} : { scale: 0.98 }}
+                  disabled={modalType === 'donate' && carbonCreditPool <= 0}
+                  whileHover={modalType === 'donate' && carbonCreditPool <= 0 ? {} : { scale: 1.02 }}
+                  whileTap={modalType === 'donate' && carbonCreditPool <= 0 ? {} : { scale: 0.98 }}
                   className={`
                     w-full px-4 py-3 rounded-lg text-white font-medium flex justify-center items-center shadow-sm transition-all
-                    ${modalType === 'sell' && carbonCredits <= 0 
-                      ? 'bg-gray-300 cursor-not-allowed' 
-                      : modalType === 'sell'
+                    ${modalType === 'donate' && carbonCreditPool <= 0
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : modalType === 'donate'
                         ? 'bg-gradient-to-r from-green-500 to-green-600 hover:shadow-md'
                         : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-md'
                     }
                   `}
                 >
-                  Create {modalType === 'sell' ? 'Sell' : 'Buy'} Listing
+                  Create {modalType === 'donate' ? 'Charity' : 'Company'} Listing
                 </motion.button>
               </div>
             </form>
@@ -852,7 +832,7 @@ const CarbonMarket = () => {
       {/* Confirm Transaction Modal */}
       {isConfirmModalOpen && selectedListing && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <motion.div 
+          <motion.div
             className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl border border-gray-100"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -860,13 +840,13 @@ const CarbonMarket = () => {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-700 flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${modalType === 'buy' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                  {modalType === 'buy' 
-                    ? <FaLeaf className="text-green-600" /> 
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${modalType === 'offer' ? 'bg-green-100' : 'bg-blue-100'}`}>
+                  {modalType === 'offer'
+                    ? <FaLeaf className="text-green-600" />
                     : <FaEthereum className="text-blue-600" />
                   }
                 </div>
-                Confirm {modalType === 'buy' ? 'Purchase' : 'Sale'}
+                Confirm {modalType === 'offer' ? 'Purchase' : 'Sale'}
               </h3>
               <button
                 onClick={() => setIsConfirmModalOpen(false)}
@@ -875,15 +855,15 @@ const CarbonMarket = () => {
                 <FaTimes className="text-lg" />
               </button>
             </div>
-            
+
             <div className="mb-6 p-5 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100 shadow-inner">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <div className="text-xs text-gray-500 mb-1">Company</div>
-                  <div className="font-medium">{selectedListing.company}</div>
+                  <div className="font-medium">{selectedListing.organization}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500 mb-1">Carbon Credits</div>
+                  <div className="text-xs text-gray-500 mb-1">Carbon Reduction Target</div>
                   <div className="font-medium flex items-center">
                     <FaTree className="text-green-500 mr-1" />
                     {selectedListing.carbonTons} tons
@@ -901,31 +881,31 @@ const CarbonMarket = () => {
                   <div className="font-medium text-green-600">{selectedListing.usdPrice}</div>
                 </div>
               </div>
-              
+
               <div className="p-3 bg-white rounded-lg border border-indigo-100 shadow-sm">
                 <p className="text-sm text-gray-700">
-                  You are about to {modalType === 'buy' ? 'buy' : 'sell'} <span className="font-semibold">{selectedListing.carbonTons}</span> tons of carbon credits for <span className="font-semibold">{selectedListing.price}</span>. This transaction will be processed on the Scroll network and cannot be reversed.
+                  You are about to {modalType === 'offer' ? 'buy' : 'reduce'} <span className="font-semibold">{selectedListing.carbonTons}</span> tons of carbon for <span className="font-semibold">{selectedListing.price}</span>. This transaction will be processed on the Scroll network and cannot be reversed.
                 </p>
               </div>
             </div>
-            
-            {modalType === 'sell' && carbonCredits < selectedListing.carbonTons && (
+
+            {modalType === 'donate' && carbonCreditPool < selectedListing.carbonTons && (
               <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-100">
                 <div className="flex items-start">
                   <FaExclamationTriangle className="text-red-500 mr-2 mt-1 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-red-800 font-medium">
-                      Insufficient carbon credits
+                      Insufficient carbon
                     </p>
                     <p className="text-xs text-red-700 mt-1">
-                      You need {selectedListing.carbonTons} carbon credits to complete this sale.
-                      You currently have {carbonCredits} credits.
+                      You need {selectedListing.carbonTons} carbon to complete this sale.
+                      You currently have {carbonCreditPool} credits.
                     </p>
                   </div>
                 </div>
               </div>
             )}
-            
+
             <div className="flex space-x-4">
               <motion.button
                 onClick={() => setIsConfirmModalOpen(false)}
@@ -937,20 +917,20 @@ const CarbonMarket = () => {
               </motion.button>
               <motion.button
                 onClick={handleConfirmTransaction}
-                disabled={modalType === 'sell' && carbonCredits < selectedListing.carbonTons}
-                whileHover={modalType === 'sell' && carbonCredits < selectedListing.carbonTons ? {} : { scale: 1.02 }}
-                whileTap={modalType === 'sell' && carbonCredits < selectedListing.carbonTons ? {} : { scale: 0.98 }}
+                disabled={modalType === 'donate' && carbonCreditPool < selectedListing.carbonTons}
+                whileHover={modalType === 'donate' && carbonCreditPool < selectedListing.carbonTons ? {} : { scale: 1.02 }}
+                whileTap={modalType === 'donate' && carbonCreditPool < selectedListing.carbonTons ? {} : { scale: 0.98 }}
                 className={`
                   flex-1 px-4 py-2 rounded-lg text-white font-medium shadow-sm transition-all
-                  ${modalType === 'sell' && carbonCredits < selectedListing.carbonTons
+                  ${modalType === 'donate' && carbonCreditPool < selectedListing.carbonTons
                     ? 'bg-gray-300 cursor-not-allowed'
-                    : modalType === 'buy' 
-                      ? 'bg-gradient-to-r from-green-500 to-green-600 hover:shadow-md' 
+                    : modalType === 'offer'
+                      ? 'bg-gradient-to-r from-green-500 to-green-600 hover:shadow-md'
                       : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-md'
                   }
                 `}
               >
-                Confirm {modalType === 'buy' ? 'Purchase' : 'Sale'}
+                Confirm {modalType === 'offer' ? 'Purchase' : 'Sale'}
               </motion.button>
             </div>
           </motion.div>

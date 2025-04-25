@@ -10,15 +10,15 @@ const CarbonListingCard = ({
   showOwned = false
 }) => {
   const { formatAddress, isCurrentAccount, formatEthAmount } = useCarbonMarket();
-  const isOwner = type === 'sell' 
+  const isOwner = type === 'donate' 
     ? isCurrentAccount(listing.seller) 
     : isCurrentAccount(listing.buyer);
 
   // Action button text
-  const actionText = type === 'sell' ? 'Buy Credits' : 'Sell Credits';
+  const actionText = type === 'donate' ? 'Buy' : 'Sell';
   
   // Determine the owner address
-  const ownerAddress = type === 'sell' ? listing.seller : listing.buyer;
+  const ownerAddress = type === 'donate' ? listing.seller : listing.buyer;
   
   return (
     <motion.div 
@@ -38,8 +38,8 @@ const CarbonListingCard = ({
         {/* Card header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${type === 'sell' ? 'bg-green-100' : 'bg-blue-100'}`}>
-              {type === 'sell' 
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${type === 'donate' ? 'bg-green-100' : 'bg-blue-100'}`}>
+              {type === 'donate' 
                 ? <FaTree className="text-green-600" /> 
                 : <FaEthereum className="text-blue-600" />
               }
@@ -69,7 +69,7 @@ const CarbonListingCard = ({
         {/* Card body */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-            <div className="text-xs text-gray-500 mb-1">Carbon Credits</div>
+            <div className="text-xs text-gray-500 mb-1">Carbon</div>
             <div className="flex items-center">
               <FaTree className="text-green-500 mr-2" />
               <span className="font-semibold">{listing.carbonTons} tons</span>
@@ -79,7 +79,7 @@ const CarbonListingCard = ({
             <div className="text-xs text-gray-500 mb-1">Rate</div>
             <div className="flex items-center">
               <FaEthereum className="text-indigo-500 mr-1" />
-              <span className="font-semibold">{listing.rate} ETH/ton</span>
+              <span className="font-semibold">{listing.rate} </span>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ const CarbonListingCard = ({
               onClick={() => onAction(listing)}
               className={`
                 flex items-center justify-center px-4 py-2 rounded-lg shadow-sm
-                ${type === 'sell' 
+                ${type === 'donate' 
                   ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' 
                   : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'}
               `}

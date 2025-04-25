@@ -677,7 +677,7 @@ export default function UserDashboard() {
             description: '15% off any coffee purchase',
             tier: 'Bronze',
             points: 100,
-            merchant: 'Zeus Coffee',
+            merchant: 'Zus Coffee',
             expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
             image: ZeusImg
           },
@@ -1320,7 +1320,7 @@ export default function UserDashboard() {
                   <AIGenerator 
                     userHistory={followedCharities && followedCharities.length > 0 
                       ? followedCharities.map(charity => `Supports ${charity.category}`) 
-                      : ["Looking for a charity recommendation"]} // ✅ Default prompt if no followed charities
+                      : ["Looking for a charity recommendation"]} //  Default prompt if no followed charities
                     followedCharityNames={followedCharities ? followedCharities.map(charity => charity.name.toLowerCase()) : []} 
                     onRecommendation={setRecommendedCharity} 
                   />

@@ -59,6 +59,7 @@ export default function OrganizationDetails() {
     cover: true
   });
 
+  
   // Check if organization has uploaded documents
   const hasDocuments = Boolean(orgData?.verified_document || orgData?.statutory_declaration);
 
@@ -158,16 +159,26 @@ export default function OrganizationDetails() {
   };
 
   // Helper function to correctly format image paths
+  
+  // Helper function to format image URL
   const getImageUrl = (path) => {
     if (!path) return null;
-
-    // Check if the path already includes the base URL
-    if (path.startsWith('http')) {
-      return path;
+    
+    // If it's already a full URL
+    if (path.startsWith('http')) return path;
+    
+    // For storage paths like "organization_covers/filename.jpg"
+    if (path.includes('organization_covers/') || 
+        path.includes('organization_logos/') || 
+        path.includes('charity_pictures/')) {
+      return `/storage/${path}`;
     }
-
-    // Otherwise, construct the full URL - using import.meta.env for Vite
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/storage/${path}`;
+    
+    // If path starts with a slash, it's already a relative path
+    if (path.startsWith('/')) return path;
+    
+    // Otherwise, add a slash to make it a relative path from the root
+    return `/${path}`;
   };
 
   if (loading) {

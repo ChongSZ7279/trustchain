@@ -27,19 +27,89 @@ export const CarbonMarketProvider = ({ children }) => {
   const [connectionInProgress, setConnectionInProgress] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [projects, setProjects] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+
+  // Helper function to safely convert timestamp to ISO string
+  const safeTimestampToISOString = (timestamp) => {
+    try {
+      // Ensure timestamp is a valid number
+      const timestampNum = parseInt(timestamp);
+      if (isNaN(timestampNum)) {
+        return new Date().toISOString(); // Fallback to current time
+      }
+      
+      // Convert to milliseconds if needed (blockchain timestamps are in seconds)
+      const timestampMs = timestampNum < 10000000000 ? timestampNum * 1000 : timestampNum;
+      
+      // Create date and check if valid
+      const date = new Date(timestampMs);
+      if (isNaN(date.getTime())) {
+        return new Date().toISOString(); // Fallback to current time
+      }
+      
+      return date.toISOString();
+    } catch (error) {
+      console.error('Error converting timestamp:', error);
+      return new Date().toISOString(); // Fallback to current time
+    }
+  };
 
   // Refresh data
   const refreshData = async () => {
     setLoading(true);
     
     try {
-      // Simulate data refresh with new mock data
-      const mockData = getMockMarketData();
-      setCarbonCreditPool(mockData.carbonCreditPool);
-      setSellerListings(mockData.sellerListings);
-      setBuyerListings(mockData.buyerListings);
-      setCarbonCredits(mockData.carbonCredits);
-      setProjects(mockData.projects);
+      if (!contract || !account) {
+        throw new Error('Contract or account not initialized');
+      }
+
+      // Get real data from the contract
+      const pool = await contract.methods.carbonCreditPool().call();
+      setCarbonCreditPool(pool);
+
+      const credits = await contract.methods.getCarbonCreditsBalance(account).call();
+      setCarbonCredits(BigInt(credits));
+
+      // Get active listings from the contract
+      const sellerIds = await contract.methods.getActiveSellerListings().call();
+      const buyerIds = await contract.methods.getActiveBuyerListings().call();
+
+      // Fetch seller listings
+      const sellerListingsData = await Promise.all(
+        sellerIds.map(async (id) => {
+          const listing = await contract.methods.getSellerListing(id).call();
+          return {
+            id: listing.id,
+            seller: listing.seller,
+            company: listing.company,
+            carbonTons: parseInt(listing.carbonTons),
+            price: web3.utils.fromWei(listing.price, 'ether'),
+            rate: web3.utils.fromWei(listing.rate, 'ether'),
+            active: listing.active,
+            timestamp: safeTimestampToISOString(listing.timestamp)
+          };
+        })
+      );
+      setSellerListings(sellerListingsData);
+
+      // Fetch buyer listings
+      const buyerListingsData = await Promise.all(
+        buyerIds.map(async (id) => {
+          const listing = await contract.methods.getBuyerListing(id).call();
+          return {
+            id: listing.id,
+            buyer: listing.buyer,
+            company: listing.company,
+            carbonTons: parseInt(listing.carbonTons),
+            price: web3.utils.fromWei(listing.price, 'ether'),
+            rate: web3.utils.fromWei(listing.rate, 'ether'),
+            active: listing.active,
+            timestamp: safeTimestampToISOString(listing.timestamp)
+          };
+        })
+      );
+      setBuyerListings(buyerListingsData);
+
     } catch (err) {
       console.error('Error refreshing data:', err);
       setError(err.message || 'Failed to refresh data');
@@ -172,7 +242,7 @@ export const CarbonMarketProvider = ({ children }) => {
           // User disconnected their wallet
           setIsConnected(false);
           setAccount(null);
-          setCarbonCredits(0);
+          setCarbonCredits(BigInt(0));
         } else {
           // User switched accounts
           setAccount(accounts[0]);
@@ -198,25 +268,64 @@ export const CarbonMarketProvider = ({ children }) => {
     }
   };
   
+  // First, let's define the correct Scroll Sepolia network parameters
+  const SCROLL_SEPOLIA_CONFIG = {
+    chainId: '0x8274f', // 534351 in hex (Scroll Sepolia)
+    chainName: 'Scroll Sepolia',
+    nativeCurrency: {
+      name: 'ETH',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    rpcUrls: ['https://sepolia-rpc.scroll.io'],
+    blockExplorerUrls: ['https://sepolia.scrollscan.dev/']
+  };
+
+  // Add rate limiting to prevent spam
+  let lastNetworkSwitchAttempt = 0;
+  const NETWORK_SWITCH_COOLDOWN = 2000; // 2 seconds
+
   // Connect wallet
   const connectWallet = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Simulate wallet connection
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!window.ethereum) {
+        throw new Error('Please install MetaMask');
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
       
-      // Mock account address
-      const mockAccount = '0x' + Math.random().toString(16).substr(2, 40);
-      setAccount(mockAccount);
+      // Check if we're on Scroll network
+      const chainId = await window.ethereum.request({ 
+        method: 'eth_chainId' 
+      });
+      
+      if (parseInt(chainId, 16) !== SCROLL_CONFIG.NETWORK.CHAIN_ID) {
+        await switchToScrollNetwork();
+      }
+
+      setAccount(accounts[0]);
       setIsConnected(true);
-      setIsScrollNetwork(true);
-      
-      // Set mock user carbon credits from seeder
-      const { carbonCredits } = getMockMarketData();
-      setCarbonCredits(carbonCredits);
-      
+
+      // Initialize contract
+      const web3Instance = new Web3(window.ethereum);
+      const contractInstance = new web3Instance.eth.Contract(
+        CarbonCreditContractABI,
+        CarbonCreditContractAddress
+      );
+      setContract(contractInstance);
+
+      // Get real carbon credits balance
+      const credits = await contractInstance.methods
+        .getCarbonCreditsBalance(accounts[0])
+        .call();
+      setCarbonCredits(BigInt(credits));
+
       toast.success('Wallet connected successfully!');
       return true;
     } catch (err) {
@@ -231,20 +340,38 @@ export const CarbonMarketProvider = ({ children }) => {
   
   // Switch to Scroll network
   const switchToScrollNetwork = async () => {
-    setLoading(true);
-    
     try {
-      // Simulate network switch
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check if enough time has passed since last attempt
+      const now = Date.now();
+      if (now - lastNetworkSwitchAttempt < NETWORK_SWITCH_COOLDOWN) {
+        throw new Error('Please wait a few seconds before trying again');
+      }
+      lastNetworkSwitchAttempt = now;
+
+      // First try to switch to the network
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: SCROLL_SEPOLIA_CONFIG.chainId }],
+        });
+      } catch (switchError) {
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [SCROLL_SEPOLIA_CONFIG],
+          });
+        } else {
+          throw switchError;
+        }
+      }
+      
       setIsScrollNetwork(true);
-      toast.success('Switched to Scroll network!');
       return true;
     } catch (err) {
-      setError(err.message || 'Failed to switch network');
-      toast.error(`Failed to switch network: ${err.message}`);
+      console.error('Error switching to Scroll network:', err);
+      toast.error(err.message || 'Failed to switch to Scroll network');
       return false;
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -253,32 +380,80 @@ export const CarbonMarketProvider = ({ children }) => {
     setLoading(true);
     
     try {
-      // Simulate transaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Generate new listing
-      const newListing = {
-        id: `seller-${sellerListings.length + 1}`,
+      if (!contract || !account) {
+        throw new Error('Contract or account not initialized');
+      }
+
+      // Validate inputs
+      if (carbonTons <= 0) {
+        throw new Error('Carbon tons must be greater than 0');
+      }
+      if (rate <= 0) {
+        throw new Error('Rate must be greater than 0');
+      }
+const balance = await contract.methods.carbonCredits(account).call();
+const balanceBigInt = BigInt(balance);
+const carbonTonsBigInt = BigInt(carbonTons);
+
+if (balanceBigInt < carbonTonsBigInt) {
+
+        throw new Error(`Insufficient carbon credits. You have ${balance} credits but trying to sell ${carbonTons}`);
+      }
+
+      console.log('Creating seller listing with params:', {
         company,
         carbonTons,
-        rate: `${rate} ETH/ton`,
-        price: `${(carbonTons * rate).toFixed(4)} ETH`,
-        usdPrice: `$${(carbonTons * rate * 2000).toFixed(2)}`,
-        seller: account,
-        timestamp: new Date().toISOString(),
-        status: 'active'
-      };
+        rate
+      });
+
+      // Convert rate to Wei
+      const rateInWei = web3.utils.toWei(rate.toString(), 'ether');
+
+      // Estimate gas first
+      const gasEstimate = await contract.methods
+        .createSellerListing(company, carbonTons.toString(), rateInWei)
+        .estimateGas({ from: account });
+
+      // Call the actual contract method with estimated gas
+      const transaction = await contract.methods
+        .createSellerListing(company, carbonTons.toString(), rateInWei)
+        .send({ 
+          from: account,
+          gas: gasEstimate + BigInt(gasEstimate / 5n) // Adds 20% buffer safely
+        });
+
+      console.log('Transaction hash:', transaction.transactionHash);
       
-      // Update state
-      setSellerListings(prev => [...prev, newListing]);
-      setCarbonCredits(prev => prev - carbonTons);
-      
-      toast.success('Seller listing created successfully!');
+      // Add transaction to monitoring
+      addTransaction({
+        transactionHash: transaction.transactionHash,
+        type: 'CREATE_SELLER_LISTING'
+      });
+
+      toast.success('Transaction submitted!');
+      toast.info(
+        <div>
+          View on Scrollscan: 
+          <a 
+            href={`https://sepolia.scrollscan.dev/tx/${transaction.transactionHash}`} 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700"
+          >
+            {transaction.transactionHash.substring(0, 10)}...
+          </a>
+        </div>
+      );
+
+      // Refresh data after transaction
+      await refreshData();
       return true;
     } catch (err) {
       console.error('Error creating seller listing:', err);
-      setError(err.message || 'Failed to create listing');
-      toast.error(`Transaction failed: ${err.message}`);
+      // Extract the revert reason if available
+      const revertReason = err.message.match(/reason string "(.+?)"/)?.[1] || err.message;
+      setError(revertReason || 'Failed to create listing');
+      toast.error(`Transaction failed: ${revertReason}`);
       return false;
     } finally {
       setLoading(false);
@@ -290,31 +465,77 @@ export const CarbonMarketProvider = ({ children }) => {
     setLoading(true);
     
     try {
-      // Simulate transaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!contract || !account) {
+        throw new Error('Contract or account not initialized');
+      }
+
+      // Validate inputs
+      if (carbonTons <= 0) {
+        throw new Error('Carbon tons must be greater than 0');
+      }
+      if (rate <= 0) {
+        throw new Error('Rate must be greater than 0');
+      }
+
+      // Convert rate to Wei
+      const rateInWei = web3.utils.toWei(rate.toString(), 'ether');
       
-      // Generate new listing
-      const newListing = {
-        id: `buyer-${buyerListings.length + 1}`,
+      // Calculate total price in Wei
+      const priceInWei = (BigInt(carbonTons.toString()) * BigInt(rateInWei)).toString();
+
+      console.log('Creating buyer listing with params:', {
         company,
         carbonTons,
-        rate: `${rate} ETH/ton`,
-        price: `${(carbonTons * rate).toFixed(4)} ETH`,
-        usdPrice: `$${(carbonTons * rate * 2000).toFixed(2)}`,
-        buyer: account,
-        timestamp: new Date().toISOString(),
-        status: 'active'
-      };
+        rateInWei,
+        priceInWei
+      });
+
+      // Estimate gas first
+      const gasEstimate = await contract.methods
+        .createBuyerListing(company, carbonTons.toString(), rateInWei)
+        .estimateGas({ from: account, value: priceInWei });
+
+      // Call the actual contract method with estimated gas
+      const transaction = await contract.methods
+        .createBuyerListing(company, carbonTons.toString(), rateInWei)
+        .send({ 
+          from: account,
+          value: priceInWei,
+          gas: gasEstimate + BigInt(gasEstimate / 5n) // Adds 20% buffer safely
+        });
+
+      console.log('Transaction hash:', transaction.transactionHash);
       
-      // Update state
-      setBuyerListings(prev => [...prev, newListing]);
-      
-      toast.success('Buyer listing created successfully!');
+      // Add transaction to monitoring
+      addTransaction({
+        transactionHash: transaction.transactionHash,
+        type: 'CREATE_BUYER_LISTING'
+      });
+
+      toast.success('Transaction submitted!');
+      toast.info(
+        <div>
+          View on Scrollscan: 
+          <a 
+            href={`https://sepolia.scrollscan.dev/tx/${transaction.transactionHash}`} 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700"
+          >
+            {transaction.transactionHash.substring(0, 10)}...
+          </a>
+        </div>
+      );
+
+      // Refresh data after transaction
+      await refreshData();
       return true;
     } catch (err) {
       console.error('Error creating buyer listing:', err);
-      setError(err.message || 'Failed to create listing');
-      toast.error(`Transaction failed: ${err.message}`);
+      // Extract the revert reason if available
+      const revertReason = err.message.match(/reason string "(.+?)"/)?.[1] || err.message;
+      setError(revertReason || 'Failed to create listing');
+      toast.error(`Transaction failed: ${revertReason}`);
       return false;
     } finally {
       setLoading(false);
@@ -326,23 +547,45 @@ export const CarbonMarketProvider = ({ children }) => {
     setLoading(true);
     
     try {
-      // Simulate transaction
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Find the listing
-      const listing = sellerListings.find(item => item.id === listingId);
-      
-      if (!listing) {
-        throw new Error('Listing not found');
+      if (!contract || !account) {
+        throw new Error('Contract or account not initialized');
       }
-      
-      // Update carbon credits
-      setCarbonCredits(prev => prev + listing.carbonTons);
-      
-      // Remove the listing
-      setSellerListings(prev => prev.filter(item => item.id !== listingId));
-      
-      toast.success(`Successfully purchased ${listing.carbonTons} carbon credits!`);
+
+      // Call the actual smart contract method
+      const transaction = await contract.methods
+        .buyCarbonCredits(listingId)
+        .send({ 
+          from: account,
+          value: priceInWei,
+          gas: 300000 // Adjust gas as needed
+        });
+
+      console.log('Transaction hash:', transaction.transactionHash);
+      toast.success(`Transaction submitted! Hash: ${transaction.transactionHash}`);
+
+      // Add link to transaction
+      toast.info(
+        <div>
+          View on Scrollscan: 
+          <a 
+            href={`https://sepolia.scrollscan.dev/tx/${transaction.transactionHash}`} 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700"
+          >
+            {transaction.transactionHash.substring(0, 10)}...
+          </a>
+        </div>
+      );
+
+      // Refresh the data after successful transaction
+      await refreshData();
+
+      // Add to your contract interactions
+      console.log('Contract address:', CarbonCreditContractAddress);
+      console.log('Current network:', await web3.eth.net.getId());
+      console.log('Gas price:', await web3.eth.getGasPrice());
+
       return true;
     } catch (err) {
       console.error('Error buying carbon credits:', err);
@@ -374,7 +617,7 @@ export const CarbonMarketProvider = ({ children }) => {
       }
       
       // Update carbon credits
-      setCarbonCredits(prev => prev - listing.carbonTons);
+      setCarbonCredits(prev => prev - BigInt(listing.carbonTons));
       
       // Remove the listing
       setBuyerListings(prev => prev.filter(item => item.id !== listingId));
@@ -418,6 +661,89 @@ export const CarbonMarketProvider = ({ children }) => {
     return (parseFloat(eth) * 1e18).toString();
   };
 
+  const addTransaction = (tx) => {
+    setTransactions(prev => [...prev, {
+      hash: tx.transactionHash,
+      type: tx.type,
+      timestamp: Date.now(),
+      status: 'pending'
+    }]);
+  };
+
+  // Update transaction status
+  const updateTransactionStatus = (hash, status) => {
+    setTransactions(prev => prev.map(tx => 
+      tx.hash === hash ? { ...tx, status } : tx
+    ));
+  };
+
+  // Add transaction monitoring
+  useEffect(() => {
+    transactions.forEach(async (tx) => {
+      if (tx.status === 'pending') {
+        try {
+          const receipt = await web3.eth.getTransactionReceipt(tx.hash);
+          if (receipt) {
+            updateTransactionStatus(tx.hash, receipt.status ? 'success' : 'failed');
+            if (receipt.status) {
+              refreshData();
+            }
+          }
+        } catch (err) {
+          console.error('Error checking transaction:', err);
+        }
+      }
+    });
+  }, [transactions]);
+
+  useEffect(() => {
+    const logContractInfo = async () => {
+      if (web3 && contract) {
+        console.log('Contract Configuration:', {
+          address: CarbonCreditContractAddress,
+          network: await web3.eth.net.getId(),
+          gasPrice: await web3.eth.getGasPrice(),
+          account: account
+        });
+      }
+    };
+    
+    logContractInfo();
+  }, [web3, contract, account]);
+
+  // Request test carbon credits
+  const requestTestCredits = async (amount = 100) => {
+    try {
+      if (!contract || !account) {
+        throw new Error('Contract or account not initialized');
+      }
+
+      // Check if we're the contract owner
+      const contractOwner = await contract.methods.owner().call();
+      if (contractOwner.toLowerCase() === account.toLowerCase()) {
+        // We're the owner, mint directly
+        const transaction = await contract.methods
+          .mintCarbonCredits(account, amount)
+          .send({ 
+            from: account,
+            gas: 100000
+          });
+
+        toast.success(`Successfully minted ${amount} test carbon credits!`);
+        await refreshData();
+        return true;
+      } else {
+        // We're not the owner, show instructions
+        toast.info(`To get test carbon credits, please contact the contract owner at ${formatAddress(contractOwner)}`);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error requesting test credits:', err);
+      toast.error(`Failed to request test credits: ${err.message}`);
+      return false;
+    }
+  };
+
   const value = {
     web3,
     contract,
@@ -442,7 +768,8 @@ export const CarbonMarketProvider = ({ children }) => {
     isCurrentAccount,
     formatEthAmount,
     weiToEth,
-    ethToWei
+    ethToWei,
+    requestTestCredits
   };
 
   return (

@@ -4,6 +4,25 @@ import { useCarbonMarket } from '../context/CarbonMarketContext';
 import { FaWallet, FaExclamationTriangle, FaEthereum, FaSpinner, FaTree, FaUserCircle } from 'react-icons/fa';
 
 const CarbonWalletButton = () => {
+  const context = useCarbonMarket();
+  
+  // If context is not yet initialized, show loading state
+  if (!context) {
+    return (
+      <motion.button 
+        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 opacity-80 cursor-not-allowed shadow-sm"
+        disabled
+        animate={{ 
+          scale: [1, 1.02, 1],
+          transition: { duration: 1.5, repeat: Infinity }
+        }}
+      >
+        <FaSpinner className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
+        Loading...
+      </motion.button>
+    );
+  }
+
   const { 
     account, 
     isConnected, 
@@ -14,7 +33,7 @@ const CarbonWalletButton = () => {
     switchToScrollNetwork,
     formatAddress,
     carbonCredits
-  } = useCarbonMarket();
+  } = context;
 
   if (loading) {
     return (

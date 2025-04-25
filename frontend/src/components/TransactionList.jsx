@@ -533,19 +533,21 @@ export default function TransactionList() {
 
   // Add these helper functions for consistent transaction type formatting
   const getTypeClass = (item) => {
-    // Get the transaction type first
-    const transactionType = getTypeLabel(item);
-    
-    // Then assign consistent colors based on type
-    switch (transactionType) {
-      case 'Fund Release':
-        return 'bg-green-100 text-green-800';
-      case 'Charity Donation':
-        return 'bg-purple-100 text-purple-800';
-      case 'Subscription Donation':
+    // First check the source
+    if (item.source === 'Donation' || item.source === 'donations') {
+      // For donations source
+      if (item.donation_type === 'subscription' || item.type === 'subscription') {
         return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      } else if (item.donation_type === 'charity' || 
+                 item.type === 'charity' || 
+                 item.type === 'donation') {
+        return 'bg-purple-100 text-purple-800';
+      } else {
+        return 'bg-purple-100 text-purple-800';
+      }
+    } else {
+      // For transactions source (only fund releases)
+      return 'bg-green-100 text-green-800';
     }
   };
 
@@ -566,33 +568,23 @@ export default function TransactionList() {
   };
 
   const getTypeLabel = (item) => {
-    // Simplify to only three possible types
-    
-    // Check if this is fund_release
-    if (item.type === 'fund_release') {
+    // First check the source
+    if (item.source === 'Donation' || item.source === 'donations') {
+      // For donations source
+      if (item.donation_type === 'subscription' || 
+          item.type === 'subscription') {
+        return 'Subscription Donation';
+      } else if (item.donation_type === 'charity' || 
+                 item.type === 'charity' || 
+                 item.type === 'donation') {
+        return 'Charity Donation';
+      } else {
+        return 'Donation';
+      }
+    } else {
+      // For transactions source (only fund releases)
       return 'Fund Release';
     }
-    
-    // Check donation types
-    if (item.donation_type === 'subscription' || 
-        (item.type === 'subscription') || 
-        (item.source === 'Donation' && item.type === 'subscription')) {
-      return 'Subscription Donation';
-    }
-    
-    // Default to charity donation for all other donation types
-    if (item.source === 'Donation' || 
-        item.donor_message || 
-        item.cause_id || 
-        item.currency_type || 
-        item.donation_type === 'charity' || 
-        item.type === 'charity' || 
-        item.type === 'donation') {
-      return 'Charity Donation';
-    }
-    
-    // If nothing else matches, default to Fund Release
-    return 'Fund Release';
   };
 
   const formatAmount = (amount, currencyType) => {

@@ -403,93 +403,42 @@ class DonationController extends Controller
     }
 
     /**
-     * Generate an invoice for a donation
-     */
-    public function generateInvoice(Request $request, $donationId)
-    {
-        try {
-            \Log::info('Starting invoice generation', ['donation_id' => $donationId]);
-
-            // Find the donation with relationships
-            $donation = Donation::findOrFail($donationId);
-
-            // Manually load relationships to ensure they're available
-            $donation->load(['user', 'charity']);
-
-            \Log::info('Donation loaded', [
-                'donation_id' => $donation->id,
-                'has_user' => isset($donation->user),
-                'has_charity' => isset($donation->charity)
-            ]);
-
-            // Prepare data for the view
-            $data = [
-                'donation' => $donation,
-                'user' => $donation->user,
-                'charity' => $donation->charity,
-                'date' => now()->format('F j, Y'),
-                'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
-            ];
-
-            \Log::info('Data prepared for view', ['data_keys' => array_keys($data)]);
-
-            // Generate PDF with explicit options
-            $pdf = \PDF::loadView('invoices.donation', $data);
-            $pdf->setPaper('a4', 'portrait');
-            $pdf->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'sans-serif',
-            ]);
-
-            \Log::info('PDF generated successfully');
-
-            // Return the PDF
-            return $pdf->download("donation-invoice-{$donationId}.pdf");
-        } catch (\Exception $e) {
-            \Log::error('Invoice generation failed', [
-                'donation_id' => $donationId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to generate invoice',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Generate an invoice HTML for client-side PDF generation
+     * Generate an invoice HTML for client-side rendering
      */
     public function generateInvoiceHtml(Request $request, $donationId)
     {
         try {
-            \Log::info('Starting invoice HTML generation', ['donation_id' => $donationId]);
-
-            // Find the donation
-            $donation = Donation::find($donationId);
-
-            if (!$donation) {
-                \Log::error('Donation not found', ['donation_id' => $donationId]);
-                return response()->json([
-                    'message' => 'Donation not found',
-                    'error' => 'The requested donation does not exist'
-                ], 404);
-            }
-
-            // Manually load relationships to ensure they're available
-            $donation->load(['user', 'charity']);
-
-            \Log::info('Donation loaded for HTML generation', [
-                'donation_id' => $donation->id,
-                'has_user' => isset($donation->user),
-                'has_charity' => isset($donation->charity),
-                'donation_data' => $donation->toArray()
+            $user = auth()->user();
+            \Log::info('Invoice request details', [
+                'donation_id' => $donationId,
+                'user' => [
+                    'id' => $user?->id,
+                    'ic_number' => $user?->ic_number,
+                    'is_admin' => $user?->is_admin,
+                    'roles' => $user?->roles // if you have roles
+                ]
             ]);
 
-            // Prepare data for the view with fallbacks for missing relationships
+            $donation = Donation::with(['user', 'charity'])->findOrFail($donationId);
+            
+            \Log::info('Donation found', [
+                'donation' => [
+                    'id' => $donation->id,
+                    'user_id' => $donation->user_id,
+                    'status' => $donation->status
+                ]
+            ]);
+
+            // Modified permission check to explicitly handle admin
+            if (!$user) {
+                throw new \Exception('User not authenticated');
+            }
+
+            if (!$user->is_admin && $user->ic_number !== $donation->user_id) {
+                throw new \Exception('User not authorized to view this invoice');
+            }
+
+            // Prepare data for the view with fallbacks
             $data = [
                 'donation' => $donation,
                 'user' => $donation->user ?? (object)['name' => 'Anonymous', 'ic_number' => 'N/A'],
@@ -505,17 +454,89 @@ class DonationController extends Controller
 
             return response()->json([
                 'html' => $html,
-                'filename' => "donation-invoice-{$donationId}.pdf"
+                'filename' => "donation-invoice-{$donationId}.pdf",
+                'user_id' => $donation->user_id
             ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Donation not found', ['donation_id' => $donationId]);
+            return response()->json([
+                'message' => 'Donation not found',
+                'error' => 'The requested donation does not exist'
+            ], 404);
         } catch (\Exception $e) {
             \Log::error('Invoice HTML generation failed', [
                 'donation_id' => $donationId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-
             return response()->json([
-                'message' => 'Failed to generate invoice HTML',
+                'message' => 'Failed to generate invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate a PDF invoice for download
+     */
+    public function generateInvoice(Request $request, $donationId)
+    {
+        try {
+            \Log::info('Starting PDF invoice generation', ['donation_id' => $donationId]);
+
+            // Find the donation with relationships
+            $donation = Donation::with(['user', 'charity'])->findOrFail($donationId);
+
+            // Check if user has permission to view this invoice
+            if (!auth()->check() || (auth()->user()->ic_number !== $donation->user_id && !auth()->user()->is_admin)) {
+                \Log::warning('Unauthorized PDF invoice access attempt', [
+                    'donation_id' => $donationId,
+                    'user_id' => auth()->id(),
+                    'donation_user_id' => $donation->user_id
+                ]);
+                return response()->json([
+                    'message' => 'You do not have permission to view this invoice',
+                    'error' => 'Unauthorized access'
+                ], 403);
+            }
+
+            // Prepare data for the view
+            $data = [
+                'donation' => $donation,
+                'user' => $donation->user ?? (object)['name' => 'Anonymous', 'ic_number' => 'N/A'],
+                'charity' => $donation->charity ?? (object)['name' => 'Unknown Charity', 'category' => 'N/A'],
+                'date' => now()->format('F j, Y'),
+                'invoiceNumber' => 'INV-' . str_pad($donation->id, 6, '0', STR_PAD_LEFT)
+            ];
+
+            // Generate PDF
+            $pdf = \PDF::loadView('invoices.donation', $data);
+            $pdf->setPaper('a4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+
+            \Log::info('PDF generated successfully');
+
+            return $pdf->download("donation-invoice-{$donationId}.pdf");
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Donation not found', ['donation_id' => $donationId]);
+            return response()->json([
+                'message' => 'Donation not found',
+                'error' => 'The requested donation does not exist'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('PDF generation failed', [
+                'donation_id' => $donationId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Failed to generate PDF invoice',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -1386,4 +1407,50 @@ class DonationController extends Controller
             ], 500);
         }
     }
+
+    public function getUserDonations($userId)
+    {
+        try {
+            $donations = Donation::with(['charity', 'transaction'])
+                ->where('user_id', $userId)
+                ->where(function($query) {
+                    $query->where('status', 'completed')
+                          ->orWhere('status', 'verified');
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Ensure amounts are properly formatted
+            $donations->transform(function($donation) {
+                return [
+                    'id' => $donation->id,
+                    'amount' => (float)$donation->amount, // Ensure amount is a number
+                    'status' => $donation->status,
+                    'created_at' => $donation->created_at,
+                    'charity' => $donation->charity,
+                    'transaction_hash' => $donation->transaction_hash,
+                    'donor_message' => $donation->donor_message,
+                    'currency_type' => $donation->currency_type
+                ];
+            });
+
+            \Log::info('User donations retrieved', [
+                'user_id' => $userId,
+                'count' => $donations->count(),
+                'total_amount' => $donations->sum('amount')
+            ]);
+
+            return response()->json($donations);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching user donations', [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Failed to fetch donations'], 500);
+        }
+    }
 }
+
+
+
+

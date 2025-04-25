@@ -18,136 +18,117 @@ import BackButton from './BackToHistory';
 const Invoice = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [donation, setDonation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ethToRmRate, setEthToRmRate] = useState(7500); // Default exchange rate (1 ETH ≈ 7500 RM)
 
   useEffect(() => {
     const fetchDonation = async () => {
+      setLoading(true);
+      console.log('Starting invoice fetch...', {
+        donationId: id,
+        userDetails: {
+          isAdmin: user?.is_admin,
+          ic_number: user?.ic_number
+        }
+      });
+
       try {
-        const response = await axios.get(`/api/donations/${id}`);
-        setDonation(response.data);
-        
-        // Redirect if user is not the owner - using ic_number
-        if (currentUser?.ic_number !== response.data.user_id) {
-          navigate('/unauthorized');
-          return;
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching donation:', error);
-        setError('Failed to fetch donation details');
-        setLoading(false);
-      }
-    };
+        // First try to get the donation details
+        const donationResponse = await axios.get(`/api/donations/${id}`);
+        console.log('Donation details:', donationResponse.data);
 
-    fetchDonation();
-  }, [id, currentUser, navigate]);
-
-  useEffect(() => {
-    // Fetch current ETH to RM exchange rate
-    const fetchExchangeRate = async () => {
-      try {
-        // You can replace this with your preferred crypto exchange rate API
-        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=myr');
-        if (response.data && response.data.ethereum && response.data.ethereum.myr) {
-          setEthToRmRate(response.data.ethereum.myr);
+        // Then get the invoice
+        const response = await axios.get(`/api/donations/${id}/invoice`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        
+        console.log('Invoice Response:', response.data);
+        
+        if (response.data) {
+          setDonation(response.data);
+        } else {
+          throw new Error('Invalid response format');
         }
       } catch (error) {
-        console.error('Error fetching ETH to RM rate:', error);
-        // Keep using the default rate if fetch fails
+        console.error('Invoice fetch error:', {
+          message: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers
+          }
+        });
+        
+        // More descriptive error message
+        const errorMessage = error.response?.data?.message || 
+                           error.message || 
+                           'Failed to fetch invoice';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchExchangeRate();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>{error}</div>;
-  }
-
-  // Function to convert ETH values to RM in the HTML
-  const convertEthToRm = (html, rate) => {
-    if (!html) return html;
-    
-    // Create a temporary DOM element to parse the HTML
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    // Find all elements that might contain ETH values
-    // This regex looks for patterns like "0.05 ETH" or "ETH 0.05"
-    const ethRegex = /(\d+(\.\d+)?\s*ETH|ETH\s*\d+(\.\d+)?)/gi;
-    
-    // Process text nodes to replace ETH values
-    const processNode = (node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent;
-        if (ethRegex.test(text)) {
-          // Reset regex lastIndex
-          ethRegex.lastIndex = 0;
-          
-          // Replace ETH values with ETH and RM equivalent
-          node.textContent = text.replace(ethRegex, (match) => {
-            // Extract the numeric value
-            const numericValue = parseFloat(match.replace(/[^\d.]/g, ''));
-            if (!isNaN(numericValue)) {
-              // Calculate RM value
-              const rmValue = (numericValue * rate).toFixed(2);
-              return `${match} (RM ${rmValue})`;
-            }
-            return match;
-          });
-        }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        // Process child nodes recursively
-        Array.from(node.childNodes).forEach(processNode);
-      }
-    };
-    
-    // Process all nodes in the HTML
-    Array.from(tempDiv.childNodes).forEach(processNode);
-    
-    return tempDiv.innerHTML;
-  };
+    if (id) {
+      fetchDonation();
+    }
+  }, [id, user]);
 
   const downloadInvoice = async () => {
     try {
-      // Use html2pdf from CDN (added to index.html)
-      const element = document.getElementById('invoice-container');
-      const opt = {
-        margin: 1,
-        filename: donation?.filename || `donation-invoice-${id}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
+      const response = await axios.get(`/api/donations/${id}/invoice-pdf`, {
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/pdf'
+        }
+      });
       
-      // Check if html2pdf is available globally
-      if (window.html2pdf) {
-        window.html2pdf().set(opt).from(element).save();
-        toast.success('Invoice downloaded successfully');
-      } else {
-        toast.error('PDF generation library not loaded');
-      }
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `donation-invoice-${id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Invoice downloaded successfully');
     } catch (error) {
       console.error('Error downloading invoice:', error);
-      toast.error('Failed to download invoice');
+      toast.error('Failed to download invoice. Please try again later.');
     }
   };
 
   const printInvoice = () => {
     try {
       const printContent = document.getElementById('invoice-container');
+      if (!printContent) {
+        toast.error('Print content not found');
+        return;
+      }
+
       const originalContents = document.body.innerHTML;
+      const printStyles = `
+        <style>
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      `;
       
-      document.body.innerHTML = printContent.innerHTML;
+      document.body.innerHTML = printStyles + printContent.innerHTML;
       window.print();
       document.body.innerHTML = originalContents;
       
@@ -159,16 +140,45 @@ const Invoice = () => {
     }
   };
 
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
+          <p className="mt-4 text-gray-600">Loading invoice...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-md">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <FaExclamationTriangle className="h-6 w-6 text-red-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Invoice</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => navigate('/donations')}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <FaArrowLeft className="mr-2" /> Back to Donations
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
-      <BackButton />
-      <div className="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mb-6">
+          <BackButton />
+        </div>
         
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
@@ -176,7 +186,7 @@ const Invoice = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Donation Invoice</h2>
               </div>
               <p className="text-sm text-gray-500">
-                Invoice ID: {id}
+                Invoice #{id}
               </p>
             </div>
           </div>
@@ -186,7 +196,7 @@ const Invoice = () => {
               <div className="flex items-center">
                 <FaFileAlt className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-sm font-medium text-gray-500">
-                  {donation?.filename || `donation-invoice-${id}.pdf`}
+                  donation-invoice-{id}.pdf
                 </span>
               </div>
               
@@ -212,7 +222,20 @@ const Invoice = () => {
               id="invoice-container" 
               className="invoice-container overflow-hidden border border-gray-200 p-6 rounded-md"
             >
-              <div dangerouslySetInnerHTML={{ __html: convertEthToRm(donation?.html, ethToRmRate) }} />
+              {donation?.html ? (
+                <div 
+                  dangerouslySetInnerHTML={{ __html: donation.html }} 
+                  className="invoice-content"
+                />
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FaFileInvoice className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <p>No invoice content available</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    If this persists, please contact support
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           
@@ -225,6 +248,6 @@ const Invoice = () => {
       </div>
     </div>
   );
-}
+};
 
 export default Invoice;

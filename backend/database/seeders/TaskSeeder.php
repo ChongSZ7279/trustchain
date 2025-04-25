@@ -17,8 +17,8 @@ class TaskSeeder extends Seeder
      */
     public function run(): void
     {
-        // Task statuses: 'pending', 'in_progress', 'completed'
-        $statuses = ['pending', 'in_progress', 'completed'];
+        // Task statuses: 'pending', 'verified', 'completed'
+        $statuses = ['pending', 'verified', 'completed'];
         
         // Setup storage directories and copy seed files
         $this->prepareStorageDirectories();
@@ -32,20 +32,14 @@ class TaskSeeder extends Seeder
                 'description' => 'Set up a fully equipped computer lab with 20 desktops, networking, and educational software at SK Kampung Dato Abu Bakar Baginda in Selangor.',
                 'fund_targeted' => 45.00,
                 'fund_received' => 32.00,
-                'status' => 'in_progress',
+                'status' => 'verified',
                 'proof' => 'task_proofs/1.pdf',
                 'pictures' => [
                     [
                         'path' => 'task_pictures/1.jpg',
                         'original_filename' => 'computer-lab-setup.jpg',
                         'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 5 // 5KB
-                    ],
-                    [
-                        'path' => 'task_pictures/2.jpg',
-                        'original_filename' => 'computer-lab-progress.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 6 // 6KB
+                        'file_size' => 1024 * 5
                     ]
                 ]
             ],
@@ -55,16 +49,9 @@ class TaskSeeder extends Seeder
                 'description' => 'Conduct a 3-day digital literacy workshop for 30 teachers from rural schools to enhance their tech skills and digital teaching methods.',
                 'fund_targeted' => 12.00,
                 'fund_received' => 12.00,
-                'status' => 'completed',
-                'proof' => 'task_proofs/2.pdf',
-                'pictures' => [
-                    [
-                        'path' => 'task_pictures/3.jpg',
-                        'original_filename' => 'teacher-workshop.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 4 // 4KB
-                    ]
-                ]
+                'status' => 'pending',
+                'proof' => null,
+                'pictures' => []
             ],
             
             // Coding for Kids (Charity 2)
@@ -76,14 +63,7 @@ class TaskSeeder extends Seeder
                 'fund_received' => 15.00,
                 'status' => 'pending',
                 'proof' => null,
-                'pictures' => [
-                    [
-                        'path' => 'task_pictures/4.jpg',
-                        'original_filename' => 'laptops.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 3 // 3KB
-                    ]
-                ]
+                'pictures' => []
             ],
             
             // Mangrove Restoration Project (Charity 3)
@@ -93,22 +73,9 @@ class TaskSeeder extends Seeder
                 'description' => 'Organize a community mangrove planting event in Kuala Selangor involving 100 volunteers to plant 5,000 mangrove seedlings.',
                 'fund_targeted' => 25.00,
                 'fund_received' => 18.00,
-                'status' => 'in_progress',
-                'proof' => null,
-                'pictures' => [
-                    [
-                        'path' => 'task_pictures/5.jpg',
-                        'original_filename' => 'mangrove-event.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 7 // 7KB
-                    ],
-                    [
-                        'path' => 'task_pictures/6.jpg',
-                        'original_filename' => 'seedlings.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 5 // 5KB
-                    ]
-                ]
+                'status' => 'verified',
+                'proof' => 'task_proofs/2.pdf',
+                'pictures' => []
             ],
             
             // Mobile Medical Clinics (Charity 5)
@@ -118,16 +85,9 @@ class TaskSeeder extends Seeder
                 'description' => 'Purchase and outfit a mobile medical van with basic equipment to serve as a traveling clinic.',
                 'fund_targeted' => 180.00,
                 'fund_received' => 180.00,
-                'status' => 'completed',
+                'status' => 'verified',
                 'proof' => 'task_proofs/3.pdf',
-                'pictures' => [
-                    [
-                        'path' => 'task_pictures/7.jpg',
-                        'original_filename' => 'medical-vehicle.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 8 // 8KB
-                    ]
-                ]
+                'pictures' => []
             ],
             
             // Community Food Banks (Charity 7)
@@ -137,16 +97,9 @@ class TaskSeeder extends Seeder
                 'description' => 'Establish a central food distribution center in Klang Valley to coordinate food bank operations.',
                 'fund_targeted' => 85.00,
                 'fund_received' => 45.00,
-                'status' => 'in_progress',
+                'status' => 'pending',
                 'proof' => null,
-                'pictures' => [
-                    [
-                        'path' => 'task_pictures/8.jpg',
-                        'original_filename' => 'distribution-center.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 6 // 6KB
-                    ]
-                ]
+                'pictures' => []
             ],
             
             // Flood Relief Fund (Charity 9)
@@ -158,44 +111,67 @@ class TaskSeeder extends Seeder
                 'fund_received' => 20.00,
                 'status' => 'pending',
                 'proof' => null,
-                'pictures' => [
-                    [
-                        'path' => 'task_pictures/9.jpg',
-                        'original_filename' => 'emergency-supplies.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'file_size' => 1024 * 4 // 4KB
-                    ]
-                ]
+                'pictures' => []
             ],
-            // Verified tasks (for testing fund release)
+            // Additional verified tasks to reach 8 verified tasks
             [
                 'charity_id' => 1,
-                'name' => 'Verified Task for Digital Classroom Initiative',
-                'description' => 'This task has been verified and is ready for fund release.',
-                'fund_targeted' => 42.76,
-                'fund_received' => 42.76,
+                'name' => 'Digital Library Access',
+                'description' => 'Provide digital library access to 500 students.',
+                'fund_targeted' => 30.00,
+                'fund_received' => 30.00,
                 'status' => 'verified',
-                'proof' => 'proofs/verified-task-proof.pdf',
+                'proof' => 'task_proofs/4.pdf',
                 'pictures' => []
             ],
             [
                 'charity_id' => 2,
-                'name' => 'Verified Task for Coding for Kids',
-                'description' => 'This task has been verified and is ready for fund release.',
-                'fund_targeted' => 46.58,
-                'fund_received' => 46.58,
+                'name' => 'Programming Workshop',
+                'description' => 'Conduct programming workshops for underprivileged students.',
+                'fund_targeted' => 25.00,
+                'fund_received' => 25.00,
                 'status' => 'verified',
-                'proof' => 'proofs/verified-task-proof.pdf',
+                'proof' => 'task_proofs/5.pdf',
                 'pictures' => []
             ],
             [
                 'charity_id' => 3,
-                'name' => 'Verified Task for Mangrove Restoration Project',
-                'description' => 'This task has been verified and is ready for fund release.',
-                'fund_targeted' => 10.81,
-                'fund_received' => 10.81,
+                'name' => 'Environmental Education',
+                'description' => 'Environmental education program for local schools.',
+                'fund_targeted' => 15.00,
+                'fund_received' => 15.00,
                 'status' => 'verified',
-                'proof' => 'proofs/verified-task-proof.pdf',
+                'proof' => 'task_proofs/6.pdf',
+                'pictures' => []
+            ],
+            [
+                'charity_id' => 5,
+                'name' => 'Medical Equipment',
+                'description' => 'Purchase essential medical equipment for mobile clinic.',
+                'fund_targeted' => 50.00,
+                'fund_received' => 50.00,
+                'status' => 'verified',
+                'proof' => 'task_proofs/7.pdf',
+                'pictures' => []
+            ],
+            [
+                'charity_id' => 7,
+                'name' => 'Food Bank Storage',
+                'description' => 'Set up proper storage facilities for food bank.',
+                'fund_targeted' => 40.00,
+                'fund_received' => 40.00,
+                'status' => 'verified',
+                'proof' => 'task_proofs/8.pdf',
+                'pictures' => []
+            ],
+            [
+                'charity_id' => 9,
+                'name' => 'Emergency Response Training',
+                'description' => 'Conduct emergency response training for volunteers.',
+                'fund_targeted' => 20.00,
+                'fund_received' => 0.00,
+                'status' => 'pending',
+                'proof' => null,
                 'pictures' => []
             ]
         ];

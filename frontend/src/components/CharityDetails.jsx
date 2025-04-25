@@ -1573,14 +1573,11 @@ export default function CharityDetails() {
                           <div className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center z-10">
                             <div className={`w-8 h-8 rounded-full border-4 border-white shadow-md flex items-center justify-center ${
                               task.status === 'completed' ? 'bg-green-500' :
-                              task.status === 'in_progress' ? 'bg-blue-500' :
                               task.status === 'verified' ? 'bg-indigo-500' :
                               'bg-amber-500'
                             }`}>
                               {task.status === 'completed' ? (
                                 <FaCheckCircle className="text-white text-xs" />
-                              ) : task.status === 'in_progress' ? (
-                                <FaClock className="text-white text-xs" />
                               ) : task.status === 'verified' ? (
                                 <FaCheckCircle className="text-white text-xs" />
                               ) : (
@@ -1597,7 +1594,6 @@ export default function CharityDetails() {
                             index % 2 === 0 ? 'mr-auto' : 'ml-auto'
                           } ${
                             task.status === 'completed' ? 'bg-green-50/70 border border-green-200' :
-                            task.status === 'in_progress' ? 'bg-blue-50/70 border border-blue-200' :
                             task.status === 'verified' ? 'bg-indigo-50/70 border border-indigo-200' :
                             'bg-amber-50/70 border border-amber-200'
                           }`}>
@@ -1605,7 +1601,6 @@ export default function CharityDetails() {
                               {/* Header with status */}
                               <div className={`p-4 border-b ${
                                 task.status === 'completed' ? 'bg-green-100/80 border-green-200' :
-                                task.status === 'in_progress' ? 'bg-blue-100/80 border-blue-200' :
                                 task.status === 'verified' ? 'bg-indigo-100/80 border-indigo-200' :
                                 'bg-amber-100/80 border-amber-200'
                               }`}>
@@ -1614,14 +1609,11 @@ export default function CharityDetails() {
                                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                                     task.status === 'completed'
                                       ? 'bg-green-100 text-green-800'
-                                      : task.status === 'in_progress'
-                                      ? 'bg-blue-100 text-blue-800'
                                       : task.status === 'verified'
                                       ? 'bg-indigo-100 text-indigo-800'
                                       : 'bg-amber-100 text-amber-800'
                                   }`}>
                                     {task.status === 'completed' && <FaCheckCircle className="mr-1" />}
-                                    {task.status === 'in_progress' && <FaClock className="mr-1" />}
                                     {task.status === 'verified' && <FaCheckCircle className="mr-1" />}
                                     {task.status === 'pending' && <FaExclamationTriangle className="mr-1" />}
                                     {task.status ? (task.status.charAt(0).toUpperCase() + task.status.slice(1).replace('_', ' ')) : 'Unknown'}

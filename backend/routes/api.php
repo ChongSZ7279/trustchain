@@ -55,10 +55,12 @@ Route::get('/charities/{charityId}/tasks', [TaskController::class, 'index']);
 Route::get('/tasks/{id}', [TaskController::class, 'show']);
 
 // Public transaction routes
-Route::get('/transactions', [TransactionController::class, 'index']);
-Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
-Route::get('/charities/{charityId}/transactions', [TransactionController::class, 'getCharityTransactions']);
-Route::get('/tasks/{taskId}/transactions', [TransactionController::class, 'getTaskTransactions']);
+Route::prefix('api')->group(function () {
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+    Route::get('/charities/{charityId}/transactions', [TransactionController::class, 'getCharityTransactions']);
+    Route::get('/tasks/{taskId}/transactions', [TransactionController::class, 'getTaskTransactions']);
+});
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -125,7 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{user}/donations', [UserController::class, 'getUserDonations']);
     Route::get('/users/{user}/financial-activities', [UserController::class, 'getUserFinancialActivities']);
     Route::get('/donations/{donation}/invoice', [DonationController::class, 'generateInvoice']);
-    Route::get('/donations/{donation}/invoice-html', [DonationController::class, 'generateInvoiceHtml']);
+    Route::get('/donations/{donation}/invoice-pdf', [DonationController::class, 'generateInvoice']);
 
     // Fiat to Scroll conversion routes
     Route::post('/process-fiat-donation', [FiatToScrollConverter::class, 'convertAndDonate']);
@@ -139,6 +141,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Stripe routes
     // Moved outside auth middleware
     // Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
+
+    // Invoice routes
+    Route::get('/donations/{donation}/invoice', [DonationController::class, 'generateInvoiceHtml']);
+    Route::get('/donations/{donation}/invoice-pdf', [DonationController::class, 'generateInvoice']);
 });
 
 // Public endpoints for donations

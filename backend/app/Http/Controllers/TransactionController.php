@@ -255,7 +255,7 @@ class TransactionController extends Controller
                     'id' => 'donation-' . $donation->id,
                     'charity_id' => $donation->cause_id,
                     'amount' => $donation->amount,
-                    'type' => 'donation',
+                    'type' => 'charity', // Using 'charity' type for donations as per the enum constraint
                     'status' => $donation->status,
                     'transaction_hash' => $donation->transaction_hash,
                     'message' => $donation->donor_message,
@@ -326,73 +326,37 @@ class TransactionController extends Controller
      */
     public function getUserTransactions($userId)
     {
-        // Debug logging
-        \Log::info('getUserTransactions request', [
-            'requested_user_id' => $userId,
-            'auth_user' => Auth::user() ? Auth::user()->ic_number : 'guest',
-            'headers' => request()->headers->all()
-        ]);
-
-        // Check if user is authenticated
-        if (!Auth::check()) {
-            \Log::warning('Unauthenticated user trying to access transactions');
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
-
-        // Check if the authenticated user is trying to access their own transactions
-        if (Auth::user()->ic_number !== $userId) {
-            \Log::warning('User trying to access unauthorized transactions', [
-                'auth_user_ic' => Auth::user()->ic_number,
-                'requested_user_ic' => $userId
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         try {
-            // Validate user exists
-            $user = User::where('ic_number', $userId)->firstOrFail();
+            // Log the request
+            \Log::info('Fetching transactions for user', ['user_ic' => $userId]);
 
             // Get transactions with relationships
-            $query = Transaction::with(['charity', 'task'])
+            $transactions = Transaction::with(['charity', 'task'])
                 ->where('user_ic', $userId)
-                ->orderBy('created_at', 'desc');
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-            // Apply filters if provided
-            if (request()->has('type')) {
-                $query->where('type', request('type'));
-            }
-
-            if (request()->has('status')) {
-                $query->where('status', request('status'));
-            }
-
-            // Get results
-            $results = $query->get();
-
-            // Enhance transaction data with related entity names
-            $results->each(function($transaction) {
-                if ($transaction->charity_id && $transaction->charity) {
+            // Enhance transaction data
+            $transactions->each(function($transaction) {
+                if ($transaction->charity) {
                     $transaction->charity_name = $transaction->charity->name;
                 }
-                if ($transaction->task_id && $transaction->task) {
+                if ($transaction->task) {
                     $transaction->task_name = $transaction->task->name;
                 }
             });
 
-            \Log::info('Successfully retrieved transactions', [
-                'user_ic' => $userId,
-                'user_name' => $user->name,
-                'count' => $results->count()
-            ]);
+            \Log::info('Found transactions', ['count' => $transactions->count()]);
 
-            return response()->json($results);
+            return response()->json($transactions);
         } catch (\Exception $e) {
-            \Log::error('Error retrieving transactions', [
+            \Log::error('Error fetching user transactions', [
                 'user_ic' => $userId,
                 'error' => $e->getMessage()
             ]);
-
-            return response()->json(['message' => 'Error retrieving transactions'], 500);
+            return response()->json(['message' => 'Error fetching transactions'], 500);
         }
     }
 }
+
+

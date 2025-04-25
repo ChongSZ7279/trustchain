@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaShieldAlt } from 'react-icons/fa';
+import { FaShieldAlt, FaUserCircle, FaChevronDown, FaSignOutAlt, FaBook, FaUser } from 'react-icons/fa';
 
 export default function Navbar() {
   const { currentUser, accountType, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const profileRef = useRef(null);
 
   // Check if the current user is an admin
   const isAdmin = currentUser?.is_admin === 1 || currentUser?.is_admin === true;
@@ -25,6 +27,17 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [profileRef]);
 
   const isActive = (path) => {
     if (path === '/') {
@@ -99,14 +112,14 @@ export default function Navbar() {
                 Partners
               </Link>
               <Link
-                to="/guidelines"
+                to="/carbonmarket"
                 className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                  isActive('/guidelines')
+                  isActive('/carbonmarket')
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Guidelines
+                Carbon
               </Link>
             </div>
           </div>
@@ -128,39 +141,64 @@ export default function Navbar() {
                 </Link>
               </>
             ) : (
-              <>
-                {/* Dashboard Link */}
-                <Link
-                  to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
-                  className="text-indigo-600 hover:text-indigo-800 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 hover:bg-indigo-50 flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="9" y1="3" x2="9" y2="21"></line>
-                    <path d="M13 8h4"></path>
-                    <path d="M13 12h4"></path>
-                    <path d="M13 16h4"></path>
-                  </svg>
-                  Dashboard
-                </Link>
-
-                {/* Admin Verification Link - Only shown to admins */}
-                {isAdmin && (
-                  <Link
-                    to="/admin/verification"
-                    className="text-purple-600 hover:text-purple-800 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 hover:bg-purple-50 flex items-center gap-1"
-                  >
-                    <FaShieldAlt className="w-4 h-4" />
-                    Verification Panel
-                  </Link>
-                )}
+              <div className="relative" ref={profileRef}>
                 <button
-                  onClick={logout}
-                  className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
                 >
-                  Sign out
+                  <FaUserCircle className="w-5 h-5" />
+                  <span>{currentUser?.name || (accountType === 'organization' ? 'Organization' : 'User')}</span>
+                  <FaChevronDown className={`w-3 h-3 transition-transform duration-200 ${isProfileOpen ? 'transform rotate-180' : ''}`} />
                 </button>
-              </>
+                
+                {/* Profile dropdown */}
+                {isProfileOpen && (
+                  <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100">
+                    <div className="py-1">
+                      <Link
+                        to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        <FaUser className="mr-3 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                      <Link
+                        to="/guidelines"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        <FaBook className="mr-3 h-4 w-4" />
+                        Guidelines
+                      </Link>
+                      {isAdmin && (
+                        <div>
+                          <Link
+                            to="/admin/dashboard"
+                            className="flex items-center px-4 py-2 text-sm text-purple-600 hover:bg-purple-50"
+                            onClick={() => setIsProfileOpen(false)}
+                          >
+                            <FaShieldAlt className="mr-3 h-4 w-4" />
+                            Admin Dashboard
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsProfileOpen(false);
+                        }}
+                        className="flex w-full items-center px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                      >
+                        <FaSignOutAlt className="mr-3 h-4 w-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center sm:hidden">
@@ -240,6 +278,17 @@ export default function Navbar() {
             Partners
           </Link>
           <Link
+            to="/carbonmarket"
+            className={`block px-3 py-2 text-base font-medium rounded-md transition-colors duration-200 ${
+              isActive('/carbonmarketmarket')
+                ? 'bg-indigo-50 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Carbon
+          </Link>
+          <Link
             to="/guidelines"
             className={`block px-3 py-2 text-base font-medium rounded-md transition-colors duration-200 ${
               isActive('/guidelines')
@@ -262,51 +311,66 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/register"
-                className="block w-full text-center px-4 py-2 text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors duration-200"
+                className="block w-full text-center px-4 py-2 text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-md hover:shadow-lg transition-all duration-200"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Register Now
+                <span className="flex items-center justify-center">
+                  Register Now 
+                  <svg className="ml-1 w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </span>
               </Link>
             </div>
           ) : (
-            <div className="mt-6 px-3 space-y-3">
-              {/* Dashboard Link */}
-              <Link
-                to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
-                className={`block w-full text-center px-4 py-2 text-base font-medium rounded-md transition-colors duration-200 ${
-                  isActive('/dashboard')
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-indigo-600 hover:bg-indigo-50'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-
-              {/* Admin Verification Link - Only shown to admins */}
-              {isAdmin && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="px-4 py-2 flex items-center">
+                <FaUserCircle className="w-6 h-6 text-indigo-600" />
+                <span className="ml-3 text-base font-medium text-gray-800">
+                  {currentUser?.name || (accountType === 'organization' ? 'Organization' : 'User')}
+                </span>
+              </div>
+              
+              <div className="mt-3 space-y-1">
                 <Link
-                  to="/admin/verification"
-                  className={`block w-full text-center px-4 py-2 text-base font-medium rounded-md transition-colors duration-200 flex items-center justify-center gap-2 ${
-                    isActive('/admin/verification')
-                      ? 'bg-purple-50 text-purple-600'
-                      : 'text-purple-600 hover:bg-purple-50'
-                  }`}
+                  to={accountType === 'organization' ? "/organization/dashboard" : "/user/dashboard"}
+                  className="block px-4 py-2 text-base font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <FaShieldAlt className="w-4 h-4" />
-                  Verification Panel
+                  <div className="flex items-center">
+                    <FaUser className="mr-3 h-4 w-4" />
+                    Dashboard
+                  </div>
                 </Link>
-              )}
-              <button
-                onClick={() => {
-                  logout();
-                  setIsMenuOpen(false);
-                }}
-                className="block w-full text-center px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-700 rounded-md transition-colors duration-200"
-              >
-                Sign out
-              </button>
+                
+                {isAdmin && (
+                  <>
+                    <Link
+                      to="/admin/dashboard"
+                      className="block px-4 py-2 text-base font-medium text-purple-600 hover:bg-purple-50"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <FaShieldAlt className="mr-3 h-4 w-4" />
+                        Admin Dashboard
+                      </div>
+                    </Link>
+                  </>
+                )}
+                
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                >
+                  <div className="flex items-center">
+                    <FaSignOutAlt className="mr-3 h-4 w-4" />
+                    Sign out
+                  </div>
+                </button>
+              </div>
             </div>
           )}
         </div>

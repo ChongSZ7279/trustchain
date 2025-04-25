@@ -26,7 +26,9 @@ import {
   FaExchangeAlt,
   FaSort,
   FaArrowUp,
-  FaArrowDown
+  FaArrowDown,
+  FaSortUp,
+  FaSortDown
 } from 'react-icons/fa';
 import Pagination from './Pagination';
 
@@ -46,7 +48,7 @@ export default function TransactionList() {
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
-    itemsPerPage: 10
+    itemsPerPage: 10 // Set to 10 results per page
   });
   const [filters, setFilters] = useState({
     status: '',
@@ -59,13 +61,22 @@ export default function TransactionList() {
       max: ''
     }
   });
-  const [dataSource, setDataSource] = useState('transactions');
+  // Default to combined view to show all transactions and donations
+  const [dataSource, setDataSource] = useState('combined');
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
   const [debugInfo, setDebugInfo] = useState({
     lastEndpoint: '',
     lastResponse: null,
     dataSourceType: ''
   });
+
+  // Exchange rate state variables
+  const [exchangeRates, setExchangeRates] = useState({
+    ethToScroll: 1,    // 1 ETH = 1 SCROLL (initial value)
+    usdToScroll: 1578.39, // 1 SCROLL = $1578.39 USD (initial value)
+    myrToUsd: 4.2,     // 1 USD = 4.2 MYR (initial value)
+  });
+  const [loadingRates, setLoadingRates] = useState(false);
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
@@ -87,6 +98,48 @@ export default function TransactionList() {
     { value: 'combined', label: 'All' }
   ];
 
+  // Fetch conversion rates from API
+  useEffect(() => {
+    const fetchConversionRates = async () => {
+      setLoadingRates(true);
+      try {
+        // Get base API URL from environment variables or use default
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        // Fetch USD rate for Scroll
+        const usdResponse = await axios.get(`${API_BASE_URL}/scroll-conversion-rates?currency=USD`);
+        
+        // If successful, update the exchange rates
+        if (usdResponse.data.success) {
+          const scrollPriceUSD = usdResponse.data.data.scroll_price;
+          
+          // For simplicity, we'll assume ETH to Scroll is 1:1 (they're close in value)
+          // In production, you'd want to fetch this from an API that compares both assets
+          const ethToScrollRate = 1;
+          
+          // Update exchange rates state
+          setExchangeRates({
+            ethToScroll: ethToScrollRate,
+            usdToScroll: scrollPriceUSD,
+            myrToUsd: 4.2 // Using fixed rate for MYR
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversion rates:', error);
+        // Keep using default values if API call fails
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+    
+    fetchConversionRates();
+    
+    // Refresh rates every 5 minutes
+    const ratesInterval = setInterval(fetchConversionRates, 5 * 60 * 1000);
+    
+    return () => clearInterval(ratesInterval);
+  }, []);
+
   // Function to refresh only the transaction data
   const refreshTransactionData = () => {
     setLoading(true);
@@ -104,7 +157,7 @@ export default function TransactionList() {
     setActiveFiltersCount(filtersCount);
 
     fetchTransactions();
-  }, [pagination.currentPage, searchTerm, filters, viewType, charityId, dataSource]);
+  }, [pagination.currentPage, filters, viewType, charityId, dataSource]);
 
   const fetchTransactions = async () => {
     try {
@@ -398,14 +451,13 @@ export default function TransactionList() {
         max: ''
       }
     });
-    setDataSource('transactions');
+    setDataSource('combined');
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
-  const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      fetchTransactions();
-    }
+  // Add function for search submission
+  const handleSearchSubmit = () => {
+    fetchTransactions();
   };
 
   // Handle sorting when a column header is clicked
@@ -479,35 +531,67 @@ export default function TransactionList() {
     }
   };
 
-  const getTypeLabel = (item) => {
-    // Check if this is a donation record from the donations table
-    if (item.source === 'Donation' || item.donor_message || item.cause_id || item.currency_type) {
-      return 'Donation';
-    }
-
-    // Check transaction type
-    if (item.type) {
-      return item.type.charAt(0).toUpperCase() + item.type.slice(1);
-    } else if (item.task_proof) {
-      return 'Task';
+  // Add these helper functions for consistent transaction type formatting
+  const getTypeClass = (item) => {
+    // First check the source
+    if (item.source === 'Donation' || item.source === 'donations') {
+      // For donations source
+      if (item.donation_type === 'subscription' || item.type === 'subscription') {
+        return 'bg-blue-100 text-blue-800';
+      } else if (item.donation_type === 'charity' || 
+                 item.type === 'charity' || 
+                 item.type === 'donation') {
+        return 'bg-purple-100 text-purple-800';
+      } else {
+        return 'bg-purple-100 text-purple-800';
+      }
     } else {
-      return 'Transaction';
+      // For transactions source (only fund releases)
+      return 'bg-green-100 text-green-800';
+    }
+  };
+
+  const getTypeIcon = (item) => {
+    // Get the transaction type first
+    const transactionType = getTypeLabel(item);
+    
+    // Then assign icons based on type
+    switch (transactionType) {
+      case 'Fund Release':
+        return <FaMoneyBillWave className="mr-1.5" />;
+      case 'Charity Donation':
+      case 'Subscription Donation':
+        return <FaHandHoldingHeart className="mr-1.5" />;
+      default:
+        return <FaExchangeAlt className="mr-1.5" />;
+    }
+  };
+
+  const getTypeLabel = (item) => {
+    // First check the source
+    if (item.source === 'Donation' || item.source === 'donations') {
+      // For donations source
+      if (item.donation_type === 'subscription' || 
+          item.type === 'subscription') {
+        return 'Subscription Donation';
+      } else if (item.donation_type === 'charity' || 
+                 item.type === 'charity' || 
+                 item.type === 'donation') {
+        return 'Charity Donation';
+      } else {
+        return 'Donation';
+      }
+    } else {
+      // For transactions source (only fund releases)
+      return 'Fund Release';
     }
   };
 
   const formatAmount = (amount, currencyType) => {
     if (!amount) return '0.000';
 
-    // Default to SCROLL for blockchain transactions
-    const currency = currencyType || 'SCROLL';
-
-    // Format based on currency type
-    if (currency === 'USD' || currency === 'MYR') {
-      return `$${parseFloat(amount).toFixed(2)} ${currency}`;
-    } else {
-      // For cryptocurrency (SCROLL, ETH, etc.)
-      return `${parseFloat(amount).toFixed(3)} ${currency}`;
-    }
+    // Always format as SCROLL for consistency with donation form
+    return `${parseFloat(amount).toFixed(3)} SCROLL`;
   };
 
   const getSourceLabel = (item) => {
@@ -674,7 +758,7 @@ export default function TransactionList() {
               className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-sm rounded-lg px-4 py-2 flex items-center hover:bg-opacity-30 transition-all duration-200"
             >
               <FaExchangeAlt className="text-white mr-2" />
-              <span className="text-white font-medium">1 SCROLL ≈ $2500 USD ≈ RM10500 MYR</span>
+              <span className="text-white font-medium">1 SCROLL ≈ ${exchangeRates.usdToScroll.toFixed(2)} USD ≈ RM{(exchangeRates.usdToScroll * exchangeRates.myrToUsd).toFixed(2)} MYR</span>
               <FaExternalLinkAlt className="text-white ml-2 h-3 w-3" />
             </a>
           </div>
@@ -698,20 +782,36 @@ export default function TransactionList() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchKeyPress(e)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchSubmit();
+                  }
+                }}
                 onFocus={() => setSearchFocus(true)}
                 onBlur={() => setSearchFocus(false)}
                 placeholder="Search transactions..."
-                className={`block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
+                className={`block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-all ${searchFocus ? 'border-indigo-500 ring-2 ring-indigo-200' : ''}`}
               />
-              {searchTerm && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      handleSearchSubmit();
+                    }}
+                    className="text-gray-400 hover:text-gray-600 mr-2"
+                  >
+                    <FaTimes className="h-5 w-5" />
+                  </button>
+                )}
                 <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  onClick={handleSearchSubmit}
+                  className="text-indigo-500 hover:text-indigo-700"
+                  title="Search"
                 >
-                  <FaTimes className="h-5 w-5" />
+                  <FaSearch className="h-5 w-5" />
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Filter Toggle Button */}
@@ -886,7 +986,9 @@ export default function TransactionList() {
                       <span>Date</span>
                       {sortConfig.key === 'created_at' ? (
                         <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                          {sortConfig.direction === 'asc' ? 
+                            <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                            <FaSortDown className="h-4 w-4 text-indigo-600" />}
                         </span>
                       ) : (
                         <FaSort className="ml-1 h-3 w-3 text-gray-400" />
@@ -898,7 +1000,9 @@ export default function TransactionList() {
                       <span>Transaction Hash</span>
                       {sortConfig.key === 'transaction_hash' ? (
                         <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                          {sortConfig.direction === 'asc' ? 
+                            <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                            <FaSortDown className="h-4 w-4 text-indigo-600" />}
                         </span>
                       ) : (
                         <FaSort className="ml-1 h-3 w-3 text-gray-400" />
@@ -910,7 +1014,9 @@ export default function TransactionList() {
                       <span>Type</span>
                       {sortConfig.key === 'type' ? (
                         <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                          {sortConfig.direction === 'asc' ? 
+                            <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                            <FaSortDown className="h-4 w-4 text-indigo-600" />}
                         </span>
                       ) : (
                         <FaSort className="ml-1 h-3 w-3 text-gray-400" />
@@ -922,7 +1028,9 @@ export default function TransactionList() {
                       <span>Amount</span>
                       {sortConfig.key === 'amount' ? (
                         <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                          {sortConfig.direction === 'asc' ? 
+                            <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                            <FaSortDown className="h-4 w-4 text-indigo-600" />}
                         </span>
                       ) : (
                         <FaSort className="ml-1 h-3 w-3 text-gray-400" />
@@ -934,7 +1042,9 @@ export default function TransactionList() {
                       <span>Status</span>
                       {sortConfig.key === 'status' ? (
                         <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                          {sortConfig.direction === 'asc' ? 
+                            <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                            <FaSortDown className="h-4 w-4 text-indigo-600" />}
                         </span>
                       ) : (
                         <FaSort className="ml-1 h-3 w-3 text-gray-400" />
@@ -946,7 +1056,9 @@ export default function TransactionList() {
                       <span>Charity</span>
                       {sortConfig.key === 'charity_id' ? (
                         <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? <FaArrowUp className="h-3 w-3" /> : <FaArrowDown className="h-3 w-3" />}
+                          {sortConfig.direction === 'asc' ? 
+                            <FaSortUp className="h-4 w-4 text-indigo-600" /> : 
+                            <FaSortDown className="h-4 w-4 text-indigo-600" />}
                         </span>
                       ) : (
                         <FaSort className="ml-1 h-3 w-3 text-gray-400" />
@@ -985,20 +1097,23 @@ export default function TransactionList() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
                         {item.transaction_hash ? (
-                          <a
-                            href={`https://sepolia.scrollscan.com/tx/${item.transaction_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
-                          >
-                            {item.transaction_hash.slice(0, 10)}...{item.transaction_hash.slice(-8)}
-                            <FaExternalLinkAlt className="ml-1 h-3 w-3" />
-                          </a>
+                          <div className="flex items-center">
+                            <span className="mr-2">{item.transaction_hash.slice(0, 10)}...{item.transaction_hash.slice(-8)}</span>
+                            <a
+                              href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
+                              title="View contract on Scrollscan"
+                            >
+                              <FaExternalLinkAlt className="h-3 w-3" />
+                            </a>
+                          </div>
                         ) : (item.id ? `ID: ${item.id}` : 'N/A')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'donation' ? 'bg-blue-100 text-blue-800' : item.type === 'fund_release' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
-                          {item.type === 'donation' ? <FaHandHoldingHeart className="mr-1" /> : item.type === 'fund_release' ? <FaExchangeAlt className="mr-1" /> : <FaMoneyBillWave className="mr-1" />}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeClass(item)}`}>
+                          {getTypeIcon(item)}
                           {getTypeLabel(item)}
                         </span>
                       </td>
@@ -1060,11 +1175,41 @@ export default function TransactionList() {
 
           {/* Pagination */}
           <div className="border-t border-gray-200 px-4 py-3">
-            <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={handlePageChange}
-            />
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.itemsPerPage + 1}</span> to{' '}
+                <span className="font-medium">
+                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
+                </span>{' '}
+                of <span className="font-medium">{pagination.totalItems}</span> transactions
+              </div>
+              
+              <Pagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-700">Rows per page:</span>
+                <select
+                  value={pagination.itemsPerPage}
+                  onChange={(e) => {
+                    setPagination(prev => ({
+                      ...prev,
+                      itemsPerPage: Number(e.target.value),
+                      currentPage: 1
+                    }));
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
           </div>
         </motion.div>
       ) : (

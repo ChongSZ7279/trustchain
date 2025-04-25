@@ -10,12 +10,6 @@ const BlockchainVerificationBadge = ({ verified = true, blockchainId }) => {
             <FaCheckCircle className="mr-1" />
             Blockchain Verified
           </span>
-          <button 
-            className="ml-2 text-gray-400 hover:text-gray-600"
-            title="All donations and milestones are tracked on the blockchain for complete transparency"
-          >
-            <FaInfoCircle />
-          </button>
         </div>
       ) : (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

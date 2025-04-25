@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaWallet, FaExclamationTriangle, FaExchangeAlt, FaEthereum, FaCreditCard, FaDollarSign } from 'react-icons/fa';
+import { FaTimes, FaWallet, FaExclamationTriangle, FaExchangeAlt, FaEthereum, FaCreditCard, FaDollarSign, FaHandHoldingHeart, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
 import Web3 from 'web3';
 import { useNavigate } from 'react-router-dom';
 import { initWeb3, donateToCharity, isWalletConnected, switchToScroll } from '../utils/contractInteraction';
@@ -22,6 +22,58 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [isScrollNetwork, setIsScrollNetwork] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('blockchain'); // 'blockchain', 'transak', or 'alchemypay'
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [donationHash, setDonationHash] = useState('');
+  const [donationId, setDonationId] = useState(null);
+  // Exchange rate state variables
+  const [exchangeRates, setExchangeRates] = useState({
+    ethToScroll: 1,    // 1 ETH = 1 SCROLL (initial value)
+    usdToScroll: 2000, // 1 SCROLL = $2000 USD (initial value)
+    myrToUsd: 4.2,     // 1 USD = 4.2 MYR (initial value)
+  });
+  const [loadingRates, setLoadingRates] = useState(false);
+  
+  // Fetch conversion rates from API
+  useEffect(() => {
+    const fetchConversionRates = async () => {
+      setLoadingRates(true);
+      try {
+        // Get base API URL from environment variables or use default
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        // Fetch USD rate for Scroll
+        const usdResponse = await axios.get(`${API_BASE_URL}/scroll-conversion-rates?currency=USD`);
+        
+        // If successful, update the exchange rates
+        if (usdResponse.data.success) {
+          const scrollPriceUSD = usdResponse.data.data.scroll_price;
+          
+          // For simplicity, we'll assume ETH to Scroll is 1:1 (they're close in value)
+          // In production, you'd want to fetch this from an API that compares both assets
+          const ethToScrollRate = 1;
+          
+          // Update exchange rates state
+          setExchangeRates({
+            ethToScroll: ethToScrollRate,
+            usdToScroll: scrollPriceUSD,
+            myrToUsd: 4.2 // Using fixed rate for MYR
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversion rates:', error);
+        // Keep using default values if API call fails
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+    
+    fetchConversionRates();
+    
+    // Refresh rates every 5 minutes
+    const ratesInterval = setInterval(fetchConversionRates, 5 * 60 * 1000);
+    
+    return () => clearInterval(ratesInterval);
+  }, []);
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -119,7 +171,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     // Prevent multiple simultaneous connection attempts
     if (connectionInProgress) {
       console.log('Wallet connection already in progress, please wait...');
-      toast.info('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
+      toast('Wallet connection in progress. Please check MetaMask and respond to any pending requests.');
       return false;
     }
 
@@ -149,34 +201,50 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         return true;
       }
 
-      // If not already connected, initialize Web3
-      const { chainId } = await initWeb3();
-      const connected = isWalletConnected();
-      console.log('Wallet connected:', connected, 'Chain ID:', chainId);
-
-      setWalletConnected(connected);
-
-      // Check if we're on Scroll network
-      const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
-      setIsScrollNetwork(isScroll);
-
-      // If not on Scroll network, try to switch
-      if (connected && !isScroll) {
-        console.log('Connected but not on Scroll network. Attempting to switch...');
-        await switchToScrollNetwork();
+      // Make sure MetaMask is installed
+      if (!window.ethereum) {
+        toast.error('MetaMask is not installed. Please install MetaMask to continue.');
+        return false;
       }
 
-      return connected;
+      // Directly request accounts to trigger the MetaMask popup
+      console.log('Requesting accounts directly from MetaMask...');
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts && accounts.length > 0) {
+          console.log('Successfully connected to account:', accounts[0]);
+
+          // Now initialize Web3 with the connected account
+          const { chainId } = await initWeb3();
+          setWalletConnected(true);
+
+          // Check if we're on Scroll network
+          const isScroll = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+          setIsScrollNetwork(isScroll);
+
+          // If not on Scroll network, try to switch
+          if (!isScroll) {
+            console.log('Connected but not on Scroll network. Attempting to switch...');
+            await switchToScrollNetwork();
+          }
+
+          toast.success('Wallet connected successfully!');
+          return true;
+        } else {
+          throw new Error('No accounts returned from MetaMask');
+        }
+      } catch (requestError) {
+        if (requestError.code === -32002) {
+          toast('MetaMask request already pending. Please open MetaMask and check for pending requests.');
+        } else if (requestError.code === 4001) {
+          toast.error('You rejected the connection request. Please approve the MetaMask connection to continue.');
+        } else {
+          toast.error(`Failed to connect wallet: ${requestError.message}`);
+        }
+        throw requestError;
+      }
     } catch (error) {
       console.error('Error connecting wallet:', error);
-
-      // Handle specific error codes
-      if (error.code === -32002) {
-        toast.info('MetaMask request already pending. Please open MetaMask and confirm any pending requests.');
-      } else {
-        toast.error(`Failed to connect wallet: ${error.message}`);
-      }
-
       return false;
     } finally {
       setConnectionInProgress(false);
@@ -234,22 +302,31 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       console.log('Donation result:', result);
 
       if (result.success) {
+        setDonationHash(result.transactionHash);
+        setDonationId(result.databaseId);
+        setIsSuccess(true);
+        
         if (result.databaseError) {
           // Show a warning to user that transaction was successful but not saved to database
-          const errorMessage = result.error || 'Unknown database error';
-          toast.warning(`Warning: Your donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash.`);
+          toast.warning(`Warning: Your donation was processed on the blockchain but our systems couldn't record it. Please contact support with your transaction hash: ${result.transactionHash}`);
         } else {
           // Everything went well
           toast.success(`Donation successful!`);
+          
+          // Add navigation to donation details after a short delay (if we have a valid database ID)
+          if (result.databaseId && (typeof result.databaseId === 'number' || !isNaN(parseInt(result.databaseId)))) {
+            console.log(`Navigating to donation details page for ID: ${result.databaseId}`);
+            // Wait a bit longer to ensure toast is visible
+            setTimeout(() => {
+              navigate(`/donations/${result.databaseId}`);
+            }, 2500);
+          } else {
+            console.warn('No valid donation ID for navigation:', result.databaseId);
+          }
         }
 
         if (onDonate) {
           onDonate(donationAmount, result.transactionHash, true, result.databaseId);
-        }
-
-        // Redirect to donation details if ID is available
-        if (result.databaseId) {
-          navigate(`/donations/${result.databaseId}`);
         }
       } else {
         throw new Error(result.error || 'Failed to process donation');
@@ -287,6 +364,9 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       result.donation?.transaction_hash ||
       (result.transaction_hash || `fiat-${Date.now()}`);
 
+    setDonationHash(transactionHash);
+    setDonationId(donationId);
+
     // If we received a fake ID, try to create a real donation via simple-donation endpoint
     if (typeof donationId === 'string' && donationId.startsWith('fake_')) {
       console.log('Detected fake donation ID, attempting to create real donation record');
@@ -308,6 +388,7 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         if (response.data.success) {
           // Update donation ID with the real one
           donationId = response.data.id;
+          setDonationId(donationId);
         }
       } catch (err) {
         console.error('Failed to create real donation record:', err);
@@ -323,19 +404,24 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
       );
     }
 
+    setIsSuccess(true);
+
     // For test mode or missing donation ID, show success toast and redirect to charity page
     if (result.test_mode && (!donationId || typeof donationId === 'string' && donationId.startsWith('fake_'))) {
-      navigate(`/charities/${charityId}`);
+      // Just show success screen, don't navigate yet
       toast.success('Test donation successful!');
     }
-    // For successful donations with ID, navigate to donation details page
+    // For successful donations with ID, navigate to donation details page after a delay
     else if (donationId && (typeof donationId === 'number' || !isNaN(parseInt(donationId)))) {
-      navigate(`/donations/${donationId}`);
       toast.success('Donation successful! Viewing details...');
+      // Add navigation to donation details after a short delay
+      setTimeout(() => {
+        navigate(`/donations/${donationId}`);
+      }, 2000);
     }
     // Fallback for any other case
     else {
-      navigate(`/charities/${charityId}`);
+      // Just show success screen, don't navigate yet
       toast.success('Donation successful!');
     }
   };
@@ -356,226 +442,303 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     toast.error(`Payment failed: ${errorMessage}`);
   };
 
+  // Success screen component
+  const SuccessScreen = () => (
+    <div className="p-8 text-center">
+      <div className="bg-green-100 rounded-full p-5 w-20 h-20 flex items-center justify-center mx-auto mb-6">
+        <FaCheckCircle className="text-green-600 text-4xl" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-3">Donation Successful!</h2>
+      <p className="text-gray-600 mb-4">
+        Thank you for your {paymentMethod === 'blockchain' ? `${amount} SCROLL` : `$${amount}`} donation.
+        Your generosity makes a real difference.
+      </p>
+      <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+        <button
+          onClick={() => navigate(-1)}
+          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
+        >
+          Close
+        </button>
+        
+        {donationId && (
+          <button
+            onClick={() => navigate(`/donations/${donationId}`)}
+            className="px-6 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
+          >
+            View Donation Details
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  // Add the currency conversion section component
+  const CurrencyConversionInfo = () => (
+    <div className="mt-4 mb-6 bg-gray-50 rounded-lg border border-gray-200 p-3">
+      <div className="flex items-center mb-2">
+        <FaExchangeAlt className="text-indigo-500 mr-2" />
+        <h3 className="text-sm font-medium text-gray-700">Currency Conversion {loadingRates && "(Loading...)"}</h3>
+      </div>
+      <div className="text-xs text-gray-600 space-y-1">
+        <p>1 SCROLL = {1/exchangeRates.ethToScroll} ETH</p>
+        <p>1 SCROLL ≈ ${exchangeRates.usdToScroll.toFixed(2)} USD</p>
+        <p>1 SCROLL ≈ RM {(exchangeRates.usdToScroll * exchangeRates.myrToUsd).toFixed(2)} MYR</p>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="relative bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto h-[550px] overflow-y-auto">
-      {/* Close Button */}
+    <div className="relative bg-white rounded-xl shadow-lg max-w-lg mx-auto h-[550px] overflow-y-auto">
+      {/* Close Button - Updated to go back to charity details instead of charity list */}
       <button
         onClick={() => navigate(-1)}
-        className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 transition-colors"
+        className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 transition-colors z-10"
         aria-label="Close"
       >
         <FaTimes size={20} />
       </button>
 
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Make a Donation</h2>
-
-      {/* Payment Method Selection */}
-      <div className="mb-6">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Choose Payment Method</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => setPaymentMethod('blockchain')}
-            className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
-              paymentMethod === 'blockchain'
-                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center mb-1">
-              <FaEthereum className={`mr-1 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
-              <span className={`text-xs font-bold ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`}>SCROLL</span>
-            </div>
-            <span className={`font-medium text-sm ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Wallet
-            </span>
-          </button>
-          <button
-            onClick={() => setPaymentMethod('transak')}
-            className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
-              paymentMethod === 'transak'
-                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-            }`}
-          >
-            <FaExchangeAlt className={`mb-1 ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-400'}`} />
-            <span className={`font-medium text-sm ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Transak
-            </span>
-          </button>
-          <button
-            onClick={() => setPaymentMethod('alchemypay')}
-            className={`p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
-              paymentMethod === 'alchemypay'
-                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-            }`}
-          >
-            <FaCreditCard className={`mb-1 ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-400'}`} />
-            <span className={`font-medium text-sm ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-700'}`}>
-              Alchemy Pay
-            </span>
-          </button>
+      {/* Header - Updated to match SubscriptionDonation styling */}
+      <div className="bg-indigo-600 px-6 py-5 text-white">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold flex items-center">
+            <FaHandHoldingHeart className="mr-2" />
+            Make a Donation
+          </h2>
         </div>
-        <p className="text-xs text-gray-500 mt-2 text-center">
-          We exclusively use Scroll for blockchain donations due to its lower fees and faster processing.
+        <p className="mt-1 text-indigo-100">
+          Your contribution makes a real difference
         </p>
       </div>
 
-      {paymentMethod === 'blockchain' ? (
-        <>
-          {!walletConnected && (
-            <div className="mb-5 p-4 bg-yellow-50 rounded-md border border-yellow-100">
-              <div className="flex items-start">
-                <FaExclamationTriangle className="text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="text-sm text-yellow-700 font-medium">
-                    Wallet connection required
-                  </p>
-                  <p className="text-xs text-yellow-600 mb-3">
-                    Please connect your crypto wallet to make a blockchain donation
-                  </p>
-                  <button
-                    onClick={connectWallet}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                  >
-                    <FaWallet className="mr-2" />
-                    Connect Wallet
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+      <div className="p-6">
+        {/* Payment Method Selection - Improved UI */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Choose Payment Method</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setPaymentMethod('blockchain')}
+              className={`w-full p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
+                paymentMethod === 'blockchain'
+                  ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+            >
+              <FaEthereum className={`mb-1 ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-400'}`} />
+              <span className={`font-medium text-sm ${paymentMethod === 'blockchain' ? 'text-indigo-600' : 'text-gray-700'}`}>
+                Scroll Wallet
+              </span>
+            </button>
+            <button
+              onClick={() => setPaymentMethod('transak')}
+              className={`w-full p-3 border rounded-lg flex flex-col items-center justify-center transition-all ${
+                paymentMethod === 'transak'
+                  ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+            >
+              <FaExchangeAlt className={`mb-1 ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-400'}`} />
+              <span className={`font-medium text-sm ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-700'}`}>
+                Transak
+              </span>
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            We exclusively use Scroll for blockchain donations due to its lower fees and faster processing.
+          </p>
+        </div>
 
-          {walletConnected && !isScrollNetwork && (
-            <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-100">
-              <div className="flex items-start">
-                <div className="flex items-center mr-3">
-                  <FaEthereum className="text-blue-500 mr-1" />
-                  <span className="text-xs font-bold text-blue-500">SCROLL</span>
-                </div>
-                <div>
-                  <p className="text-sm text-blue-700 font-medium">
-                    Switch to Scroll network required
-                  </p>
-                  <p className="text-xs text-blue-600 mb-3">
-                    We exclusively use Scroll for donations due to its lower fees and faster processing
-                  </p>
-                  <button
-                    onClick={switchToScrollNetwork}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                  >
-                    Switch to Scroll Network
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Add Currency Conversion Information */}
+        <CurrencyConversionInfo />
 
-          {/* Debug section - only visible when there are issues */}
-          {walletConnected && isScrollNetwork && (
-            <div className="mb-5 p-4 bg-green-50 rounded-md border border-green-100">
-              <p className="text-sm text-green-700 font-medium">
-                ✅ Connected to Scroll network
-              </p>
-              <p className="text-xs text-green-600">
-                You can now make donations using Scroll
-              </p>
-              <div className="mt-2">
-                <button
-                  onClick={() => {
-                    // Force refresh of wallet connection status
-                    const connected = isWalletConnected();
-                    setWalletConnected(connected);
-                    toast.success(`Wallet connection refreshed: ${connected ? 'Connected' : 'Disconnected'}`);
-                  }}
-                  className="text-xs text-green-700 underline"
-                >
-                  Refresh connection status
-                </button>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-                Amount
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  id="donationAmount"
-                  placeholder="0.001"
-                  step="0.001"
-                  min="0.001"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 pr-20 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-                  disabled={processingDonation || !walletConnected}
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <div className="flex items-center text-gray-500 font-medium">
-                    <FaEthereum className="mr-1 text-indigo-500" />
-                    <span>SCROLL</span>
+        {paymentMethod === 'blockchain' ? (
+          <>
+            {!walletConnected && (
+              <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-100">
+                <div className="flex items-start">
+                  <FaWallet className="text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-blue-700 font-medium">
+                      Connect your wallet
+                    </p>
+                    <p className="text-xs text-blue-600 mb-3">
+                      Connect your crypto wallet to make a donation via Scroll
+                    </p>
+                    <button
+                      onClick={connectWallet}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
+                    >
+                      Connect Wallet
+                    </button>
                   </div>
                 </div>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Minimum donation: 0.001 SCROLL</p>
-            </div>
+            )}
 
-            <div>
-              <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-1">
-                Message (Optional)
-              </label>
-              <textarea
-                id="donationMessage"
-                placeholder="Add a message with your donation"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-                disabled={processingDonation || !walletConnected}
-                rows="3"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="agreeTerms"
-                    type="checkbox"
-                    checked={agreeTerms}
-                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                    required
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
-                    disabled={processingDonation || !walletConnected}
-                  />
+            {walletConnected && !isScrollNetwork && (
+              <div className="mb-5 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="flex items-start">
+                  <div className="flex items-center mr-3">
+                    <FaEthereum className="text-blue-500 mr-1" />
+                    <span className="text-xs font-bold text-blue-500">SCROLL</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-700 font-medium">
+                      Switch to Scroll network required
+                    </p>
+                    <p className="text-xs text-blue-600 mb-3">
+                      We exclusively use Scroll for donations due to its lower fees and faster processing
+                    </p>
+                    <button
+                      onClick={switchToScrollNetwork}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                    >
+                      Switch to Scroll Network
+                    </button>
+                  </div>
                 </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="agreeTerms" className="font-medium text-gray-700">
-                    I understand that my donation will be processed via the Scroll blockchain
-                  </label>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Funds will be securely held in escrow and released based on milestone completion. Scroll provides lower fees than other networks.
+              </div>
+            )}
+
+            {/* Debug section - only visible when there are issues */}
+            {walletConnected && isScrollNetwork && (
+              <div className="mb-5 p-4 bg-green-50 rounded-lg border border-green-100">
+                <p className="text-sm text-green-700 font-medium flex items-center">
+                  <FaCheckCircle className="mr-2" /> Connected to Scroll network
+                </p>
+                <p className="text-xs text-green-600">
+                  You can now make donations using Scroll
+                </p>
+              </div>
+            )}
+
+            {/* Scroll Bridge Portal Section */}
+            <div className="mb-5 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="flex items-start">
+                <FaDollarSign className="text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-blue-700 font-medium">
+                    Need SCROLL tokens?
                   </p>
+                  <p className="text-xs text-blue-600 mb-3">
+                    You can easily bridge ETH or fiat to SCROLL using the official Scroll Bridge Portal. The process is quick and secure.
+                  </p>
+                  <a
+                    href="https://portal-sepolia.scroll.io/bridge"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  >
+                    <FaExchangeAlt className="mr-2" />
+                    Buy SCROLL Tokens
+                  </a>
                 </div>
               </div>
             </div>
 
-            <div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Amount Field - Improved consistency */}
+              <div>
+                <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                  Donation Amount
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaEthereum className="text-gray-500" />
+                  </div>
+                  <input
+                    type="number"
+                    id="donationAmount"
+                    placeholder="0.001"
+                    step="0.001"
+                    min="0.001"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                    className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
+                    disabled={processingDonation || !walletConnected}
+                  />
+                </div>
+                <p className="mt-1 text-sm text-gray-500">Minimum donation: 0.001 SCROLL</p>
+              </div>
+
+              {/* Message Field */}
+              <div>
+                <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-2">
+                  Add a Message (Optional)
+                </label>
+                <textarea
+                  id="donationMessage"
+                  placeholder="Share why you're supporting this organization..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
+                  disabled={processingDonation || !walletConnected}
+                  rows="2"
+                />
+              </div>
+
+              {/* Anonymous Donation Option */}
+              <div>
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="isAnonymous"
+                      type="checkbox"
+                      checked={isAnonymous}
+                      onChange={(e) => setIsAnonymous(e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      disabled={processingDonation || !walletConnected}
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="isAnonymous" className="font-medium text-gray-700">
+                      Make my donation anonymous
+                    </label>
+                    <p className="text-gray-500">
+                      Your name won't be displayed publicly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terms Agreement */}
+              <div>
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="agreeTerms"
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      required
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                      disabled={processingDonation || !walletConnected}
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="agreeTerms" className="font-medium text-gray-700">
+                      I understand that my donation will be processed via the Scroll blockchain
+                    </label>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Funds will be securely held in escrow and released based on milestone completion. Scroll provides lower fees than other networks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button - Improved consistency */}
               <button
                 type="submit"
-                className={`w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white shadow-sm transition-colors ${
-                  processingDonation || !walletConnected
-                    ? 'bg-indigo-300 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                className={`w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                  processingDonation || !walletConnected ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
                 disabled={processingDonation || !walletConnected}
               >
                 {processingDonation ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -585,219 +748,121 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
                   'Donate Now'
                 )}
               </button>
-            </div>
 
-            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
-              <p className="mb-1">
-                Your donation will be processed exclusively on the Scroll network with minimal gas fees.
-                All transactions are transparent and verifiable on the blockchain.
-              </p>
-              <p className="mb-1">
-                No personal information is stored on the blockchain, ensuring your privacy.
-              </p>
-              <p>
-                <strong>Why Scroll?</strong> Scroll offers significantly lower transaction fees compared to Ethereum, allowing more of your donation to reach the charity.
-              </p>
-            </div>
-          </form>
-        </>
-      ) : paymentMethod === 'transak' ? (
-        <div className="space-y-5">
-          <div className="bg-indigo-50 p-4 rounded-lg mb-4">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-medium text-indigo-800 flex items-center">
-                <FaExchangeAlt className="mr-2" />
-                Transak Integration
+              {/* Info Box - Improved styling */}
+              <div className="text-xs text-gray-500 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <div className="flex items-start">
+                  <FaInfoCircle className="text-blue-600 mr-3 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="mb-1 text-blue-700">
+                      Your donation will be processed exclusively on the Scroll network with minimal gas fees.
+                      All transactions are transparent and verifiable on the blockchain.
+                    </p>
+                    <p className="mb-1 text-blue-700">
+                      No personal information is stored on the blockchain, ensuring your privacy.
+                    </p>
+                    <p className="text-blue-700 font-medium">
+                      Why Scroll? Scroll offers significantly lower transaction fees compared to Ethereum, allowing more of your donation to reach the charity.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </>
+        ) : paymentMethod === 'transak' ? (
+          <div className="space-y-5">
+            {/* Transak Information Box - Improved styling */}
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                <FaExchangeAlt className="text-indigo-500 mr-2" />
+                Transak Payment
               </h3>
-              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                Test Mode
-              </span>
+              <p className="text-gray-600 text-sm">
+                Transak allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
+                You'll be redirected to Transak's secure payment page to complete your purchase.
+              </p>
             </div>
-            <p className="text-indigo-700 text-sm">
-              Transak allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
-              You'll be redirected to Transak's secure payment page to complete your purchase.
-            </p>
-            <p className="text-indigo-700 text-xs mt-2">
-              <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
-            </p>
-          </div>
 
-          <div>
-            <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-              Amount
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                id="donationAmount"
-                placeholder="10.00"
-                step="0.01"
-                min="0.10"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-                className="w-full px-4 py-2 pr-16 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+            {/* Amount Input - Consistent styling */}
+            <div>
+              <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                Donation Amount
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaDollarSign className="text-gray-500" />
+                </div>
+                <input
+                  type="number"
+                  id="donationAmount"
+                  placeholder="10.00"
+                  step="0.01"
+                  min="1.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                  className="pl-10 block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <p className="mt-1 text-sm text-gray-500">Minimum donation: $1.00</p>
+            </div>
+
+            {/* Message field - Consistent styling */}
+            <div>
+              <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-2">
+                Add a Message (Optional)
+              </label>
+              <textarea
+                id="donationMessage"
+                placeholder="Share why you're supporting this organization..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:ring-indigo-500 focus:border-indigo-500"
+                rows="2"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <div className="flex items-center text-gray-500 font-medium">
-                  <FaDollarSign className="mr-1 text-green-500" />
-                  <span>USD</span>
+            </div>
+
+            {/* Anonymous option - Consistent styling */}
+            <div>
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="isAnonymousTransak"
+                    type="checkbox"
+                    checked={isAnonymous}
+                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="isAnonymousTransak" className="font-medium text-gray-700">
+                    Make my donation anonymous
+                  </label>
+                  <p className="text-gray-500">
+                    Your name won't be displayed publicly.
+                  </p>
                 </div>
               </div>
             </div>
-            <p className="mt-1 text-xs text-gray-500">Will be converted to SCROLL for donation</p>
-          </div>
 
-          <div>
-            <label htmlFor="donationMessage" className="block text-sm font-medium text-gray-700 mb-1">
-              Message (Optional)
-            </label>
-            <textarea
-              id="donationMessage"
-              placeholder="Add a message with your donation"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-              rows="3"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="isAnonymousTransak"
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
-                />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="isAnonymousTransak" className="font-medium text-gray-700">
-                  Make my donation anonymous
-                </label>
-                <p className="text-gray-500 text-xs mt-1">
-                  Your identity will not be shown publicly with your donation.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {amount && parseFloat(amount) > 0 && (
-            <TransakIntegration
-              amount={parseFloat(amount)}
-              charityId={charityId}
-              message={message}
-              isAnonymous={isAnonymous}
-              onSuccess={handleFiatToScrollSuccess}
-              onError={handleFiatToScrollError}
-            />
-          )}
-        </div>
-      ) : paymentMethod === 'alchemypay' ? (
-        <div className="space-y-5">
-          <div className="bg-indigo-50 p-4 rounded-lg mb-4">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-medium text-indigo-800 flex items-center">
-                <FaCreditCard className="mr-2" />
-                Alchemy Pay Integration
-              </h3>
-              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                Test Mode
-              </span>
-            </div>
-            <p className="text-indigo-700 text-sm">
-              Alchemy Pay allows you to easily purchase cryptocurrency using your credit card, debit card, or bank transfer.
-              You'll be redirected to Alchemy Pay's secure payment page to complete your purchase.
-            </p>
-            <p className="text-indigo-700 text-xs mt-2">
-              <strong>Note:</strong> You'll purchase ETH which will be converted to SCROLL for donation purposes.
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="alchemypayDonationAmount" className="block text-sm font-medium text-gray-700 mb-1">
-              Amount
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                id="alchemypayDonationAmount"
-                placeholder="10.00"
-                step="0.01"
-                min="5.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-                className="w-full px-4 py-2 pr-16 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+            {amount && parseFloat(amount) > 0 && (
+              <TransakIntegration
+                amount={parseFloat(amount)}
+                charityId={charityId}
+                message={message}
+                isAnonymous={isAnonymous}
+                onSuccess={handleFiatToScrollSuccess}
+                onError={handleFiatToScrollError}
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <div className="flex items-center text-gray-500 font-medium">
-                  <FaDollarSign className="mr-1 text-green-500" />
-                  <span>USD</span>
-                </div>
-              </div>
-            </div>
-            <p className="mt-1 text-xs text-gray-500">Minimum donation: $5.00 USD</p>
+            )}
           </div>
 
-          <div>
-            <label htmlFor="alchemypayDonationMessage" className="block text-sm font-medium text-gray-700 mb-1">
-              Message (Optional)
-            </label>
-            <textarea
-              id="alchemypayDonationMessage"
-              placeholder="Add a message with your donation"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
-              rows="3"
-            />
-          </div>
+        ) : null}
+      </div>
 
-          <div>
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="isAnonymousAlchemypay"
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
-                />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="isAnonymousAlchemypay" className="font-medium text-gray-700">
-                  Make my donation anonymous
-                </label>
-                <p className="text-gray-500 text-xs mt-1">
-                  Your identity will not be shown publicly with your donation.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {amount && parseFloat(amount) >= 5.0 && (
-            <AlchemyPayIntegration
-              amount={parseFloat(amount)}
-              charityId={charityId}
-              message={message}
-              isAnonymous={isAnonymous}
-              onSuccess={handleFiatToScrollSuccess}
-              onError={handleFiatToScrollError}
-            />
-          )}
-
-          {amount && parseFloat(amount) > 0 && parseFloat(amount) < 5.0 && (
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-              <p className="text-yellow-700 text-sm">
-                Alchemy Pay requires a minimum donation of $5.00 USD. Please increase your donation amount to continue.
-              </p>
-            </div>
-          )}
-        </div>
-      ) : null}
+      {isSuccess && (
+        <SuccessScreen />
+      )}
     </div>
   );
 };

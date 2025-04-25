@@ -207,9 +207,13 @@ const SponsorshipPartners = () => {
   const [showContactForm, setShowContactForm] = useState(false);
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+    >
       {/* Header with gradient background */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="relative rounded-xl bg-gradient-to-r from-indigo-700 to-purple-700 text-white p-8 mb-8 shadow-lg overflow-hidden"
@@ -219,7 +223,7 @@ const SponsorshipPartners = () => {
           <div className="absolute top-0 left-0 w-64 h-64 rounded-full bg-white transform -translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-white transform translate-x-1/3 translate-y-1/3"></div>
         </div>
-        
+
         <div className="relative z-10">
           <h1 className="text-3xl font-bold flex items-center">
             <FaUsers className="mr-3" />
@@ -368,7 +372,7 @@ const SponsorshipPartners = () => {
           </button>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

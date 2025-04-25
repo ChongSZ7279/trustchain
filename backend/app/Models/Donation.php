@@ -31,15 +31,19 @@ class Donation extends Model
     ];
 
     protected $casts = [
-        'smart_contract_data' => 'array',
-        'task_proof' => 'array',
-        'is_anonymous' => 'boolean',
         'amount' => 'decimal:8',
-        'fiat_amount' => 'decimal:2',
-        'exchange_rate' => 'decimal:2',
+        'is_anonymous' => 'boolean',
         'verified_at' => 'datetime',
-        'completed_at' => 'datetime'
+        'completed_at' => 'datetime',
+        'smart_contract_data' => 'array',
+        'task_proof' => 'array'
     ];
+
+    // Add an accessor to ensure amount is always returned as a float
+    public function getAmountAttribute($value)
+    {
+        return (float)$value;
+    }
 
     // Relationships
     public function user()
@@ -188,3 +192,4 @@ class Donation extends Model
         return null;
     }
 }
+

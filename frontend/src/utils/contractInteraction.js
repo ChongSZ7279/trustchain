@@ -35,6 +35,29 @@ const handlePendingMetaMaskRequests = async () => {
   }
 };
 
+// Function to directly request accounts from MetaMask
+const requestAccounts = async () => {
+  if (!window.ethereum) {
+    throw new Error('MetaMask is not installed');
+  }
+
+  try {
+    console.log('Directly requesting accounts from MetaMask...');
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+    if (accounts && accounts.length > 0) {
+      console.log('Successfully connected to account:', accounts[0]);
+      account = accounts[0];
+      return accounts;
+    } else {
+      throw new Error('No accounts returned from MetaMask');
+    }
+  } catch (error) {
+    console.error('Error requesting accounts:', error);
+    throw error;
+  }
+};
+
 // Initialize Web3 and contract
 export const initWeb3 = async () => {
   if (window.ethereum) {
@@ -64,29 +87,19 @@ export const initWeb3 = async () => {
         // Request account access
         console.log("initWeb3: Requesting account access");
         try {
-          // Use a timeout to prevent getting stuck
-          const accountPromise = window.ethereum.request({ method: 'eth_requestAccounts' });
-
-          // Set a timeout to detect stuck requests
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new Error("MetaMask request timed out. Please check MetaMask and try again."));
-            }, 3000); // 3 second timeout
-          });
-
-          // Race the account request against the timeout
-          const newAccounts = await Promise.race([accountPromise, timeoutPromise]);
-          account = newAccounts[0];
+          // Directly request accounts without a timeout
+          // This will trigger the MetaMask popup
+          const accounts = await requestAccounts();
+          account = accounts[0];
           console.log("initWeb3: Connected to account:", account);
         } catch (requestError) {
           if (requestError.code === -32002) {
             console.warn("initWeb3: Request already pending in MetaMask");
-
-            // Try to recover from the pending state
-            const recovered = await handlePendingMetaMaskRequests();
-            if (!recovered) {
-              throw new Error("Request already pending in MetaMask. Please open MetaMask, check for pending requests, or reload the page.");
-            }
+            // Show a more helpful message to the user
+            throw new Error("MetaMask connection request is pending. Please open MetaMask and check for pending requests.");
+          } else if (requestError.code === 4001) {
+            // User rejected the request
+            throw new Error("You rejected the connection request. Please approve the MetaMask connection to continue.");
           } else {
             throw requestError;
           }
@@ -359,6 +372,7 @@ export const donateToCharity = async (charityId, amount, message) => {
 
     // Try to use the donate method with proper error handling
     try {
+      console.log('Sending donation transaction to Scroll Sepolia network...');
       const result = await contract.methods.donate(
         Number(charityId),
         message || ''
@@ -368,7 +382,10 @@ export const donateToCharity = async (charityId, amount, message) => {
       });
 
       // If we get here, the transaction was successful
-      console.log('Donation transaction successful!');
+      console.log('Donation transaction successful!', result);
+      console.log('Transaction hash:', result.transactionHash);
+      console.log('Scrollscan URL:', `https://sepolia.scrollscan.com/tx/${result.transactionHash}`);
+
       return {
         success: true,
         transactionHash: result.transactionHash,
@@ -377,6 +394,7 @@ export const donateToCharity = async (charityId, amount, message) => {
         blockNumber: typeof result.blockNumber === 'bigint' ? result.blockNumber.toString() : result.blockNumber,
         gasUsed: typeof result.gasUsed === 'bigint' ? result.gasUsed.toString() : result.gasUsed,
         status: result.status,
+        scrollscanUrl: `https://sepolia.scrollscan.com/tx/${result.transactionHash}`,
         events: result.events ? JSON.parse(JSON.stringify(result.events, (key, value) =>
           typeof value === 'bigint' ? value.toString() : value
         )) : null

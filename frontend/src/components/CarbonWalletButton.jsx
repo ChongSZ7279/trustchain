@@ -78,9 +78,9 @@ const CarbonWalletButton = () => {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <FaTree className="text-green-500 mr-1.5" />
+                {/* <FaTree className="text-green-500 mr-1.5" />
                 <span className="font-medium text-indigo-800">{carbonCredits}</span>
-                <span className="text-gray-600 ml-1">Carbon Credits</span>
+                <span className="text-gray-600 ml-1">Carbon Credits</span> */}
               </motion.div>
             )}
           </AnimatePresence>

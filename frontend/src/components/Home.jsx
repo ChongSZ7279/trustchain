@@ -700,7 +700,7 @@ const Home = () => {
                         <div className="w-full md:w-1/2 flex-1 rounded-lg overflow-hidden shadow-lg relative">
                             {/* World Map with Custom Pins */}
                             <iframe
-                                className="w-full h-full min-h-[600px]"
+                                className="w-full h-full min-h-[400px]"
                                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d26245469.5648655!2d-95.712891!3d37.09024!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzfCsDA1JzI0LjkiTiA5NcKwNDInMTIuMyJX!5e0!3m2!1sen!2sus!4v1616093740079!5m2!1sen!2sus"
                                 allowFullScreen="" 
                                 loading="lazy"

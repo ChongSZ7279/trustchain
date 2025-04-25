@@ -164,7 +164,7 @@ const CarbonMarket = () => {
 
       if (modalType === 'offer') {
         // Extract numeric part of price and convert to wei
-        const priceString = selectedListing.price.replace(' Scroll', '');
+        const priceString = selectedListing.price.replace(' ETH', '');
         const priceInWei = ethToWei(priceString);
 
         success = await buyCarbonCredits(selectedListing.id, priceInWei);

@@ -35,7 +35,7 @@ class CharitySeeder extends Seeder
         $healthcareId = $orgMap['Healthcare For All'] ?? $organizations[2]->id;
         $feedHungryId = $orgMap['Feed The Hungry'] ?? $organizations[3]->id;
         $rebuildId = $orgMap['Rebuild Malaysia'] ?? $organizations[4]->id;
-
+        $greenwaveId = $orgMap['GreenWave Solutions'] ?? $organizations[5]->id;
         // Create charities for each organization
         $charities = [
             // Tech for Education Malaysia

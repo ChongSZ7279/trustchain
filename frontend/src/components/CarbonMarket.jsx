@@ -603,7 +603,7 @@ const CarbonMarket = () => {
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
                   <FaEthereum className="text-blue-600" />
                 </div>
-                Buy Listings
+                Company Listings
               </h3>
               <button
                 onClick={() => handleCreateListing('offer')}

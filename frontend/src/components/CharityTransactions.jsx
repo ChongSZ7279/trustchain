@@ -56,7 +56,7 @@ const CharityTransactions = ({ charityId }) => {
 
         // Always fetch both data sources regardless of filter
         // We'll apply the filter afterward
-        const transactionsUrl = `/charities/${charityId}/transactions`;
+        const transactionsUrl = `/api/charities/${charityId}/transactions`;
         const donationsUrl = `/charities/${charityId}/donations`;
         
         console.log(`Fetching transactions from: ${transactionsUrl}`);

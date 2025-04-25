@@ -623,12 +623,7 @@ export default function TransactionList() {
     }
 
     // Check if this is a donation record
-    if (item.source === 'Donation' ||
-        getSourceLabel(item).toLowerCase() === 'donation' ||
-        item.type === 'donation' ||
-        item.donor_message ||
-        item.donor_id ||
-        item.cause_id) {
+    if (item.source === 'Donation') {
       // Use the donation ID if available
       const donationId = item.id || (item.donation ? item.donation.id : null);
       if (donationId) {
@@ -655,12 +650,7 @@ export default function TransactionList() {
   // Get the appropriate details button text based on item type
   const getDetailsButtonText = (item) => {
     // Check if this is a donation
-    if (item.source === 'Donation' ||
-        getSourceLabel(item).toLowerCase() === 'donation' ||
-        item.type === 'donation' ||
-        item.donor_message ||
-        item.donor_id ||
-        item.cause_id) {
+    if (item.source === 'Donation') {
       return 'Donation';
     }
 
@@ -675,7 +665,7 @@ export default function TransactionList() {
     }
 
     // Default
-    return 'Transaction Details';
+    return 'Transaction';
   };
 
   // Add a debug panel that only shows in development mode

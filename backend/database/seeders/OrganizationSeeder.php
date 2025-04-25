@@ -28,13 +28,14 @@ class OrganizationSeeder extends Seeder
             'org3' => '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
             'org4' => '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
             'org5' => '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
+            'org6' => '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
         ];
 
         // Common password for all test organizations
         $password = Hash::make('password123');
 
         // Organization categories
-        $categories = ['Education', 'Environment', 'Healthcare', 'Poverty Relief', 'Animal Welfare', 'Disaster Relief', 'Community Development'];
+        $categories = ['Education', 'Environment', 'Healthcare', 'Poverty Relief', 'Animal Welfare', 'Disaster Relief', 'Community Development','Technology'];
 
         // Check for existing users to link as representatives
         $users = User::all();
@@ -149,6 +150,23 @@ class OrganizationSeeder extends Seeder
                 'facebook' => 'https://facebook.com/rebuildmalaysia',
                 'instagram' => 'https://instagram.com/rebuildmalaysia',
                 'tiktok' => 'https://tiktok.com/@rebuildmalaysia'
+            ],
+            [
+                'name' => 'Trustchain',
+                'logo' => $this->getImagePath($logoImages, 5, 'organization_logos/default-logo.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 5, 'organization_covers/default-cover.jpg'),
+                'category' => 'Technology',
+                'description' => 'A blockchain-powered platform designed to restore trust in charitable giving.',
+                'objectives' => 'Your subscription helps us maintain and improve the platform, ensuring we can continue to connect donors with meaningful causes. Funds are used for: platform maintenance and updates, server and hosting costs, development of new features, support and customer service.',
+                'representative_id' => $userRepresentatives[5],
+                'wallet_address' => $walletAddresses['org6'],
+                'register_address' => '123 Jalan Ilmu, Skudai 53530 Johor , Malaysia.',
+                'gmail' => 'admin@trustchain.com',
+                'phone_number' => '+60123455001',
+                'website' => 'https://trustchain.org.my',
+                'facebook' => 'https://facebook.com/trustchain',
+                'instagram' => 'https://instagram.com/trustchain',
+                'tiktok' => 'https://tiktok.com/@trustchain'
             ]
         ];
 

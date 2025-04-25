@@ -39,8 +39,8 @@ const Invoice = () => {
         const donationResponse = await axios.get(`/api/donations/${id}`);
         console.log('Donation details:', donationResponse.data);
 
-        // Then get the invoice
-        const response = await axios.get(`/api/donations/${id}/invoice`, {
+        // Then get the invoice HTML
+        const response = await axios.get(`/api/donations/${id}/invoice-html`, {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',

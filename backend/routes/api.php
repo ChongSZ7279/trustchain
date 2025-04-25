@@ -126,8 +126,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // User financial activity routes
     Route::get('/users/{user}/donations', [UserController::class, 'getUserDonations']);
     Route::get('/users/{user}/financial-activities', [UserController::class, 'getUserFinancialActivities']);
-    Route::get('/donations/{donation}/invoice', [DonationController::class, 'generateInvoice']);
-    Route::get('/donations/{donation}/invoice-pdf', [DonationController::class, 'generateInvoice']);
 
     // Fiat to Scroll conversion routes
     Route::post('/process-fiat-donation', [FiatToScrollConverter::class, 'convertAndDonate']);
@@ -135,9 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Blockchain fund release routes (admin only)
     Route::post('/tasks/{taskId}/release-funds', [BlockchainFundReleaseController::class, 'releaseTaskFunds']);
     Route::post('/donations/{donationId}/release-funds', [BlockchainFundReleaseController::class, 'releaseDonationFunds']);
-
-    // Admin verification routes (moved outside auth middleware)
-
+    
     // Stripe routes
     // Moved outside auth middleware
     // Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
@@ -282,8 +278,6 @@ Route::get('/test-invoice-html', function() {
     }
 });
 
-// Make sure this route is outside any middleware groups for testing
-Route::get('/donations/{donation}/invoice-html', [App\Http\Controllers\DonationController::class, 'generateInvoiceHtml']);
 
 // Add this test route to create a test donation
 Route::get('/create-test-donation', function() {

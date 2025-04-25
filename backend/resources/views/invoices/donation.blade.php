@@ -86,11 +86,11 @@
             </tr>
             <tr>
                 <td>Donor Name:</td>
-                <td>{{ $donation->donor_name }}</td>
+                <td>{{ $donation->user->name ?? 'Anonymous' }}</td>
             </tr>
             <tr>
-                <td>Donor Email:</td>
-                <td>{{ $donation->donor_email }}</td>
+                <td>Donor IC:</td>
+                <td>{{ $donation->user->ic_number ?? 'N/A' }}</td>
             </tr>
         </table>
     </div>

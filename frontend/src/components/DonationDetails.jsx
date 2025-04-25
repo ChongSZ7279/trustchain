@@ -27,7 +27,8 @@ import {
   FaDollarSign,
   FaFileInvoice,
   FaDownload,
-  FaPrint
+  FaPrint,
+  FaInfoCircle
 } from 'react-icons/fa';
 import { ethers } from 'ethers';
 import { DonationContractABI } from '../contracts/DonationContractABI';
@@ -223,6 +224,11 @@ export default function DonationDetails() {
     navigate(`/donations/${id}/invoice`);
   };
 
+  // Add this function near your other permission check functions
+  const isOwner = () => {
+    return user?.id === donation.user_id;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -379,46 +385,55 @@ export default function DonationDetails() {
           </div>
 
           {/* Invoice Section */}
-          <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Donation Receipt</h3>
+          {isOwner() && (
+            <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Donation Receipt</h3>
 
-            <div className="mt-4 bg-gray-50 p-4 rounded-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <FaFileInvoice className="h-5 w-5 text-indigo-500 mr-2" />
-                  <span className="text-sm font-medium text-gray-700">
-                    Invoice #{donation.id}
-                  </span>
+              <div className="mt-4 bg-gray-50 p-4 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <FaFileInvoice className="h-5 w-5 text-indigo-500 mr-2" />
+                    <span className="text-sm font-medium text-gray-700">
+                      Invoice #{donation.id}
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={viewInvoice}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <FaFileAlt className="mr-1" /> View Invoice
+                    </button>
+                    <button
+                      onClick={() => navigate(`/donations/${id}/invoice?download=true`)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <FaDownload className="mr-1" /> Download
+                    </button>
+                  </div>
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={viewInvoice}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    <FaFileAlt className="mr-1" /> View Invoice
-                  </button>
-                  <button
-                    onClick={() => navigate(`/donations/${id}/invoice?download=true`)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    <FaDownload className="mr-1" /> Download
-                  </button>
-                </div>
-              </div>
 
-              <div className="mt-3">
-                <p className="text-xs text-gray-500">
-                  This donation receipt serves as your official record for tax purposes.
-                  View or download the full invoice for detailed information.
-                </p>
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500">
+                    This donation receipt serves as your official record for tax purposes.
+                    View or download the full invoice for detailed information.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Blockchain Verification Section */}
           {donation.transaction_hash && (
             <div className="px-4 py-5 sm:px-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Blockchain Verification</h3>
+              
+              <div className="mb-3 bg-blue-50 rounded-md p-3">
+                <p className="text-sm text-blue-700">
+                  <FaInfoCircle className="inline-block mr-1" />
+                  This section verifies your original donation transaction on the blockchain. This ensures your donation was recorded transparently and immutably.
+                </p>
+              </div>
 
               {/* Use the TransactionVerifier component */}
               <TransactionVerifier
@@ -879,6 +894,24 @@ export default function DonationDetails() {
                   }}
                 />
               )}
+              
+              {/* Add explanation about fund release vs donation */}
+              <div className="mt-4 bg-gray-50 p-3 rounded-md">
+                <p className="text-sm text-gray-600">
+                  <FaInfoCircle className="inline-block mr-1 text-gray-500" />
+                  <strong>How fund release works:</strong> The original donation transaction records your contribution to the smart contract. After task verification, a separate fund release transaction transfers funds from the contract to the charity's wallet.
+                </p>
+                {donation.transfer_transaction_hash && (
+                  <div className="mt-2">
+                    <Link 
+                      to={`/transactions/${donation.transfer_transaction_id || donation.id}`}
+                      className="text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      View fund release transaction details →
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -18,7 +18,10 @@ import {
   FaCalendarAlt,
   FaSort,
   FaSortUp,
-  FaSortDown
+  FaSortDown,
+  FaSyncAlt,
+  FaChevronLeft,
+  FaChevronRight
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
@@ -30,11 +33,18 @@ const CharityTransactions = ({ charityId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
+  
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  
   const [stats, setStats] = useState({
     totalDonations: 0,
     totalFundReleases: 0,
     totalTransactions: 0,
-    verifiedTransactions: 0
+    verifiedTransactions: 0,
+    donorCount: 0 // Add donor count to stats
   });
 
   // Fetch transactions when component mounts or when filters change
@@ -42,186 +52,214 @@ const CharityTransactions = ({ charityId }) => {
     const fetchTransactionsAndDonations = async () => {
       try {
         setLoading(true);
+        setError(null);
 
-        // Build query parameters
-        const params = new URLSearchParams();
-        if (filterType !== 'all') {
-          params.append('type', filterType);
-        }
-
-        // Fetch transactions
-        const transactionsUrl = `/charities/${charityId}/transactions${params.toString() ? `?${params.toString()}` : ''}`;
-        console.log(`Fetching transactions from: ${transactionsUrl}`);
-
-        // Fetch donations
+        // Always fetch both data sources regardless of filter
+        // We'll apply the filter afterward
+        const transactionsUrl = `/charities/${charityId}/transactions`;
         const donationsUrl = `/charities/${charityId}/donations`;
+        
+        console.log(`Fetching transactions from: ${transactionsUrl}`);
         console.log(`Fetching donations from: ${donationsUrl}`);
 
-        // Make both requests in parallel
+        // Make the API calls
         const [transactionsResponse, donationsResponse] = await Promise.all([
           axios.get(transactionsUrl),
           axios.get(donationsUrl)
         ]);
 
-        console.log('Transactions response:', transactionsResponse.data);
-        console.log('Donations response:', donationsResponse.data);
-
-        // Get the data properly, handling both array and paginated formats
+        // Extract data from responses
         const transactionsData = transactionsResponse.data.data || transactionsResponse.data || [];
         const donationsData = donationsResponse.data.data || donationsResponse.data || [];
 
-        // Convert donations to transaction format if they don't already exist in transactions
+        console.log('Transactions data:', transactionsData);
+        console.log('Donations data:', donationsData);
+
+        // Format donations data to match transaction structure
         const formattedDonations = donationsData.map(donation => ({
-          id: donation.id,
-          transaction_hash: donation.transaction_hash,
-          amount: donation.amount,
-          type: 'donation',
-          status: donation.status,
-          message: donation.donor_message,
-          created_at: donation.created_at,
-          currency_type: donation.currency_type || 'SCROLL',
-          is_donation: true
+          ...donation,
+          source: 'donations',
+          // Use the donation_type if available, otherwise default to 'charity'
+          type: donation.donation_type || 'charity', 
+          currency_type: donation.currency_type || 'SCROLL'
         }));
 
-        // Combine transactions and donations, avoiding duplicates
-        const combinedData = [...transactionsData];
+        // Mark transactions with their source and ensure they are fund_release type
+        const formattedTransactions = transactionsData.map(tx => ({
+          ...tx,
+          source: 'transactions',
+          // Ensure all transactions are of type fund_release
+          type: tx.type || 'fund_release'
+        }));
 
-        // Only add donations that don't already exist in transactions (by transaction_hash)
-        formattedDonations.forEach(donation => {
-          if (donation.transaction_hash &&
-              !combinedData.some(tx => tx.transaction_hash === donation.transaction_hash)) {
-            combinedData.push(donation);
-          } else if (!donation.transaction_hash &&
-                     !combinedData.some(tx => tx.id === donation.id && tx.type === 'donation')) {
-            combinedData.push(donation);
-          }
+        // Calculate donor count from donations
+        const donorCount = calculateDonorCount(donationsData);
+
+        // Combine data and apply filters based on filterType
+        let combinedData = [];
+        
+        if (filterType === 'all') {
+          combinedData = [...formattedDonations, ...formattedTransactions];
+        } else if (filterType === 'donations') {
+          // Only include records from the donations table
+          combinedData = [...formattedDonations];
+        } else if (filterType === 'fund_releases') {
+          // Only include records from the transactions table
+          combinedData = [...formattedTransactions];
+        }
+
+        // Calculate statistics - keep original calculation logic
+        const totalDonations = formattedDonations.reduce((sum, tx) => {
+          return sum + parseFloat(tx.amount || 0);
+        }, 0);
+        
+        const totalFundReleases = formattedTransactions.reduce((sum, tx) => {
+          return sum + parseFloat(tx.amount || 0);
+        }, 0);
+        
+        const verifiedTransactions = [...formattedDonations, ...formattedTransactions].filter(
+          tx => tx.status === 'verified' || tx.status === 'completed'
+        ).length;
+        
+        // Update stats
+        setStats({
+          totalDonations: totalDonations,
+          totalFundReleases: totalFundReleases,
+          totalTransactions: formattedDonations.length + formattedTransactions.length,
+          verifiedTransactions: verifiedTransactions,
+          donorCount: donorCount
         });
 
-        console.log('Combined transactions and donations:', combinedData);
-        setTransactions(combinedData);
+        // Apply search filter if needed
+        if (searchTerm) {
+          combinedData = combinedData.filter(tx => {
+            const searchLower = searchTerm.toLowerCase();
+            return (
+              (tx.transaction_hash && tx.transaction_hash.toLowerCase().includes(searchLower)) ||
+              (tx.donor && tx.donor.toLowerCase().includes(searchLower)) ||
+              (tx.description && tx.description.toLowerCase().includes(searchLower))
+            );
+          });
+        }
 
-        // Calculate statistics
-        calculateStats(combinedData);
+        // Apply sorting
+        combinedData.sort((a, b) => {
+          if (sortField === 'amount') {
+            return sortDirection === 'asc'
+              ? parseFloat(a.amount || 0) - parseFloat(b.amount || 0)
+              : parseFloat(b.amount || 0) - parseFloat(a.amount || 0);
+          } else if (sortField === 'created_at') {
+            return sortDirection === 'asc'
+              ? new Date(a.created_at || 0) - new Date(b.created_at || 0)
+              : new Date(b.created_at || 0) - new Date(a.created_at || 0);
+          }
+          return 0;
+        });
+
+        // Set total items for pagination
+        setTotalItems(combinedData.length);
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(combinedData.length / itemsPerPage);
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        
+        // Get current items for display
+        const paginatedData = combinedData.slice(indexOfFirstItem, indexOfLastItem);
+
+        // Update transactions state with paginated data
+        setTransactions(paginatedData);
+        setLoading(false);
       } catch (err) {
-        console.error('Error fetching transactions and donations:', err);
+        console.error('Error fetching transactions:', err);
         setError('Failed to load transactions. Please try again.');
-        toast.error('Failed to load transactions');
-      } finally {
         setLoading(false);
       }
     };
 
     fetchTransactionsAndDonations();
-  }, [charityId, filterType]);
+  }, [charityId, filterType, searchTerm, sortField, sortDirection, currentPage, itemsPerPage]);
 
-  // Calculate transaction statistics
-  const calculateStats = (transactionsData) => {
-    const stats = {
-      totalDonations: 0,
-      totalFundReleases: 0,
-      totalTransactions: transactionsData.length,
-      verifiedTransactions: 0
-    };
-
-    transactionsData.forEach(tx => {
-      if (tx.type === 'donation') {
-        stats.totalDonations += parseFloat(tx.amount || 0);
-      } else if (tx.type === 'fund_release') {
-        stats.totalFundReleases += parseFloat(tx.amount || 0);
-      }
-
-      if (tx.transaction_hash) {
-        stats.verifiedTransactions++;
-      }
-    });
-
-    setStats(stats);
+  const handleRefresh = async () => {
+    try {
+      await fetchTransactionsAndDonations();
+      toast.success('Transactions refreshed!');
+    } catch (err) {
+      toast.error('Failed to refresh transactions');
+    }
   };
 
-  // Handle sorting
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleFilterChange = (type) => {
+    setFilterType(type);
+  };
+
   const handleSort = (field) => {
     if (sortField === field) {
-      // Toggle direction if same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New field, default to descending
       setSortField(field);
       setSortDirection('desc');
     }
   };
 
-  // Get sorted and filtered transactions
-  const filteredAndSortedTransactions = () => {
-    // First filter by type if needed
-    let filtered = [...transactions];
-
-    // Then filter by search term if provided
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(tx =>
-        (tx.transaction_hash && tx.transaction_hash.toLowerCase().includes(term)) ||
-        (tx.type && tx.type.toLowerCase().includes(term)) ||
-        (tx.status && tx.status.toLowerCase().includes(term)) ||
-        (tx.message && tx.message.toLowerCase().includes(term))
-      );
-    }
-
-    // Then sort
-    return filtered.sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
-
-      // Handle dates
-      if (sortField === 'created_at') {
-        aValue = new Date(a.created_at || 0).getTime();
-        bValue = new Date(b.created_at || 0).getTime();
+  // Get appropriate label for transaction type
+  const getTypeLabel = (type, transaction) => {
+    // First check the source
+    if (transaction.source === 'donations') {
+      // For donations source
+      switch (type) {
+        case 'charity':
+          return 'Charity Donation';
+        case 'subscription':
+          return 'Subscription Donation';
+        default:
+          return 'Donation';
       }
-
-      // Handle amounts
-      if (sortField === 'amount') {
-        aValue = parseFloat(a.amount || 0);
-        bValue = parseFloat(b.amount || 0);
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-  };
-
-  // Helper functions for rendering
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  };
-
-  const formatAmount = (amount, currency) => {
-    if (!amount) return '0.000';
-
-    // Default to SCROLL for blockchain transactions
-    const currencyType = currency || 'SCROLL';
-
-    // Format based on currency type
-    if (currencyType === 'USD' || currencyType === 'MYR') {
-      return `$${parseFloat(amount).toFixed(2)} ${currencyType}`;
     } else {
-      // For cryptocurrency (SCROLL, ETH, etc.)
-      return `${parseFloat(amount).toFixed(3)} ${currencyType}`;
+      // For transactions source 
+      return 'Fund Release';
     }
   };
 
-  const getStatusColor = (status) => {
-    if (!status) return 'bg-gray-100 text-gray-800';
+  const getTypeClass = (type, transaction) => {
+    // First check the source
+    if (transaction.source === 'donations') {
+      // For donations source
+      switch (type) {
+        case 'charity':
+          return 'bg-purple-100 text-purple-800';
+        case 'subscription':
+          return 'bg-blue-100 text-blue-800';
+        default:
+          return 'bg-purple-100 text-purple-800';
+      }
+    } else {
+      // For transactions source (only fund releases)
+      return 'bg-green-100 text-green-800';
+    }
+  };
 
-    switch (status.toLowerCase()) {
+  const getTypeIcon = (type, transaction) => {
+    // First check the source
+    if (transaction.source === 'donations') {
+      // For donations source (all types use donation icon)
+      return <FaHandHoldingHeart />;
+    } else {
+      // For transactions source (only fund releases)
+      return <FaMoneyBillWave />;
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
       case 'completed':
       case 'verified':
         return 'bg-green-100 text-green-800';
       case 'pending':
-      case 'pending_verification':
         return 'bg-yellow-100 text-yellow-800';
       case 'failed':
         return 'bg-red-100 text-red-800';
@@ -231,191 +269,211 @@ const CharityTransactions = ({ charityId }) => {
   };
 
   const getStatusIcon = (status) => {
-    if (!status) return null;
-
-    switch (status.toLowerCase()) {
+    switch (status) {
       case 'completed':
       case 'verified':
-        return <FaCheckCircle className="mr-1.5 h-2 w-2 text-green-500" />;
+        return <FaCheckCircle />;
       case 'pending':
-      case 'pending_verification':
-        return <FaClock className="mr-1.5 h-2 w-2 text-yellow-500" />;
+        return <FaClock />;
       case 'failed':
-        return <FaExclamationTriangle className="mr-1.5 h-2 w-2 text-red-500" />;
+        return <FaExclamationTriangle />;
       default:
         return null;
     }
   };
 
-  const getTypeLabel = (type) => {
-    switch (type) {
-      case 'donation':
-        return 'Donation';
-      case 'fund_release':
-        return 'Fund Release';
-      case 'withdrawal':
-        return 'Withdrawal';
-      default:
-        return type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Transaction';
-    }
+  // Format date in a user-friendly way
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
+    const date = new Date(dateString);
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const getSortIcon = (field) => {
-    if (sortField !== field) return <FaSort className="ml-1 text-gray-400" />;
-    return sortDirection === 'asc' ? <FaSortUp className="ml-1 text-indigo-500" /> : <FaSortDown className="ml-1 text-indigo-500" />;
+  // Format transaction hash for display
+  const formatTransactionHash = (hash) => {
+    if (!hash) return 'N/A';
+    if (hash.startsWith('0x')) {
+      return `${hash.substring(0, 10)}...${hash.substring(hash.length - 8)}`;
+    }
+    return hash;
   };
+
+  // Determine if the transaction has blockchain verification
+  const isBlockchainVerified = (tx) => {
+    return !!tx.transaction_hash || tx.is_blockchain || (tx.type && tx.type.includes('blockchain'));
+  };
+
+  // Format amount with currency symbol
+  const formatAmount = (amount, currencyType = 'SCROLL') => {
+    if (amount === null || amount === undefined) return '0 SCROLL';
+    
+    // Convert amount to number if it's a string
+    const amountNumber = typeof amount === 'string' ? parseFloat(amount) : amount;
+    
+    // Always format as SCROLL for consistency with donation form
+    return `${amountNumber.toFixed(3)} SCROLL`;
+  };
+
+  // Calculate donor count separately
+  const calculateDonorCount = (donationsData) => {
+    // Extract unique donor IDs from donations
+    const uniqueDonors = new Set();
+    donationsData.forEach(donation => {
+      if (donation.user_id) {
+        uniqueDonors.add(donation.user_id);
+      }
+    });
+    return uniqueDonors.size;
+  };
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Calculate totalPages from totalItems and itemsPerPage
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return (
-    <div className="w-full">
-      {/* Statistics Cards */}
+    <div className="overflow-hidden">
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {/* Total Donations Card */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 shadow-sm border border-green-200">
-          <div className="flex items-center">
-            <div className="bg-green-500 bg-opacity-20 p-3 rounded-full">
-              <FaHandHoldingHeart className="h-6 w-6 text-green-600" />
+        <div className="bg-green-50 rounded-xl p-4 shadow-sm border border-green-100">
+          <div className="flex items-center mb-2">
+            <div className="p-2 bg-green-100 rounded-full mr-3">
+              <FaHandHoldingHeart className="text-green-600" />
             </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-green-800">Total Donations</h3>
-              <p className="text-2xl font-bold text-green-900">
-                {formatAmount(stats.totalDonations)}
-              </p>
-            </div>
+            <h3 className="text-sm font-medium text-gray-700">Total Donations</h3>
+          </div>
+          <div className="ml-12">
+            <p className="text-2xl font-bold text-gray-900">
+              {stats.totalDonations.toFixed(3)}
+            </p>
+            <p className="text-xl font-semibold text-indigo-700">
+              SCROLL
+            </p>
           </div>
         </div>
 
-        {/* Fund Releases Card */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 shadow-sm border border-blue-200">
-          <div className="flex items-center">
-            <div className="bg-blue-500 bg-opacity-20 p-3 rounded-full">
-              <FaExchangeAlt className="h-6 w-6 text-blue-600" />
+        <div className="bg-blue-50 rounded-xl p-4 shadow-sm border border-blue-100">
+          <div className="flex items-center mb-2">
+            <div className="p-2 bg-blue-100 rounded-full mr-3">
+              <FaExchangeAlt className="text-blue-600" />
             </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-blue-800">Fund Releases</h3>
-              <p className="text-2xl font-bold text-blue-900">
-                {formatAmount(stats.totalFundReleases)}
-              </p>
-            </div>
+            <h3 className="text-sm font-medium text-gray-700">Fund Releases</h3>
+          </div>
+          <div className="ml-12">
+            <p className="text-2xl font-bold text-gray-900">
+              {stats.totalFundReleases.toFixed(3)}
+            </p>
+            <p className="text-xl font-semibold text-indigo-700">
+              SCROLL
+            </p>
           </div>
         </div>
 
-        {/* Total Transactions Card */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 shadow-sm border border-purple-200">
-          <div className="flex items-center">
-            <div className="bg-purple-500 bg-opacity-20 p-3 rounded-full">
-              <FaChartBar className="h-6 w-6 text-purple-600" />
+        <div className="bg-purple-50 rounded-xl p-4 shadow-sm border border-purple-100">
+          <div className="flex items-center mb-2">
+            <div className="p-2 bg-purple-100 rounded-full mr-3">
+              <FaChartBar className="text-purple-600" />
             </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-purple-800">Total Transactions</h3>
-              <p className="text-2xl font-bold text-purple-900">
+            <h3 className="text-sm font-medium text-gray-700">Total Transactions</h3>
+          </div>
+          <div className="ml-12">
+            <p className="text-2xl font-bold text-gray-900">
                 {stats.totalTransactions}
               </p>
-            </div>
           </div>
         </div>
 
-        {/* Blockchain Verified Card */}
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 shadow-sm border border-indigo-200">
-          <div className="flex items-center">
-            <div className="bg-indigo-500 bg-opacity-20 p-3 rounded-full">
-              <FaGlobe className="h-6 w-6 text-indigo-600" />
+        <div className="bg-indigo-50 rounded-xl p-4 shadow-sm border border-indigo-100">
+          <div className="flex items-center mb-2">
+            <div className="p-2 bg-indigo-100 rounded-full mr-3">
+              <FaGlobe className="text-indigo-600" />
             </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-indigo-800">Blockchain Verified</h3>
-              <p className="text-2xl font-bold text-indigo-900">
-                {stats.verifiedTransactions}
+            <h3 className="text-sm font-medium text-gray-700">Unique Donors</h3>
+          </div>
+          <div className="ml-12">
+            <p className="text-2xl font-bold text-gray-900">
+                {stats.donorCount}
               </p>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <FaFilter className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter:</span>
+      {/* Filters & Search */}
+      <div className="flex flex-col md:flex-row justify-between mb-6">
+        <div className="flex items-center mb-4 md:mb-0">
+          <div className="text-gray-700 mr-3">
+            <FaFilter />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <span className="text-gray-700 font-medium mr-3">Filter:</span>
+          <div className="flex space-x-2">
             <button
-              onClick={() => setFilterType('all')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'all' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+              onClick={() => handleFilterChange('all')}
+              className={`px-4 py-2 rounded-md text-sm ${
+                filterType === 'all'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
               All
             </button>
             <button
-              onClick={() => setFilterType('donation')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'donation' ? 'bg-green-100 text-green-800 font-medium' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+              onClick={() => handleFilterChange('donations')}
+              className={`px-4 py-2 rounded-md text-sm ${
+                filterType === 'donations'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              Donations
+              Donations Only
             </button>
             <button
-              onClick={() => setFilterType('fund_release')}
-              className={`px-3 py-1 text-sm rounded-md ${filterType === 'fund_release' ? 'bg-blue-100 text-blue-800 font-medium' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+              onClick={() => handleFilterChange('fund_releases')}
+              className={`px-4 py-2 rounded-md text-sm ${
+                filterType === 'fund_releases'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
               Fund Releases
             </button>
           </div>
         </div>
 
+        <div className="flex items-center space-x-3">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FaSearch className="h-4 w-4 text-gray-400" />
+              <FaSearch className="text-gray-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             placeholder="Search transactions..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+              onChange={handleSearch}
+            />
+          </div>
+          
+          <button 
+            onClick={handleRefresh}
+            className="bg-indigo-100 text-indigo-700 p-2 rounded-lg hover:bg-indigo-200 transition-colors"
+            title="Refresh transactions"
+          >
+            <FaSyncAlt />
+          </button>
         </div>
       </div>
 
       {/* Transactions Table */}
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 p-4 rounded-lg text-center">
-          <FaExclamationTriangle className="mx-auto h-12 w-12 text-red-400 mb-4" />
-          <p className="text-red-800">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      ) : filteredAndSortedTransactions().length === 0 ? (
-        <div className="bg-gray-50 rounded-xl p-8 text-center">
-          <FaExchangeAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No Transactions Found
-          </h3>
-          <p className="text-gray-600 mb-4">
-            {searchTerm
-              ? "No transactions match your search criteria."
-              : filterType !== 'all'
-                ? `No ${getTypeLabel(filterType).toLowerCase()} transactions found.`
-                : "This charity hasn't processed any transactions yet."}
-          </p>
-          {(searchTerm || filterType !== 'all') && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilterType('all');
-              }}
-              className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-xl shadow-sm border border-gray-200">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -425,23 +483,25 @@ const CharityTransactions = ({ charityId }) => {
                   onClick={() => handleSort('created_at')}
                 >
                   <div className="flex items-center">
-                    <FaCalendarAlt className="mr-1 text-gray-400" />
-                    Date
-                    {getSortIcon('created_at')}
+                    <FaCalendarAlt className="mr-1" />
+                    DATE
+                    {sortField === 'created_at' ? (
+                      sortDirection === 'asc' ? 
+                        <FaSortUp className="ml-1 h-4 w-4 text-indigo-600" /> : 
+                        <FaSortDown className="ml-1 h-4 w-4 text-indigo-600" />
+                    ) : (
+                      <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                    )}
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Transaction Hash
+                  TRANSACTION HASH
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('type')}
-                >
-                  <div className="flex items-center">
-                    Type
-                    {getSortIcon('type')}
-                  </div>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  TYPE
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  SOURCE
                 </th>
                 <th
                   scope="col"
@@ -449,109 +509,205 @@ const CharityTransactions = ({ charityId }) => {
                   onClick={() => handleSort('amount')}
                 >
                   <div className="flex items-center">
-                    <FaCoins className="mr-1 text-gray-400" />
-                    Amount
-                    {getSortIcon('amount')}
-                  </div>
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('status')}
-                >
-                  <div className="flex items-center">
-                    Status
-                    {getSortIcon('status')}
+                    <FaCoins className="mr-1" />
+                    AMOUNT
+                    {sortField === 'amount' ? (
+                      sortDirection === 'asc' ? 
+                        <FaSortUp className="ml-1 h-4 w-4 text-indigo-600" /> : 
+                        <FaSortDown className="ml-1 h-4 w-4 text-indigo-600" />
+                    ) : (
+                      <FaSort className="ml-1 h-3 w-3 text-gray-400" />
+                    )}
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  STATUS
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ACTIONS
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAndSortedTransactions().map((transaction, index) => (
-                <motion.tr
-                  key={transaction.id || transaction.transaction_hash || index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className="hover:bg-gray-50 transition-colors duration-150"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(transaction.created_at)}
+            {loading ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-4 text-center">
+                  <div className="flex justify-center items-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
+                    <span className="ml-2 text-gray-600">Loading transactions...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-4 text-center text-red-500">
+                  {error}
+                </td>
+              </tr>
+            ) : transactions.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                  No transactions found
+                </td>
+              </tr>
+            ) : (
+              transactions.map((tx) => (
+                <tr key={tx.id || tx.transaction_hash} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {formatDate(tx.created_at)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                    {transaction.transaction_hash ? (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-indigo-600">
+                    {tx.transaction_hash ? (
                       <div className="flex items-center">
-                        <span className="mr-2">{transaction.transaction_hash.slice(0, 10)}...{transaction.transaction_hash.slice(-8)}</span>
+                        {formatTransactionHash(tx.transaction_hash)}
+                        {isBlockchainVerified(tx) && (
                         <a
-                          href="https://sepolia.scrollscan.com/address/0x7867fC939F10377E309a3BF55bfc194F672B0E84"
+                            href={`https://sepolia.scrollscan.com/tx/${tx.transaction_hash}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
-                          title="View contract on Scrollscan"
+                            className="ml-2 text-indigo-500 hover:text-indigo-700"
+                            title="View on Scrollscan"
                         >
-                          <FaExternalLinkAlt className="h-3 w-3" />
+                            <FaExternalLinkAlt />
                         </a>
+                        )}
                       </div>
                     ) : (
-                      <span>
-                        {transaction.id ? `ID: ${transaction.id}` : 'N/A'}
-                      </span>
+                      <span className="text-gray-500">ID: {tx.id || 'Unknown'}</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      transaction.type === 'donation' ? 'bg-green-100 text-green-800' :
-                      transaction.type === 'fund_release' ? 'bg-blue-100 text-blue-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
-                      {transaction.type === 'donation' ? <FaHandHoldingHeart className="mr-1" /> :
-                       transaction.type === 'fund_release' ? <FaExchangeAlt className="mr-1" /> :
-                       <FaMoneyBillWave className="mr-1" />}
-                      {getTypeLabel(transaction.type)}
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeClass(tx.type, tx)}`}
+                    >
+                      <span className="mr-1">{getTypeIcon(tx.type, tx)}</span>
+                      {getTypeLabel(tx.type, tx)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        tx.source === 'donations' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {tx.source === 'donations' ? 'Donations' : 'Transactions'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatAmount(transaction.amount, transaction.currency_type)}
+                    {formatAmount(tx.amount, tx.currency_type)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
-                      {getStatusIcon(transaction.status)}
-                      {transaction.status ? transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1).replace('_', ' ') : 'Unknown'}
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusClass(tx.status)}`}
+                    >
+                      <span className="mr-1">{getStatusIcon(tx.status)}</span>
+                      {tx.status ? tx.status.charAt(0).toUpperCase() + tx.status.slice(1) : 'Unknown'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      {transaction.transaction_hash && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {tx.transaction_hash && (
                         <a
-                          href={`https://sepolia.scrollscan.com/tx/${transaction.transaction_hash}`}
+                        href={`https://sepolia.scrollscan.com/tx/${tx.transaction_hash}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-900 transition-colors duration-150 flex items-center"
+                        className="text-indigo-600 hover:text-indigo-900 flex items-center"
                         >
-                          <FaGlobe className="mr-1" />
+                        <FaEye className="mr-1" />
                           Explorer
                         </a>
                       )}
-                      {transaction.task_id && (
-                        <a
-                          href={`/charities/${charityId}/tasks/${transaction.task_id}`}
-                          className="text-green-600 hover:text-green-900 transition-colors duration-150 flex items-center"
-                        >
-                          <FaEye className="mr-1" />
-                          View Task
-                        </a>
-                      )}
-                    </div>
                   </td>
-                </motion.tr>
-              ))}
+                </tr>
+              ))
+            )}
             </tbody>
           </table>
         </div>
-      )}
+
+        {/* Pagination */}
+        {!loading && transactions.length > 0 && (
+          <div className="flex justify-between items-center mt-4 px-4">
+            <div className="text-sm text-gray-700">
+              Showing <span className="font-medium">{currentPage * itemsPerPage - itemsPerPage + 1}</span> to{' '}
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, totalItems)}
+              </span>{' '}
+              of <span className="font-medium">{totalItems}</span> transactions
+            </div>
+
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded-md ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                }`}
+              >
+                <FaChevronLeft />
+              </button>
+              
+              {/* Page numbers */}
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                // Logic to show appropriate page numbers
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 rounded-md ${
+                      currentPage === pageNum
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded-md ${
+                  currentPage === totalPages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                }`}
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+        )}
     </div>
   );
 };

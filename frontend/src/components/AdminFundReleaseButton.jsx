@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { FaCoins, FaSpinner, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaCoins, FaSpinner, FaExternalLinkAlt, FaCheckCircle } from 'react-icons/fa';
 
 /**
  * Button component for admins to release funds after proof verification

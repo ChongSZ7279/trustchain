@@ -117,11 +117,6 @@ export default function TaskForm() {
       }
     }
 
-    // Validate status
-    if (!formData.status || !['pending', 'in_progress', 'completed'].includes(formData.status)) {
-      errors.status = 'Invalid status selected';
-    }
-
     // Log validation results
     console.log('Form validation results:', { formData, errors });
 
@@ -475,9 +470,9 @@ export default function TaskForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
+    <div className="min-h-screen">
       <BackButton />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
         
         <div className="bg-white shadow-sm rounded-lg">
           <div className="p-6">
@@ -545,7 +540,7 @@ export default function TaskForm() {
                     )}
                   </div>
 
-                  <div>
+                  <div className="md:col-span-2">
                     <label htmlFor="fund_targeted" className="block text-sm font-medium text-gray-700 flex items-center">
                       <FaMoneyBillWave className="mr-2" />
                       Target Fund Amount ($)
@@ -564,29 +559,6 @@ export default function TaskForm() {
                     />
                     {formErrors.fund_targeted && (
                       <p className="mt-1 text-sm text-red-600">{formErrors.fund_targeted}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 flex items-center">
-                      <FaClipboardList className="mr-2" />
-                      Status
-                    </label>
-                    <select
-                      name="status"
-                      id="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                        formErrors.status ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
-                      }`}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                    {formErrors.status && (
-                      <p className="mt-1 text-sm text-red-600">{formErrors.status}</p>
                     )}
                   </div>
                 </div>

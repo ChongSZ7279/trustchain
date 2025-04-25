@@ -147,7 +147,20 @@ class Web3Service
             $signedTransaction = $this->signTransaction($transaction, $this->adminPrivateKey);
             $txHash = $this->sendRawTransaction($signedTransaction);
 
-            Log::info('Transaction sent successfully', ['txHash' => $txHash]);
+            // Ensure transaction hash is properly formatted
+            if (substr($txHash, 0, 2) !== '0x') {
+                $txHash = '0x' . $txHash;
+            }
+
+            // Log successful transaction with details
+            Log::info('Transaction sent successfully', [
+                'txHash' => $txHash,
+                'contract' => $this->contractAddress,
+                'charity_wallet' => $charityWallet,
+                'amount' => $amount,
+                'nonce' => $nonce,
+                'explorer_url' => $this->getExplorerUrl($txHash)
+            ]);
 
             return [
                 'success' => true,
@@ -240,7 +253,9 @@ class Web3Service
             }
             $txHash = $hash;
         });
-        return $txHash;
+        
+        // Validate and format the transaction hash before returning
+        return $this->validateTransactionHash($txHash);
     }
 
     /**
@@ -251,7 +266,23 @@ class Web3Service
      */
     public function getExplorerUrl($transactionHash)
     {
-        return "https://sepolia.scrollscan.com/tx/{$transactionHash}";
+        // Clean and format the transaction hash
+        $cleanHash = $transactionHash;
+        
+        // Remove any non-hex characters
+        $cleanHash = preg_replace('/[^a-fA-F0-9]/', '', $cleanHash);
+        
+        // Ensure it starts with 0x
+        if (substr($cleanHash, 0, 2) !== '0x') {
+            $cleanHash = '0x' . $cleanHash;
+        }
+        
+        // If hash is malformed or too short, return link to contract instead
+        if (strlen($cleanHash) < 66) {
+            return "https://sepolia.scrollscan.com/address/{$this->contractAddress}";
+        }
+        
+        return "https://sepolia.scrollscan.com/tx/{$cleanHash}";
     }
 
     /**
@@ -265,22 +296,78 @@ class Web3Service
     }
 
     /**
+     * Check if mock transactions are disabled
+     * 
+     * @return bool Whether mock transactions are disabled
+     */
+    private function mockTransactionsDisabled()
+    {
+        return env('BLOCKCHAIN_FORCE_REAL_TX', false) === true || 
+               env('BLOCKCHAIN_DISABLE_MOCKS', false) === true;
+    }
+
+    /**
      * Create a mock transaction response
      *
      * @param string $reason The reason for creating a mock transaction
      * @return array The mock transaction response
+     * @throws \Exception If mock transactions are disabled
      */
     private function createMockTransaction($reason)
     {
-        $txHash = '0x' . bin2hex(random_bytes(32));
-        Log::warning('Using mock transaction hash', ['reason' => $reason]);
+        if ($this->mockTransactionsDisabled()) {
+            throw new \Exception("Mock transactions are disabled: {$reason}");
+        }
+        
+        $txHash = $this->generateMockTransactionHash();
+        Log::warning('Using mock transaction hash', [
+            'reason' => $reason,
+            'hash' => $txHash
+        ]);
 
         return [
             'success' => true,
             'message' => "Funds released successfully (mock transaction due to {$reason})",
             'transaction_hash' => $txHash,
-            'explorer_url' => "https://sepolia.scrollscan.com/address/{$this->contractAddress}",
+            'explorer_url' => $this->getExplorerUrl($txHash),
             'is_mock' => true
         ];
+    }
+
+    /**
+     * Validate and format a transaction hash
+     * 
+     * @param string $hash The transaction hash to validate
+     * @return string The validated transaction hash
+     */
+    private function validateTransactionHash($hash)
+    {
+        // Remove 0x prefix if present
+        $cleanHash = preg_replace('/^0x/', '', $hash);
+        
+        // Only keep valid hex characters
+        $cleanHash = preg_replace('/[^a-fA-F0-9]/', '', $cleanHash);
+        
+        // Ensure hash is exactly 64 characters (32 bytes) for Ethereum transactions
+        if (strlen($cleanHash) > 64) {
+            $cleanHash = substr($cleanHash, 0, 64);
+        } elseif (strlen($cleanHash) < 64) {
+            // Pad with zeros if too short (this should never happen with real hashes)
+            $cleanHash = str_pad($cleanHash, 64, '0', STR_PAD_LEFT);
+        }
+        
+        // Add 0x prefix back
+        return '0x' . $cleanHash;
+    }
+
+    /**
+     * Generate a consistent mock transaction hash for testing
+     * This ensures we get the same format as real transactions
+     * 
+     * @return string A consistent format mock transaction hash
+     */
+    private function generateMockTransactionHash()
+    {
+        return $this->validateTransactionHash('0x' . bin2hex(random_bytes(32)));
     }
 }

@@ -149,7 +149,7 @@ export default function TaskDetails() {
 
   const calculateProgress = () => {
     if (!task?.fund_targeted) return 0;
-    return Math.min(100, (task.current_amount / task.fund_targeted) * 100);
+    return Math.min(100, (task.fund_received / task.fund_targeted) * 100);
   };
 
   const canManageTask = () => {
@@ -184,12 +184,12 @@ export default function TaskDetails() {
   };
 
   const handleFundingSuccess = (data) => {
-    // Update task with new funding amount
-    setTask({
-      ...task,
-      current_amount: parseFloat(task.current_amount) + parseFloat(data.amount)
-    });
+    setTask(prevTask => ({
+      ...prevTask,
+      fund_received: parseFloat(prevTask.fund_received) + parseFloat(data.amount)
+    }));
     setShowFundingForm(false);
+    toast.success('Funding successful!');
   };
 
   const nextPicture = () => {
@@ -330,7 +330,7 @@ export default function TaskDetails() {
                     <div className="flex items-center">
                       <FaMoneyBillWave className="text-gray-400 mr-2" />
                       <span className="text-gray-900 font-medium">
-                        {parseFloat(task.current_amount).toFixed(3)} <span className="text-indigo-600">SCROLL</span> raised of {parseFloat(task.fund_targeted).toFixed(3)} <span className="text-indigo-600">SCROLL</span> goal
+                        {parseFloat(task.fund_received).toFixed(3)} <span className="text-indigo-600">SCROLL</span> raised of {parseFloat(task.fund_targeted).toFixed(3)} <span className="text-indigo-600">SCROLL</span> goal
                       </span>
                     </div>
                     <span className="text-sm font-medium text-gray-500">

@@ -460,7 +460,7 @@ export default function CharityForm() {
                   <div className="space-y-2">
                     <label htmlFor="fund_targeted" className="block text-sm font-medium text-gray-700 flex items-center">
                       <FaMoneyBillWave className="mr-2 text-gray-400" />
-                      Target Fund Amount ($)
+                      Target Fund Amount (Scroll)
                     </label>
                     <input
                       type="number"

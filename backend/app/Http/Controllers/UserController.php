@@ -166,4 +166,60 @@ class UserController extends Controller
             return response()->json(['message' => 'Error retrieving financial activities'], 500);
         }
     }
+
+    /**
+     * Get all users for admin verification
+     */
+    public function getAllUsers()
+    {
+        try {
+            $users = User::select(
+                'ic_number',
+                'name',
+                'gmail',
+                'phone_number',
+                'profile_picture',
+                'front_ic_picture',
+                'back_ic_picture',
+                'wallet_address',
+                'is_verified',
+                'created_at'
+            )->get();
+
+            return response()->json($users);
+        } catch (\Exception $e) {
+            \Log::error('Error retrieving users', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json(['message' => 'Error retrieving users'], 500);
+        }
+    }
+
+    /**
+     * Verify a user
+     */
+    public function verifyUser($ic_number)
+    {
+        try {
+            $user = User::where('ic_number', $ic_number)->firstOrFail();
+            $user->is_verified = true;
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User verified successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error verifying user', [
+                'ic_number' => $ic_number,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify user'
+            ], 500);
+        }
+    }
 } 

@@ -19,7 +19,7 @@ class TestTaskSeeder extends Seeder
             'status' => 'pending',
             'proof' => 'proof/default.jpg',
             'fund_targeted' => 1.0,
-            'fund_raised' => 0.0,
+            'fund_received' => 0.0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

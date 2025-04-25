@@ -12,8 +12,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update the type enum to include 'fund_release'
-        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('charity', 'task', 'fund_release') DEFAULT 'charity'");
+        // Update the type enum to include 'fund_release' and preserve 'donation'
+        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('charity', 'task', 'fund_release', 'donation') DEFAULT 'charity'");
     }
 
     /**
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert back to original enum values
-        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('charity', 'task') DEFAULT 'charity'");
+        // Revert back to original enum values but keep 'donation'
+        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('charity', 'task', 'donation') DEFAULT 'charity'");
     }
 };

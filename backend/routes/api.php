@@ -268,15 +268,11 @@ Route::get('/test-invoice-html', function() {
             'filename' => 'test-invoice.pdf'
         ]);
     } catch (\Exception $e) {
-        \Log::error('Test invoice HTML error', [
+        \Illuminate\Support\Facades\Log::error('Test invoice HTML error', [
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
         ]);
-
-        return response()->json([
-            'message' => 'Failed to generate test invoice HTML',
-            'error' => $e->getMessage()
-        ], 500);
+        return response()->json(['error' => 'PDF generation failed: ' . $e->getMessage()], 500);
     }
 });
 
@@ -318,6 +314,7 @@ Route::get('/create-test-donation', function() {
         $donation->status = 'completed';
         $donation->donor_message = 'This is a test donation';
         $donation->is_anonymous = false;
+        $donation->fund_received = 0;
         $donation->save();
 
         return response()->json([
@@ -554,12 +551,44 @@ Route::get('/donations/{donation}/simple-html', function($donationId) {
 // Contact form route
 Route::post('/contact', [ContactController::class, 'submit']);
 
-// Admin verification routes (moved outside auth middleware for testing)
-Route::get('/admin/verification/tasks', [AdminVerificationController::class, 'getTasks']);
-Route::get('/admin/verification/donations', [AdminVerificationController::class, 'getDonations']);
-Route::get('/admin/verification/stats', [AdminVerificationController::class, 'getStats']);
-Route::post('/admin/verification/donations/{id}/verify', [AdminVerificationController::class, 'verifyDonation']);
-Route::post('/admin/verification/tasks/{id}/verify', [AdminVerificationController::class, 'verifyTask']);
+// Test route for admin middleware
+Route::get('/test-admin-middleware', function() {
+    return response()->json(['message' => 'Admin middleware is working!']);
+})->middleware(\App\Http\Middleware\AdminMiddleware::class);
+
+// Admin routes
+Route::middleware(['auth:sanctum', \App\Http\Middleware\AdminMiddleware::class])->prefix('admin')->group(function () {
+    // User verification routes
+    Route::get('/users', [\App\Http\Controllers\UserController::class, 'getAllUsers']);
+    Route::post('/users/{ic_number}/verify', [\App\Http\Controllers\UserController::class, 'verifyUser']);
+});
+
+// Admin verification routes
+Route::middleware(['auth:sanctum', \App\Http\Middleware\AdminMiddleware::class])->prefix('admin/verification')->group(function () {
+    // Task verification routes
+    Route::get('/tasks', [\App\Http\Controllers\AdminVerificationController::class, 'getTasks']);
+    Route::post('/tasks/{id}/verify', [\App\Http\Controllers\AdminVerificationController::class, 'verifyTask']);
+    
+    // Organization verification routes
+    Route::get('/organizations', [\App\Http\Controllers\AdminVerificationController::class, 'getOrganizations']);
+    Route::post('/organizations/{id}/verify', [\App\Http\Controllers\AdminVerificationController::class, 'verifyOrganization']);
+    
+    // Charity verification routes
+    Route::get('/charities', [\App\Http\Controllers\AdminVerificationController::class, 'getCharities']);
+    Route::post('/charities/{id}/verify', [\App\Http\Controllers\AdminVerificationController::class, 'verifyCharity']);
+    
+    // User verification routes
+    Route::get('/users', [\App\Http\Controllers\AdminVerificationController::class, 'getUsers']);
+    Route::post('/users/{id}/verify', [\App\Http\Controllers\AdminVerificationController::class, 'verifyUser']);
+    
+    // Dashboard stats
+    Route::get('/stats', [\App\Http\Controllers\AdminVerificationController::class, 'getStats']);
+});
+
+// Debug routes for verification
+Route::get('/check-verification-tables', [\App\Http\Controllers\AdminVerificationController::class, 'checkVerificationTables']);
+Route::get('/check-verification-organizations', [\App\Http\Controllers\AdminVerificationController::class, 'checkOrganizationVerification']);
+Route::get('/check-verification-charities', [\App\Http\Controllers\AdminVerificationController::class, 'checkCharityVerification']);
 
 // Add these routes
 Route::get('/blockchain/donation-count', [BlockchainController::class, 'getDonationCount']);
@@ -606,7 +635,8 @@ Route::get('/create-test-charity', function() {
             'current_amount' => 0,
             'start_date' => now(),
             'end_date' => now()->addMonths(3),
-            'status' => 'active'
+            'status' => 'active',
+            'fund_received' => 0,
         ]);
 
         return response()->json([
@@ -620,4 +650,14 @@ Route::get('/create-test-charity', function() {
             'trace' => $e->getTraceAsString()
         ], 500);
     }
+});
+
+// Debug route to check API accessibility
+Route::get('/debug', function() {
+    return response()->json([
+        'status' => 'success',
+        'message' => 'API is accessible',
+        'time' => now()->toDateTimeString(),
+        'environment' => app()->environment(),
+    ]);
 });

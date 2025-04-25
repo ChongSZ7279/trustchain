@@ -25,6 +25,55 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [donationHash, setDonationHash] = useState('');
   const [donationId, setDonationId] = useState(null);
+  // Exchange rate state variables
+  const [exchangeRates, setExchangeRates] = useState({
+    ethToScroll: 1,    // 1 ETH = 1 SCROLL (initial value)
+    usdToScroll: 2000, // 1 SCROLL = $2000 USD (initial value)
+    myrToUsd: 4.2,     // 1 USD = 4.2 MYR (initial value)
+  });
+  const [loadingRates, setLoadingRates] = useState(false);
+  
+  // Fetch conversion rates from API
+  useEffect(() => {
+    const fetchConversionRates = async () => {
+      setLoadingRates(true);
+      try {
+        // Get base API URL from environment variables or use default
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        // Fetch USD rate for Scroll
+        const usdResponse = await axios.get(`${API_BASE_URL}/scroll-conversion-rates?currency=USD`);
+        
+        // If successful, update the exchange rates
+        if (usdResponse.data.success) {
+          const scrollPriceUSD = usdResponse.data.data.scroll_price;
+          
+          // For simplicity, we'll assume ETH to Scroll is 1:1 (they're close in value)
+          // In production, you'd want to fetch this from an API that compares both assets
+          const ethToScrollRate = 1;
+          
+          // Update exchange rates state
+          setExchangeRates({
+            ethToScroll: ethToScrollRate,
+            usdToScroll: scrollPriceUSD,
+            myrToUsd: 4.2 // Using fixed rate for MYR
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversion rates:', error);
+        // Keep using default values if API call fails
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+    
+    fetchConversionRates();
+    
+    // Refresh rates every 5 minutes
+    const ratesInterval = setInterval(fetchConversionRates, 5 * 60 * 1000);
+    
+    return () => clearInterval(ratesInterval);
+  }, []);
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -263,6 +312,17 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
         } else {
           // Everything went well
           toast.success(`Donation successful!`);
+          
+          // Add navigation to donation details after a short delay (if we have a valid database ID)
+          if (result.databaseId && (typeof result.databaseId === 'number' || !isNaN(parseInt(result.databaseId)))) {
+            console.log(`Navigating to donation details page for ID: ${result.databaseId}`);
+            // Wait a bit longer to ensure toast is visible
+            setTimeout(() => {
+              navigate(`/donations/${result.databaseId}`);
+            }, 2500);
+          } else {
+            console.warn('No valid donation ID for navigation:', result.databaseId);
+          }
         }
 
         if (onDonate) {
@@ -354,6 +414,10 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     // For successful donations with ID, navigate to donation details page after a delay
     else if (donationId && (typeof donationId === 'number' || !isNaN(parseInt(donationId)))) {
       toast.success('Donation successful! Viewing details...');
+      // Add navigation to donation details after a short delay
+      setTimeout(() => {
+        navigate(`/donations/${donationId}`);
+      }, 2000);
     }
     // Fallback for any other case
     else {
@@ -409,9 +473,24 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
     </div>
   );
 
+  // Add the currency conversion section component
+  const CurrencyConversionInfo = () => (
+    <div className="mt-4 mb-6 bg-gray-50 rounded-lg border border-gray-200 p-3">
+      <div className="flex items-center mb-2">
+        <FaExchangeAlt className="text-indigo-500 mr-2" />
+        <h3 className="text-sm font-medium text-gray-700">Currency Conversion {loadingRates && "(Loading...)"}</h3>
+      </div>
+      <div className="text-xs text-gray-600 space-y-1">
+        <p>1 SCROLL = {1/exchangeRates.ethToScroll} ETH</p>
+        <p>1 SCROLL ≈ ${exchangeRates.usdToScroll.toFixed(2)} USD</p>
+        <p>1 SCROLL ≈ RM {(exchangeRates.usdToScroll * exchangeRates.myrToUsd).toFixed(2)} MYR</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative bg-white rounded-xl shadow-lg max-w-lg mx-auto h-[550px] overflow-y-auto">
-      {/* Close Button */}
+      {/* Close Button - Updated to go back to charity details instead of charity list */}
       <button
         onClick={() => navigate(-1)}
         className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 transition-colors z-10"
@@ -469,6 +548,9 @@ const DonationForm = ({ charityId, onDonate, loading = false }) => {
             We exclusively use Scroll for blockchain donations due to its lower fees and faster processing.
           </p>
         </div>
+
+        {/* Add Currency Conversion Information */}
+        <CurrencyConversionInfo />
 
         {paymentMethod === 'blockchain' ? (
           <>

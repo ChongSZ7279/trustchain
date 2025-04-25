@@ -160,12 +160,6 @@ const FundingProgress = ({ current, target, donorCount, endDate, className = "" 
             <div className="h-full w-full animate-pulse bg-white opacity-20"></div>
           </div>
         </div>
-
-        {/* Display donor count with better visibility */}
-        <div className="mt-2 text-sm text-gray-700 flex items-center justify-end font-medium">
-          <FaHeart className="mr-1.5 text-pink-500" />
-          <span>{donors} donor{donors !== 1 ? 's' : ''} have contributed</span>
-        </div>
       </div>
     );
   } catch (error) {
@@ -1074,12 +1068,6 @@ export default function CharityDetails() {
                       <div className="h-full w-full animate-pulse bg-white opacity-20"></div>
                     </div>
                   </div>
-
-                  {/* Donor count - Enhanced with better visibility */}
-                  <div className="mt-2 text-sm text-gray-700 flex items-center justify-end font-medium">
-                    <FaHeart className="mr-1.5 text-pink-500" />
-                    <span>{charity?.donor_count || 0} donor{(charity?.donor_count !== 1) ? 's' : ''} have contributed</span>
-                  </div>
                 </div>
               </div>
 
@@ -1328,13 +1316,6 @@ export default function CharityDetails() {
                       </h3>
                       <div className="flex items-center space-x-2">
                         <BlockchainVerificationBadge isVerified={charity.is_verified} />
-                        {charity.blockchain_id ? (
-                          <div className="text-sm text-gray-600">
-                            Blockchain ID: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{charity.blockchain_id}</span>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-600">Not yet registered on blockchain</div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -1735,7 +1716,7 @@ export default function CharityDetails() {
                                     </h4>
                                     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                       <FundingProgress
-                                        current={task.current_amount || 0}
+                                        current={task.fund_received || 0}
                                         target={task.fund_targeted || 0}
                                         donorCount={task.donor_count}
                                         endDate={task.end_date}

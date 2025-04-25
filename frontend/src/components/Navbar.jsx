@@ -172,14 +172,16 @@ export default function Navbar() {
                         Guidelines
                       </Link>
                       {isAdmin && (
-                        <Link
-                          to="/admin/verification"
-                          className="flex items-center px-4 py-2 text-sm text-purple-600 hover:bg-purple-50"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          <FaShieldAlt className="mr-3 h-4 w-4" />
-                          Admin Panel
-                        </Link>
+                        <div>
+                          <Link
+                            to="/admin/dashboard"
+                            className="flex items-center px-4 py-2 text-sm text-purple-600 hover:bg-purple-50"
+                            onClick={() => setIsProfileOpen(false)}
+                          >
+                            <FaShieldAlt className="mr-3 h-4 w-4" />
+                            Admin Dashboard
+                          </Link>
+                        </div>
                       )}
                     </div>
                     <div className="py-1">
@@ -342,16 +344,18 @@ export default function Navbar() {
                 </Link>
                 
                 {isAdmin && (
-                  <Link
-                    to="/admin/verification"
-                    className="block px-4 py-2 text-base font-medium text-purple-600 hover:bg-purple-50"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <FaShieldAlt className="mr-3 h-4 w-4" />
-                      Admin Panel
-                    </div>
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin/dashboard"
+                      className="block px-4 py-2 text-base font-medium text-purple-600 hover:bg-purple-50"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <FaShieldAlt className="mr-3 h-4 w-4" />
+                        Admin Dashboard
+                      </div>
+                    </Link>
+                  </>
                 )}
                 
                 <button

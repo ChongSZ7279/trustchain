@@ -1191,7 +1191,7 @@ export default function TransactionList() {
                       currentPage: 1
                     }));
                   }}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="border border-gray-300 rounded px-3 py-1 text-sm min-w-[80px]"
                 >
                   <option value={5}>5</option>
                   <option value={10}>10</option>

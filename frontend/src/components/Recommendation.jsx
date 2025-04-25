@@ -8,7 +8,9 @@ const AIGenerator = ({ userHistory, followedCharityNames, onRecommendation }) =>
   useEffect(() => {
     const fetchCharities = async () => {
       try {
-        const res = await fetch("/api/charities"); // Replace with actual API endpoint
+
+        console.log("Fetching charities from API...");
+        const res = await fetch('http://localhost:8000/api/charities'); // Replace with actual API endpoint
         if (!res.ok) throw new Error(`Failed to fetch charities: ${res.status}`);
 
         const responseData = await res.json();
@@ -27,11 +29,13 @@ const AIGenerator = ({ userHistory, followedCharityNames, onRecommendation }) =>
   useEffect(() => {
     const generateRecommendation = async () => {
       if (!userHistory || userHistory.length === 0) {
+        console.log("2");
         onRecommendation(null);
         return;
       }
 
       if (charities.length === 0) {
+        console.log("1");
         onRecommendation(null);
         return;
       }
@@ -54,10 +58,20 @@ const AIGenerator = ({ userHistory, followedCharityNames, onRecommendation }) =>
           .map((charity) => `Name: ${charity.name}, Description: ${charity.description}`)
           .join("; ");
 
+        console.warn("warning");
         // Create AI prompt
-        const prompt = `Based on this user history: ${JSON.stringify(userHistory)}, 
-        which of these charities would be the best match? ${charityNames}. 
-        Just provide the name of the most suitable charity.`;
+        const prompt = `  
+            You are a helpful AI assistant that matches users with charities based on their interests and history.
+
+            User history:
+            ${JSON.stringify(userHistory)}
+
+            Available charities:
+            ${charityNames}
+
+            From the list above, pick the **single most suitable charity** based on the user's history.
+            Respond only with the charity name, exactly as written.
+            `;
 
         const aiResponse = await generateAIResponse(prompt);
         const cleanResponse = aiResponse?.trim();

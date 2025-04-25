@@ -1,9 +1,23 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DiamondImg from '../assets/image/Diamond.png';
-import PlatinumImg from '../assets/image/Platinum.png';
-import GoldImg from '../assets/image/Gold.png';
-import SilverImg from '../assets/image/Silver.png';
+// import PlatinumImg from '../assets/image/Platinum.png';
+// import GoldImg from '../assets/image/Gold.png';
+// import SilverImg from '../assets/image/Silver.png';
+import TrustchainImg from '../assets/image/Trustchain.png';
+import CortexaImg from '../assets/image/Cortexa.jpg';
+import HorizonImg from '../assets/image/Horizon.jpg';
+import GlobalConnectImg from '../assets/image/GlobalConnect.jpg';
+import NexusBankingImg from '../assets/image/NexusBanking.jpg';
+import QuantumSecurityImg from '../assets/image/Quantum.jpg';
+import BrightFutureImg from '../assets/image/BrightFuture.jpg';
+import InnovationPartnersImg from '../assets/image/InnovationPartners.jpg';
+import GreenEnergyImg from '../assets/image/GreenEnergy.jpg';
+import UrbanDevelopmentImg from '../assets/image/Urban.jpg';
+import HealthFirstImg from '../assets/image/HealthFirst.jpg';
+import EcoFutureImg from '../assets/image/EcoFuture.jpg';
+
+
 import SponsorshipContact from './SponsorshipContact';
 import { motion } from 'framer-motion';
 import { FaFacebook, FaInstagram, FaYoutube, FaEnvelope, FaGlobe, FaChevronRight, FaUsers } from 'react-icons/fa';
@@ -12,9 +26,9 @@ const sponsorData = {
   diamond: [
     {
       id: 1,
-      name: "Vitrox Technologies",
-      logo: DiamondImg,
-      description: "Non-Profit Organization & NGOs – Charities looking for fixed-proof, automated fund disbursement while reducing operational costs. We are a team of blockchain enthusiasts who are passionate about using technology to make the world a better place.",
+      name: "Cortexa Technologies",
+      logo: CortexaImg,
+      description: " A next-generation AI technology company focused on building intelligent systems that think, learn, and evolve. Leveraging advanced machine learning, real-time data analysis, and scalable cloud infrastructure, Cortexa delivers solutions that empower businesses to make smarter decisions, automate complex tasks, and unlock new levels of performance.",
       facebook: "https://facebook.com/vitroxtech",
       instagram: "https://instagram.com/vitroxtech",
       youtube: "https://youtube.com/vitroxtech",
@@ -24,7 +38,7 @@ const sponsorData = {
     {
       id: 2,
       name: "Horizon Foundation",
-      logo: DiamondImg,
+      logo: HorizonImg,
       description: "International foundation dedicated to transparency and accountability in charitable giving. We are a team of blockchain enthusiasts who are passionate about using technology to make the world a better place.",
       facebook: "https://facebook.com/horizonfoundation",
       instagram: "https://instagram.com/horizonfoundation",
@@ -35,9 +49,12 @@ const sponsorData = {
     {
       id: 3,
       name: "TrustChain",
-      logo: DiamondImg,
+      logo: TrustchainImg,
       description: "Blockchain-based platform for transparent and accountable charitable giving. We are a team of blockchain enthusiasts who are passionate about using technology to make the world a better place.",
       contact: "tech@trustchain.com",
+      facebook: "https://facebook.com/horizonfoundation",
+      instagram: "https://instagram.com/horizonfoundation",
+      youtube: "https://youtube.com/horizonfoundation",
       website: "https://www.trustchain.com"
     }
   ],
@@ -45,7 +62,7 @@ const sponsorData = {
     {
       id: 1,
       name: "EcoFuture Investments",
-      logo: PlatinumImg,
+      logo: EcoFutureImg,
       description: "Sustainable investment firm supporting environmental and social impact projects worldwide. This is a test description.",
       contact: "info@ecofutureinv.com",
       website: "https://www.ecofutureinv.com"
@@ -53,7 +70,7 @@ const sponsorData = {
     {
       id: 2,
       name: "Nexus Banking Group",
-      logo: PlatinumImg,
+      logo: NexusBankingImg,
       description: "Financial institution pioneering blockchain-based transparency solutions for charitable donations. This is a test description.",
       contact: "partnerships@nexusbanking.com",
       website: "https://www.nexusbanking.com"
@@ -61,7 +78,7 @@ const sponsorData = {
     {
       id: 3,
       name: "Quantum Security",
-      logo: PlatinumImg,
+      logo: QuantumSecurityImg,
       description: "Cybersecurity experts ensuring the integrity and safety of blockchain transactions. This is a test description.",
       contact: "support@quantumsecurity.net",
       website: "https://www.quantumsecurity.net"
@@ -71,24 +88,24 @@ const sponsorData = {
     {
       id: 1,
       name: "Bright Future Media",
-      logo: GoldImg,
-      description: "Media company dedicated to highlighting humanitarian efforts and social impact initiatives.",
+      logo: BrightFutureImg,
+      // description: "Media company dedicated to highlighting humanitarian efforts and social impact initiatives.",
       contact: "media@brightfuture.com",
       website: "https://www.brightfuture.com"
     },
-    {
-      id: 2,
-      name: "Innovate Partners",
-      logo: GoldImg,
-      description: "Venture capital firm focusing on technology solutions for social good.",
-      contact: "ventures@innovatepartners.com",
-      website: "https://www.innovatepartners.com"
-    },
+    // {
+    //   id: 2,
+    //   name: "Innovate Partners",
+    //   logo: InnovationPartnersImg,
+    //   description: "Venture capital firm focusing on technology solutions for social good.",
+    //   contact: "ventures@innovatepartners.com",
+    //   website: "https://www.innovatepartners.com"
+    // },
     {
       id: 3,
       name: "Global Connect Telecom",
-      logo: GoldImg,
-      description: "Telecommunications provider supporting connectivity for humanitarian organizations worldwide.",
+      logo: GlobalConnectImg,
+      // description: "Telecommunications provider supporting connectivity for humanitarian organizations worldwide.",
       contact: "support@globalconnect.com",
       website: "https://www.globalconnect.com"
     }
@@ -97,26 +114,26 @@ const sponsorData = {
     {
       id: 1,
       name: "Green Energy Co.",
-      logo: SilverImg,
+      logo: GreenEnergyImg,
       description: "Renewable energy provider supporting sustainable development projects.",
       contact: "info@greenenergy.co",
-      website: "https://www.greenenergy.co"
+      // website: "https://www.greenenergy.co"
     },
     {
       id: 2,
       name: "Urban Development Group",
-      logo: SilverImg,
+      logo: UrbanDevelopmentImg,
       description: "Urban planning and development firm with a focus on community-building initiatives.",
       contact: "projects@urbandevelopment.com",
-      website: "https://www.urbandevelopment.com"
+      // website: "https://www.urbandevelopment.com"
     },
     {
       id: 3,
       name: "Health First Alliance",
-      logo: SilverImg,
+      logo: HealthFirstImg,
       description: "Healthcare coalition supporting medical aid projects in underserved communities.",
       contact: "alliance@healthfirst.org",
-      website: "https://www.healthfirst.org"
+      // website: "https://www.healthfirst.org"
     },
   ]
 };
@@ -124,10 +141,10 @@ const sponsorData = {
 const SponsorTier = ({ title, sponsors, bgColor, borderColor, textColor }) => {
   return (
     <div className={`mb-12 ${bgColor} rounded-xl shadow-lg p-8 border-l-4 ${borderColor} transition-all hover:shadow-xl`}>
-      <h2 className={`text-3xl text-center font-bold mb-8 ${textColor}`}>{title} Sponsors</h2>
+      <h2 className={`text-4xl text-center font-bold mb-8 ${textColor}`}>{title} Sponsors</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center items-stretch mb-4">
         {sponsors.map(sponsor => (
-          <div key={sponsor.id} className="bg-white rounded-xl shadow-md p-6 flex flex-col h-full transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+          <div key={sponsor.id} className="bg-white/45 rounded-xl shadow-md p-6 flex flex-col h-full transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
             <div className="flex items-center justify-center mb-5">
               <img 
                 src={sponsor.logo} 

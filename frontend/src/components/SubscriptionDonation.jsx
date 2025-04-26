@@ -170,12 +170,6 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
           Close
         </button>
         
-        <button
-          onClick={() => navigate('/account/subscriptions')}
-          className="px-6 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
-        >
-          View My Subscriptions
-        </button>
       </div>
     </div>
   );
@@ -311,7 +305,7 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
             {/* Payment Method Selection */}
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Choose Payment Method</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <PaymentMethodCard 
                   method="scroll" 
                   icon={<FaEthereum className={`mb-1 ${paymentMethod === 'scroll' ? 'text-indigo-600' : 'text-gray-400'}`} />}
@@ -322,12 +316,6 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
                   method="transak" 
                   icon={<FaExchangeAlt className={`mb-1 ${paymentMethod === 'transak' ? 'text-indigo-600' : 'text-gray-400'}`} />}
                   label="Transak" 
-                />
-                
-                <PaymentMethodCard 
-                  method="alchemypay" 
-                  icon={<FaCreditCard className={`mb-1 ${paymentMethod === 'alchemypay' ? 'text-indigo-600' : 'text-gray-400'}`} />}
-                  label="Alchemy Pay" 
                 />
               </div>
             </div>

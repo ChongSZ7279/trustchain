@@ -39,6 +39,7 @@ import CharityVerificationPanel from './components/admin/CharityVerificationPane
 import AdminDashboard from './components/admin/AdminDashboard';
 import CarbonMarket from './components/CarbonMarket';
 import ErrorBoundary from './components/ErrorBoundary';
+import SubscriptionsPage from './pages/SubscriptionsPage';
 
 const router = createBrowserRouter([
   {
@@ -277,6 +278,14 @@ const router = createBrowserRouter([
       {
         path: '/admin/verification/users',
         element: <UserVerificationPanel />
+      },
+      {
+        path: '/subscriptions',
+        element: <SubscriptionsPage />,
+        handle: {
+          title: "My Subscriptions",
+          subtitle: "Manage your active subscriptions"
+        }
       }
     ]
   },

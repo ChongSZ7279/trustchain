@@ -231,9 +231,12 @@ export default function UserDashboard() {
     try {
       console.log(`Downloading invoice for donation ${donationId}`);
       
-      // Get the PDF directly instead of HTML
+      // Use the correct API endpoint
       const response = await axios.get(`/api/donations/${donationId}/invoice`, {
         responseType: 'blob', // Important: Set responseType to blob
+        headers: {
+          'Accept': 'application/pdf',
+        }
       });
       
       // Create a blob from the PDF data
@@ -258,7 +261,23 @@ export default function UserDashboard() {
       toast.success('Invoice downloaded successfully');
     } catch (error) {
       console.error('Error downloading invoice:', error);
-      toast.error('Failed to download invoice. Please try again.');
+      
+      // More specific error messages based on the error type
+      if (error.response) {
+        if (error.response.status === 404) {
+          toast.error('Invoice not found. The donation may not exist or be completed.');
+        } else if (error.response.status === 403) {
+          toast.error('You do not have permission to download this invoice.');
+        } else if (error.response.status === 500) {
+          toast.error('Server error while generating invoice. Please try again later.');
+        } else {
+          toast.error(`Failed to download invoice: ${error.response.statusText}`);
+        }
+      } else if (error.request) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to download invoice. Please try again.');
+      }
     }
   };
   
@@ -389,7 +408,7 @@ export default function UserDashboard() {
       
       let endpoint;
       if (source === 'transactions') {
-        endpoint = `/users/${currentUser.ic_number}/transactions`;
+        endpoint = `/users/${currentUser.ic_number}/donations`; // Changed to use donations endpoint
       } else if (source === 'donations') {
         endpoint = `/users/${currentUser.ic_number}/donations`;
       } else if (source === 'combined') {
@@ -403,14 +422,17 @@ export default function UserDashboard() {
       // Handle both paginated and non-paginated responses
       const data = response.data.data ? response.data.data : response.data;
       
+      // Ensure data is always an array
+      const safeData = Array.isArray(data) ? data : [];
+      
       if (source === 'transactions') {
-        setTransactions(data);
+        setTransactions(safeData);
       } else if (source === 'donations') {
-        setDonations(data);
+        setDonations(safeData);
       }
       
       // Always update the combined transactions for display
-      setCombinedTransactions(data);
+      setCombinedTransactions(safeData);
       
       // Calculate total donation amount from all sources
       const totalAmount = calculateTotalFromAllSources();
@@ -432,6 +454,10 @@ export default function UserDashboard() {
       console.error(`Error loading ${source} data:`, error);
       setError(`Failed to load ${source} data`);
       setLoading(false);
+      // Set empty arrays on error
+      setTransactions([]);
+      setDonations([]);
+      setCombinedTransactions([]);
     }
   };
 
@@ -1348,37 +1374,17 @@ export default function UserDashboard() {
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-lg font-medium text-gray-900 flex items-center">
                     <FaHistory className="mr-2 text-indigo-600" />
-                    Transaction History
+                    Donation History
                   </h2>
                   
-                  {/* Add filter dropdown */}
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-600">View:</span>
-                    <select
-                      className="appearance-none bg-white border border-gray-300 rounded-lg py-2 px-4 pr-8 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={currentDataSource}
-                      onChange={(e) => {
-                        setCurrentDataSource(e.target.value);
-                      }}
-                    >
-                      <option value="transactions">Transactions</option>
-                      <option value="donations">Donations</option>
-                      <option value="combined">All</option>
-                    </select>
-                    <div className="relative pointer-events-none">
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                        <FaChevronDown />
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => loadDataBySource(currentDataSource)}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      <FaSync className="mr-2" />
-                      Refresh
-                    </button>
-                  </div>
+                  {/* Remove filter dropdown and only keep refresh button */}
+                  <button
+                    onClick={() => loadDataBySource('donations')}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <FaSync className="mr-2" />
+                    Refresh
+                  </button>
                 </div>
                 
                 {loading ? (
@@ -1397,14 +1403,8 @@ export default function UserDashboard() {
                     className="bg-gray-100 rounded-lg p-6 text-center"
                   >
                     <FaHistory className="mx-auto h-12 w-12 text-gray-300 mb-3" />
-                    <h3 className="text-md font-medium text-gray-900 mb-2">No transactions</h3>
-                    <p className="text-gray-600">
-                      {currentDataSource === 'donations' 
-                        ? "You haven't made any donations yet." 
-                        : currentDataSource === 'combined'
-                          ? "No transaction history found."
-                          : "You haven't made any transactions yet."}
-                    </p>
+                    <h3 className="text-md font-medium text-gray-900 mb-2">No donations</h3>
+                    <p className="text-gray-600">You haven't made any donations yet.</p>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -1448,7 +1448,7 @@ export default function UserDashboard() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <div className="flex items-center">
                               <FaFileInvoice className="mr-2" />
-                              Actions
+                              Invoice
                             </div>
                           </th>
                         </tr>
@@ -1457,12 +1457,11 @@ export default function UserDashboard() {
                         {combinedTransactions.map((item, index) => {
                           if (!item) return null; // Skip null or undefined items
                           
-                          // Determine if this is a donation or transaction
-                          const isDonation = item.source === 'Donation' || item.donor_message;
+                          const isCompleted = item.status === 'completed' || item.status === 'verified';
                           
                           return (
                             <motion.tr
-                              key={item.id || item.transaction_hash || Math.random()}
+                              key={item.id || Math.random()}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05 }}
@@ -1472,13 +1471,13 @@ export default function UserDashboard() {
                                 {formatDate(item.created_at || item.completed_at || new Date())}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeClass(item)}`}>
-                                  {getTypeIcon(item)}
-                                  {getTransactionType(item)}
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  <FaHandHoldingHeart className="mr-1.5" />
+                                  Charity Donation
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {item.amount ? `$${item.amount}` : 'N/A'}
+                                ${item.amount}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
@@ -1487,24 +1486,15 @@ export default function UserDashboard() {
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {isDonation ? (
-                                  <Link to={`/donations/${item.id}`} className="text-indigo-600 hover:text-indigo-900 inline-flex items-center">
-                                    <FaExternalLinkAlt className="mr-2" />
-                                    View Donation
-                                  </Link>
-                                ) : item.type === 'charity' && item.charity_id ? (
-                                  <Link to={`/charities/${item.charity_id}`} className="text-indigo-600 hover:text-indigo-900 inline-flex items-center">
-                                    <FaExternalLinkAlt className="mr-2" />
-                                    View Charity
-                                  </Link>
-                                ) : (
-                                  <span className="text-gray-400">N/A</span>
-                                )}
+                                <Link to={`/donations/${item.id}`} className="text-indigo-600 hover:text-indigo-900 inline-flex items-center">
+                                  <FaExternalLinkAlt className="mr-2" />
+                                  View Donation
+                                </Link>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {isDonation && item.status === 'completed' && (
+                                {isCompleted && (
                                   <button
-                                    onClick={() => viewInvoice(item.id)}
+                                    onClick={() => downloadInvoice(item.id)}
                                     className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
                                   >
                                     <FaFileInvoice className="mr-2" />

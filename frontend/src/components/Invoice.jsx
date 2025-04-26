@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
   FaDownload, 
@@ -15,37 +14,16 @@ import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import BackButton from './BackToHistory';
 
-const Invoice = () => {
-  const { id } = useParams();
+export default function Invoice() {
+  const { donationId } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [donation, setDonation] = useState(null);
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [invoiceHtml, setInvoiceHtml] = useState('');
+  const [invoiceData, setInvoiceData] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [ethToRmRate, setEthToRmRate] = useState(7500); // Default exchange rate (1 ETH ≈ 7500 RM)
-
-  useEffect(() => {
-    const fetchDonation = async () => {
-      try {
-        const response = await axios.get(`/api/donations/${id}`);
-        setDonation(response.data);
-        
-        // Redirect if user is not the owner - using ic_number
-        if (currentUser?.ic_number !== response.data.user_id) {
-          navigate('/unauthorized');
-          return;
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching donation:', error);
-        setError('Failed to fetch donation details');
-        setLoading(false);
-      }
-    };
-
-    fetchDonation();
-  }, [id, currentUser, navigate]);
 
   useEffect(() => {
     // Fetch current ETH to RM exchange rate
@@ -65,13 +43,74 @@ const Invoice = () => {
     fetchExchangeRate();
   }, []);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        // Try different endpoints in sequence
+        const endpoints = [
+          `/donations/${donationId}/invoice-html`,
+          `/donations/${donationId}/direct-html`,
+          `/donations/${donationId}/simple-html`,
+          `/test-invoice-html`
+        ];
+        
+        let response = null;
+        let errorMessages = [];
+        
+        // Try each endpoint until one works
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Trying endpoint: ${endpoint}`);
+            response = await axios.get(endpoint);
+            
+            if (response.data && response.data.html) {
+              console.log(`Success with endpoint: ${endpoint}`);
+              break;
+            }
+          } catch (err) {
+            console.error(`Error with endpoint ${endpoint}:`, err);
+            errorMessages.push(`${endpoint}: ${err.message}`);
+            response = null;
+          }
+        }
+        
+        if (!response || !response.data || !response.data.html) {
+          throw new Error(`All endpoints failed: ${errorMessages.join(', ')}`);
+        }
+        
+        // Convert ETH to RM in the HTML content
+        const convertedHtml = convertEthToRm(response.data.html, ethToRmRate);
+        
+        setInvoiceHtml(convertedHtml);
+        setInvoiceData(response.data);
+        setLoading(false);
+        
+        // Auto download if specified in URL
+        if (searchParams.get('download') === 'true') {
+          setTimeout(() => {
+            downloadInvoice();
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('Error fetching invoice:', error);
+        
+        // Get a more specific error message
+        const errorMessage = error.response?.data?.message || 
+                            error.response?.data?.error || 
+                            error.message || 
+                            'Failed to load invoice';
+        
+        setError(errorMessage);
+        setLoading(false);
+        toast.error('Failed to load invoice: ' + errorMessage);
+      }
+    };
 
-  if (error) {
-    return <div>{error}</div>;
-  }
+    fetchInvoice();
+  }, [donationId, retryCount, ethToRmRate, searchParams]);
 
   // Function to convert ETH values to RM in the HTML
   const convertEthToRm = (html, rate) => {
@@ -123,7 +162,7 @@ const Invoice = () => {
       const element = document.getElementById('invoice-container');
       const opt = {
         margin: 1,
-        filename: donation?.filename || `donation-invoice-${id}.pdf`,
+        filename: invoiceData?.filename || `donation-invoice-${donationId}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -163,6 +202,36 @@ const Invoice = () => {
     setRetryCount(prev => prev + 1);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">Failed to load invoice</h2>
+          <p className="mt-2">Please try again later</p>
+          <div className="mt-4 flex space-x-4 justify-center">
+            <Link to={`/donations/${donationId}`} className="inline-block text-indigo-600 hover:text-indigo-900">
+              Back to Donation
+            </Link>
+            <button 
+              onClick={handleRetry}
+              className="inline-block text-indigo-600 hover:text-indigo-900"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <BackButton />
@@ -176,7 +245,7 @@ const Invoice = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Donation Invoice</h2>
               </div>
               <p className="text-sm text-gray-500">
-                Invoice ID: {id}
+                Invoice ID: {donationId}
               </p>
             </div>
           </div>
@@ -186,7 +255,7 @@ const Invoice = () => {
               <div className="flex items-center">
                 <FaFileAlt className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-sm font-medium text-gray-500">
-                  {donation?.filename || `donation-invoice-${id}.pdf`}
+                  {invoiceData?.filename || `donation-invoice-${donationId}.pdf`}
                 </span>
               </div>
               
@@ -212,7 +281,7 @@ const Invoice = () => {
               id="invoice-container" 
               className="invoice-container overflow-hidden border border-gray-200 p-6 rounded-md"
             >
-              <div dangerouslySetInnerHTML={{ __html: convertEthToRm(donation?.html, ethToRmRate) }} />
+              <div dangerouslySetInnerHTML={{ __html: invoiceHtml }} />
             </div>
           </div>
           
@@ -226,5 +295,3 @@ const Invoice = () => {
     </div>
   );
 }
-
-export default Invoice;

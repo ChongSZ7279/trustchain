@@ -43,7 +43,7 @@ class OrganizationSeeder extends Seeder
         // Use existing users if possible, or use the ICs defined below
         $userRepresentatives = [];
         if ($users->isNotEmpty()) {
-            foreach ($users->take(5) as $index => $user) {
+            foreach ($users->take(6) as $index => $user) {
                 $userRepresentatives[$index] = $user->ic_number;
             }
         }
@@ -51,14 +51,15 @@ class OrganizationSeeder extends Seeder
         // Fallback representative ICs (if not enough users)
         $defaultRepresentatives = [
             '991234567890', // Admin's IC
-            '881234567890', // User's IC
+            '781115678901', // Ahmad Bin Abdullah
+            '790512145678', // Siti Nur Aisyah
             '850623789012', // Raj Kumar
             '920415678901', // Lee Wei Ling
             '860708123456', // Noor Fatimah
         ];
         
-        // Ensure we have 5 representatives (use defaults for missing ones)
-        for ($i = 0; $i < 5; $i++) {
+        // Ensure we have 6 representatives (use defaults for missing ones)
+        for ($i = 0; $i < 6; $i++) {
             if (!isset($userRepresentatives[$i])) {
                 $userRepresentatives[$i] = $defaultRepresentatives[$i];
             }
@@ -85,8 +86,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Green Earth Malaysia',
-                'logo' => $this->getImagePath($logoImages, 1, 'organization_logos/default-logo.jpg'),
-                'cover_photo' => $this->getImagePath($coverImages, 1, 'organization_covers/default-cover.jpg'),
+                'logo' => $this->getImagePath($logoImages, 1, 'organization_logos/1.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 1, 'organization_covers/1.jpg'),
                 'category' => 'Environment',
                 'description' => 'Dedicated to environmental conservation and sustainability initiatives throughout Malaysia. We work with local communities, government agencies, and international partners to protect natural habitats, reduce pollution, and promote eco-friendly practices.',
                 'objectives' => 'To protect Malaysian biodiversity, promote sustainable practices, and combat climate change effects. Our goals include planting 1 million trees by 2030, establishing 20 community conservation areas, and reducing plastic waste by 50% in target communities.',
@@ -102,8 +103,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Healthcare For All',
-                'logo' => $this->getImagePath($logoImages, 2, 'organization_logos/default-logo.jpg'),
-                'cover_photo' => $this->getImagePath($coverImages, 2, 'organization_covers/default-cover.jpg'),
+                'logo' => $this->getImagePath($logoImages, 2, 'organization_logos/2.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 2, 'organization_covers/2.jpg'),
                 'category' => 'Healthcare',
                 'description' => 'Working to ensure access to quality healthcare services for all Malaysians, especially in rural areas. Our programs include mobile clinics, telemedicine services, health screenings, and medical training for community health workers.',
                 'objectives' => 'To improve healthcare accessibility, provide medical resources, and health education to underserved communities. We aim to reach 500,000 individuals with basic healthcare services and establish sustainable healthcare solutions in 200 rural villages.',
@@ -119,8 +120,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Feed The Hungry',
-                'logo' => $this->getImagePath($logoImages, 3, 'organization_logos/default-logo.jpg'),
-                'cover_photo' => $this->getImagePath($coverImages, 3, 'organization_covers/default-cover.jpg'),
+                'logo' => $this->getImagePath($logoImages, 3, 'organization_logos/3.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 3, 'organization_covers/3.jpg'),
                 'category' => 'Poverty Relief',
                 'description' => 'Combating hunger and food insecurity across Malaysian communities. We operate food banks, community kitchens, meal delivery services, and urban farming projects to provide nutritious food to those in need.',
                 'objectives' => 'To eliminate hunger through food distribution programs, community kitchens, and sustainable food systems. Our goals include providing 10 million meals annually, establishing 50 food banks nationwide, and teaching 10,000 families to grow their own food.',
@@ -136,8 +137,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Rebuild Malaysia',
-                'logo' => $this->getImagePath($logoImages, 4, 'organization_logos/default-logo.jpg'),
-                'cover_photo' => $this->getImagePath($coverImages, 4, 'organization_covers/default-cover.jpg'),
+                'logo' => $this->getImagePath($logoImages, 4, 'organization_logos/4.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 4, 'organization_covers/4.jpg'),
                 'category' => 'Disaster Relief',
                 'description' => 'Providing immediate assistance and long-term recovery support for communities affected by natural disasters. We specialize in emergency response, shelter construction, infrastructure rehabilitation, and disaster preparedness training.',
                 'objectives' => 'To build resilience, provide emergency relief, and support reconstruction after disasters. We aim to respond to every major disaster in Malaysia within 24 hours, help rebuild 5,000 homes, and train 100,000 Malaysians in disaster preparedness by 2025.',
@@ -153,8 +154,8 @@ class OrganizationSeeder extends Seeder
             ],
             [
                 'name' => 'Trustchain',
-                'logo' => $this->getImagePath($logoImages, 5, 'organization_logos/default-logo.jpg'),
-                'cover_photo' => $this->getImagePath($coverImages, 5, 'organization_covers/default-cover.jpg'),
+                'logo' => $this->getImagePath($logoImages, 5, 'organization_logos/5.jpg'),
+                'cover_photo' => $this->getImagePath($coverImages, 5, 'organization_covers/5.jpg'),
                 'category' => 'Technology',
                 'description' => 'A blockchain-powered platform designed to restore trust in charitable giving.',
                 'objectives' => 'Your subscription helps us maintain and improve the platform, ensuring we can continue to connect donors with meaningful causes. Funds are used for: platform maintenance and updates, server and hosting costs, development of new features, support and customer service.',

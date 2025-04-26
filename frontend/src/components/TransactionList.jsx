@@ -220,10 +220,10 @@ export default function TransactionList() {
           endpoint = '/donations';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'donations-direct' }));
         } else if (dataSource === 'combined') {
-          endpoint = '/transactions';
+          endpoint = '/api/transactions';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'combined' }));
         } else {
-          endpoint = '/transactions';
+          endpoint = '/api/transactions';
           setDebugInfo(prev => ({ ...prev, dataSourceType: 'transactions' }));
         }
       }
@@ -533,19 +533,21 @@ export default function TransactionList() {
 
   // Add these helper functions for consistent transaction type formatting
   const getTypeClass = (item) => {
-    // Get the transaction type first
-    const transactionType = getTypeLabel(item);
-    
-    // Then assign consistent colors based on type
-    switch (transactionType) {
-      case 'Fund Release':
-        return 'bg-green-100 text-green-800';
-      case 'Charity Donation':
-        return 'bg-purple-100 text-purple-800';
-      case 'Subscription Donation':
+    // First check the source
+    if (item.source === 'Donation' || item.source === 'donations') {
+      // For donations source
+      if (item.donation_type === 'subscription' || item.type === 'subscription') {
         return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      } else if (item.donation_type === 'charity' || 
+                 item.type === 'charity' || 
+                 item.type === 'donation') {
+        return 'bg-purple-100 text-purple-800';
+      } else {
+        return 'bg-purple-100 text-purple-800';
+      }
+    } else {
+      // For transactions source (only fund releases)
+      return 'bg-green-100 text-green-800';
     }
   };
 
@@ -566,33 +568,23 @@ export default function TransactionList() {
   };
 
   const getTypeLabel = (item) => {
-    // Simplify to only three possible types
-    
-    // Check if this is fund_release
-    if (item.type === 'fund_release') {
+    // First check the source
+    if (item.source === 'Donation' || item.source === 'donations') {
+      // For donations source
+      if (item.donation_type === 'subscription' || 
+          item.type === 'subscription') {
+        return 'Subscription Donation';
+      } else if (item.donation_type === 'charity' || 
+                 item.type === 'charity' || 
+                 item.type === 'donation') {
+        return 'Charity Donation';
+      } else {
+        return 'Donation';
+      }
+    } else {
+      // For transactions source (only fund releases)
       return 'Fund Release';
     }
-    
-    // Check donation types
-    if (item.donation_type === 'subscription' || 
-        (item.type === 'subscription') || 
-        (item.source === 'Donation' && item.type === 'subscription')) {
-      return 'Subscription Donation';
-    }
-    
-    // Default to charity donation for all other donation types
-    if (item.source === 'Donation' || 
-        item.donor_message || 
-        item.cause_id || 
-        item.currency_type || 
-        item.donation_type === 'charity' || 
-        item.type === 'charity' || 
-        item.type === 'donation') {
-      return 'Charity Donation';
-    }
-    
-    // If nothing else matches, default to Fund Release
-    return 'Fund Release';
   };
 
   const formatAmount = (amount, currencyType) => {
@@ -631,12 +623,7 @@ export default function TransactionList() {
     }
 
     // Check if this is a donation record
-    if (item.source === 'Donation' ||
-        getSourceLabel(item).toLowerCase() === 'donation' ||
-        item.type === 'donation' ||
-        item.donor_message ||
-        item.donor_id ||
-        item.cause_id) {
+    if (item.source === 'Donation') {
       // Use the donation ID if available
       const donationId = item.id || (item.donation ? item.donation.id : null);
       if (donationId) {
@@ -663,12 +650,7 @@ export default function TransactionList() {
   // Get the appropriate details button text based on item type
   const getDetailsButtonText = (item) => {
     // Check if this is a donation
-    if (item.source === 'Donation' ||
-        getSourceLabel(item).toLowerCase() === 'donation' ||
-        item.type === 'donation' ||
-        item.donor_message ||
-        item.donor_id ||
-        item.cause_id) {
+    if (item.source === 'Donation') {
       return 'Donation';
     }
 
@@ -683,7 +665,7 @@ export default function TransactionList() {
     }
 
     // Default
-    return 'Transaction Details';
+    return 'Transaction';
   };
 
   // Add a debug panel that only shows in development mode
@@ -1209,7 +1191,7 @@ export default function TransactionList() {
                       currentPage: 1
                     }));
                   }}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="border border-gray-300 rounded px-3 py-1 text-sm min-w-[80px]"
                 >
                   <option value={5}>5</option>
                   <option value={10}>10</option>

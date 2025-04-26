@@ -95,7 +95,7 @@ class AdminVerificationController extends Controller
             
             // Tasks stats
             $totalTasks = Task::count();
-            $completedTasks = Task::where('status', 'verified')->where('funds_released', true)->count();
+            $completedTasks = Task::where('status', 'completed')->where('funds_released', true)->count();
             
             // Users stats
             $totalUsers = User::where('is_admin', false)->count();

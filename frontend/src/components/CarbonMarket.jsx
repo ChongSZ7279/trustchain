@@ -23,18 +23,16 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const CarbonMarket = () => {
-  const tradingMarketRef = useRef(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [selectedListing, setSelectedListing] = useState(null);
-  const [modalType, setModalType] = useState(''); // 'donate' or 'offer'
-  const [processingTransaction, setProcessingTransaction] = useState(false);
-  const [newListing, setNewListing] = useState({
-    organization: '',
-    carbonTons: '',
-    price: '',
-    rate: ''
-  });
+  const context = useCarbonMarket();
+  
+  // If context is not yet initialized, show loading state
+  if (!context) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-12 pb-24 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+      </div>
+    );
+  }
 
   const {
     account,
@@ -52,8 +50,23 @@ const CarbonMarket = () => {
     refreshData,
     formatAddress,
     weiToEth,
-    ethToWei
-  } = useCarbonMarket();
+    ethToWei,
+    requestTestCredits,
+    contract
+  } = context;
+
+  const tradingMarketRef = useRef(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [selectedListing, setSelectedListing] = useState(null);
+  const [modalType, setModalType] = useState(''); // 'donate' or 'offer'
+  const [processingTransaction, setProcessingTransaction] = useState(false);
+  const [newListing, setNewListing] = useState({
+    organization: '',
+    carbonTons: '',
+    price: '',
+    rate: ''
+  });
 
   useEffect(() => {
     // Refresh data when component mounts
@@ -114,16 +127,24 @@ const CarbonMarket = () => {
       let success = false;
 
       if (modalType === 'donate') {
+        // Convert values to appropriate types
+        const carbonTonsNumber = parseInt(newListing.carbonTons);
+        const rateInEther = newListing.rate.toString();
+
         success = await createSellerListing(
           newListing.organization,
-          parseInt(newListing.carbonTons),
-          parseFloat(newListing.rate)
+          carbonTonsNumber,
+          rateInEther
         );
       } else {
+        // For buyer listing
+        const carbonTonsNumber = parseInt(newListing.carbonTons);
+        const rateInEther = newListing.rate.toString();
+        
         success = await createBuyerListing(
           newListing.organization,
-          parseInt(newListing.carbonTons),
-          parseFloat(newListing.rate)
+          carbonTonsNumber,
+          rateInEther
         );
       }
 
@@ -185,6 +206,46 @@ const CarbonMarket = () => {
     }
   };
 
+  // Add this debug function
+  const debugMintCredits = async () => {
+    try {
+      if (!contract || !account) {
+        toast.error("Contract or account not initialized");
+        return;
+      }
+
+      const owner = await contract.methods.owner().call();
+      console.log("Contract owner:", owner);
+      console.log("Current account:", account);
+
+      if (owner.toLowerCase() !== account.toLowerCase()) {
+        toast.error("Only the contract owner can mint credits");
+        return;
+      }
+
+      const tx = await contract.methods.mintCarbonCredits(account, "100").send({
+        from: account,
+        gas: 200000
+      });
+
+      console.log("Mint transaction:", tx);
+      toast.success("Successfully minted 100 credits!");
+      
+      // Check new balance
+      const newBalance = await contract.methods.getCarbonCreditsBalance(account).call();
+      toast.info(`New balance: ${newBalance} credits`);
+      
+      refreshData();
+    } catch (err) {
+      console.error("Error minting credits:", err);
+      toast.error(`Failed to mint credits: ${err.message}`);
+    }
+  };
+
+  // Add the debug section to your JSX where appropriate
+  // For example, add it after the hero section:
+  // {isConnected && debugSection}
+
   return (
     <div className="min-h-screen bg-gray-50 pt-12 pb-24 px-4 sm:px-6 lg:px-8">
       <ToastContainer position="top-right" />
@@ -196,6 +257,47 @@ const CarbonMarket = () => {
           <h1 className="text-3xl font-bold text-gray-900">Carbon Marketplace</h1>
           <CarbonWalletButton />
         </div>
+
+        {/* Debug Section */}
+        {isConnected && (
+          <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
+            <h4 className="font-semibold mb-2">Debug Controls:</h4>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const balance = await contract.methods.getCarbonCreditsBalance(account).call();
+                    toast.info(`Current balance: ${balance} credits`);
+                    
+                    const owner = await contract.methods.owner().call();
+                    if (owner.toLowerCase() === account.toLowerCase()) {
+                      toast.success("You are the contract owner!");
+                    } else {
+                      toast.warning("You are not the contract owner");
+                    }
+                  } catch (err) {
+                    toast.error(`Error: ${err.message}`);
+                  }
+                }}
+                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+              >
+                Check Balance
+              </button>
+              <button
+                onClick={debugMintCredits}
+                className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+              >
+                Mint Test Credits
+              </button>
+              <button
+                onClick={refreshData}
+                className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+              >
+                Refresh Data
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Hero Section */}
         <motion.div
@@ -392,20 +494,71 @@ const CarbonMarket = () => {
                 <div className="w-32 h-32 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner mt-5">
                   <FaLeaf className="w-16 h-16 text-green-500" />
                 </div>
+                {/* Debug Information */}
+                {isConnected && (
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4 text-left text-sm">
+                    <h4 className="font-semibold mb-2">Debug Information:</h4>
+                    <div className="space-y-1">
+                      <p>Connected Account: {account}</p>
+                      <p>Is Owner: {account && contract ? "Checking..." : "Not Connected"}</p>
+                      <p>Network: {isScrollNetwork ? "Scroll Network" : "Wrong Network"}</p>
+                      <p>Carbon Credits: {carbonCreditPool} TONS</p>
+                      <p>Contract Address: {contract ? contract._address : "Not Connected"}</p>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const owner = await contract.methods.owner().call();
+                            toast.info(`Contract owner is: ${owner}`);
+                            if (owner.toLowerCase() === account.toLowerCase()) {
+                              toast.success("You are the contract owner!");
+                              // Check balance
+                              const balance = await contract.methods.getCarbonCreditsBalance(account).call();
+                              toast.info(`Your current balance: ${balance} credits`);
+                            } else {
+                              toast.warning("You are not the contract owner");
+                            }
+                          } catch (err) {
+                            toast.error(`Error checking owner: ${err.message}`);
+                          }
+                        }}
+                        className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      >
+                        Check Owner & Balance
+                      </button>
+                      <button
+                        onClick={debugMintCredits}
+                        className="text-xs bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                      >
+                        Mint Credits (Owner Only)
+                      </button>
+                      <button
+                        onClick={refreshData}
+                        className="text-xs bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600"
+                      >
+                        Refresh Data
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-center">
                   <span className="text-6xl font-bold text-gray-900 mr-2 mb-6 mt-4">{carbonCreditPool}</span>
                   <span className="text-gray-800 uppercase text-lg mb-6 mt-4">TONS</span>
                 </div>
                 <h3 className="text-xl font-semibold mb-6">Total Carbon Reduction Pool</h3>
                 <p className="text-m mb-6">Since July 2025</p>
-                {/* <div className="w-full max-w-xs mx-auto bg-gray-200 h-1 my-4 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-green-500 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: '70%' }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                  />
-                </div> */}
+                {isConnected && carbonCreditPool === 0 && (
+                  <motion.button
+                    onClick={() => requestTestCredits(100)}
+                    className="mt-2 text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center mx-auto"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FaPlus className="mr-2" />
+                    Mint 100 Test Credits
+                  </motion.button>
+                )}
               </div>
 
               {/* {isConnected && carbonCreditPool === 0 && (

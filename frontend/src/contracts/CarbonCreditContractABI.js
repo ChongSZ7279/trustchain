@@ -1,4 +1,4 @@
-export const CarbonCreditContractAddress = '0xYourContractAddressHere'; // Replace with actual contract address after deployment
+export const CarbonCreditContractAddress = import.meta.env.VITE_CARBON_CONTRACT_ADDRESS || "0x01a30B9a56b9Cc0706e46d30B31C2A8a4C79D04A";
 
 export const CarbonCreditContractABI = [
   {

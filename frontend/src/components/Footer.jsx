@@ -88,6 +88,19 @@ export default function Footer() {
                 </a>
               </li>
             </ul>
+            <h3 className="text-sm font-semibold text-gray-400 mt-10 uppercase tracking-wider">Guideline</h3>
+            <ul className="mt-4 space-y-4">
+              <li>
+                <a href="/guidelines" className="text-base text-gray-300 hover:text-white">
+                  Donation Guidelines
+                </a>
+              </li>
+              <li>
+                <a href="/blockchain-basics" className="text-base text-gray-300 hover:text-white">
+                  Blockchain Guidelines
+                </a>
+              </li>
+            </ul>
           </div>
 
           {/* Contact */}

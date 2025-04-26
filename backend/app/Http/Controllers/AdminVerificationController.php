@@ -255,135 +255,13 @@ class AdminVerificationController extends Controller
 
         // Update task status to verified
         $task->status = 'verified';
-
-        // Automatically release funds
-        $task->funds_released = true;
         $task->save();
 
-        try {
-            // Call the blockchain service to transfer funds
-            // Try Web3Service first, then EthereumTransactionService, then fall back to BlockchainService
-            if (class_exists('\App\Services\Web3Service')) {
-                $transactionService = new \App\Services\Web3Service();
-                Log::info('Using Web3Service for fund release');
-            } else if (class_exists('\App\Services\EthereumTransactionService')) {
-                $transactionService = new \App\Services\EthereumTransactionService();
-                Log::info('Using EthereumTransactionService for fund release');
-            } else {
-                $transactionService = new BlockchainService();
-                Log::info('Using BlockchainService for fund release');
-            }
-
-            $amount = 1.0; // Amount in SCROLL - in a real implementation, this would be calculated based on verified donations
-            $result = $transactionService->releaseFunds(
-                $charity->organization->wallet_address,
-                $amount
-            );
-
-            // Check if the result was successful
-            if (!isset($result['success']) || !$result['success']) {
-                Log::error('Failed to release funds', [
-                    'task_id' => $task->id,
-                    'charity_id' => $charity->id,
-                    'error' => $result['message'] ?? 'Unknown error'
-                ]);
-
-                // Generate a mock transaction hash for testing purposes
-                $txHash = $this->validateTransactionHash('0x' . bin2hex(random_bytes(32)));
-
-                // Continue with a mock transaction instead of failing
-                Log::warning('Using mock transaction hash due to fund release failure', [
-                    'hash' => $txHash,
-                    'error' => $result['message'] ?? 'Unknown error'
-                ]);
-                $result = [
-                    'success' => true,
-                    'message' => 'Funds released successfully (mock transaction due to error: ' . ($result['message'] ?? 'Unknown error') . ')',
-                    'transaction_hash' => $txHash,
-                    'explorer_url' => "https://sepolia.scrollscan.com/tx/{$txHash}",
-                    'is_mock' => true
-                ];
-            }
-
-            // Get the transaction hash from the result
-            $txHash = $result['transaction_hash'];
-
-            // Log the transaction hash
-            Log::info('Transaction hash received', [
-                'task_id' => $task->id,
-                'charity_id' => $charity->id,
-                'transaction_hash' => $txHash,
-                'is_mock' => $result['is_mock'] ?? false,
-                'explorer_url' => $result['explorer_url'] ?? null
-            ]);
-
-            // Store the transaction hash in the task record
-            $task->transaction_hash = $txHash;
-            $task->save();
-
-            // Create a transaction record
-            try {
-                // Create a transaction record
-                $transaction = new \App\Models\Transaction([
-                    'task_id' => $task->id,
-                    'charity_id' => $charity->id,
-                    'amount' => $amount,
-                    'type' => 'charity', // Using 'charity' instead of 'fund_release' to avoid ENUM constraint issues
-                    'status' => 'completed',
-                    'transaction_hash' => $txHash,
-                    'contract_address' => env('CONTRACT_ADDRESS'),
-                    'message' => 'Funds released after task verification',
-                    'user_ic' => Auth::check() && Auth::user()->ic_number ? Auth::user()->ic_number : null, // Use admin user or null
-                    'anonymous' => false,
-                ]);
-                $transaction->save();
-
-                Log::info('Transaction record created successfully', [
-                    'transaction_id' => $transaction->id,
-                    'task_id' => $task->id,
-                    'transaction_hash' => $txHash
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Error creating transaction record', [
-                    'error' => $e->getMessage(),
-                    'task_id' => $task->id,
-                    'transaction_hash' => $txHash
-                ]);
-
-                // Continue execution - we don't want to fail the whole process if just the transaction record fails
-                // The task is already marked as verified and the funds are released
-            }
-        } catch (\Exception $e) {
-            Log::error('Exception when releasing funds', [
-                'task_id' => $task->id,
-                'charity_id' => $charity->id,
-                'error' => $e->getMessage()
-            ]);
-
-            // Generate a mock transaction hash for testing purposes
-            $txHash = $this->validateTransactionHash('0x' . bin2hex(random_bytes(32)));
-
-            // Continue with a mock transaction instead of failing
-            Log::warning('Using mock transaction hash due to exception', [
-                'hash' => $txHash,
-                'error' => $e->getMessage()
-            ]);
-            $result = [
-                'success' => true,
-                'message' => 'Funds released successfully (mock transaction due to exception: ' . $e->getMessage() . ')',
-                'transaction_hash' => $txHash,
-                'explorer_url' => "https://sepolia.scrollscan.com/tx/{$txHash}",
-                'is_mock' => true
-            ];
-        }
-
+        // Don't automatically release funds here - let the admin do it separately
         return response()->json([
             'success' => true,
-            'message' => 'Task verified and initial funds released to charity wallet',
-            'task' => $task,
-            'transaction_hash' => $this->validateTransactionHash($txHash),
-            'explorer_url' => $result['explorer_url'] ?? "https://sepolia.scrollscan.com/tx/{$this->validateTransactionHash($txHash)}",
-            'note' => 'Additional funds may be released automatically as new donations are verified for this charity.'
+            'message' => 'Task verified successfully. Funds can now be released by admin.',
+            'task' => $task
         ]);
     }
 

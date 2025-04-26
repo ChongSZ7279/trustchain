@@ -258,46 +258,6 @@ const CarbonMarket = () => {
           <CarbonWalletButton />
         </div>
 
-        {/* Debug Section */}
-        {isConnected && (
-          <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
-            <h4 className="font-semibold mb-2">Debug Controls:</h4>
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  try {
-                    const balance = await contract.methods.getCarbonCreditsBalance(account).call();
-                    toast.info(`Current balance: ${balance} credits`);
-                    
-                    const owner = await contract.methods.owner().call();
-                    if (owner.toLowerCase() === account.toLowerCase()) {
-                      toast.success("You are the contract owner!");
-                    } else {
-                      toast.warning("You are not the contract owner");
-                    }
-                  } catch (err) {
-                    toast.error(`Error: ${err.message}`);
-                  }
-                }}
-                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-              >
-                Check Balance
-              </button>
-              <button
-                onClick={debugMintCredits}
-                className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-              >
-                Mint Test Credits
-              </button>
-              <button
-                onClick={refreshData}
-                className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
-              >
-                Refresh Data
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Hero Section */}
         <motion.div
@@ -494,54 +454,7 @@ const CarbonMarket = () => {
                 <div className="w-32 h-32 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner mt-5">
                   <FaLeaf className="w-16 h-16 text-green-500" />
                 </div>
-                {/* Debug Information */}
-                {isConnected && (
-                  <div className="bg-gray-50 p-4 rounded-lg mb-4 text-left text-sm">
-                    <h4 className="font-semibold mb-2">Debug Information:</h4>
-                    <div className="space-y-1">
-                      <p>Connected Account: {account}</p>
-                      <p>Is Owner: {account && contract ? "Checking..." : "Not Connected"}</p>
-                      <p>Network: {isScrollNetwork ? "Scroll Network" : "Wrong Network"}</p>
-                      <p>Carbon Credits: {carbonCreditPool} TONS</p>
-                      <p>Contract Address: {contract ? contract._address : "Not Connected"}</p>
-                    </div>
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const owner = await contract.methods.owner().call();
-                            toast.info(`Contract owner is: ${owner}`);
-                            if (owner.toLowerCase() === account.toLowerCase()) {
-                              toast.success("You are the contract owner!");
-                              // Check balance
-                              const balance = await contract.methods.getCarbonCreditsBalance(account).call();
-                              toast.info(`Your current balance: ${balance} credits`);
-                            } else {
-                              toast.warning("You are not the contract owner");
-                            }
-                          } catch (err) {
-                            toast.error(`Error checking owner: ${err.message}`);
-                          }
-                        }}
-                        className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                      >
-                        Check Owner & Balance
-                      </button>
-                      <button
-                        onClick={debugMintCredits}
-                        className="text-xs bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-                      >
-                        Mint Credits (Owner Only)
-                      </button>
-                      <button
-                        onClick={refreshData}
-                        className="text-xs bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600"
-                      >
-                        Refresh Data
-                      </button>
-                    </div>
-                  </div>
-                )}
+                
                 <div className="flex items-center justify-center">
                   <span className="text-6xl font-bold text-gray-900 mr-2 mb-6 mt-4">{carbonCreditPool}</span>
                   <span className="text-gray-800 uppercase text-lg mb-6 mt-4">TONS</span>

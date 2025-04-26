@@ -66,7 +66,9 @@ class Task extends Model
 
     public function canReleaseFunds()
     {
-        return $this->verificationComplete() && $this->status === self::STATUS_VERIFIED;
+        return $this->verificationComplete() && 
+               $this->status === self::STATUS_VERIFIED && 
+               !$this->funds_released;
     }
 
     /**

@@ -132,13 +132,7 @@ class TaskController extends Controller
         // Update verification status
         $validated['verification_status'] = $task->verificationComplete() ? 'complete' : 'incomplete';
         
-        // If verification is complete and status is verified, release funds
-        if ($task->verificationComplete() && $validated['status'] === Task::STATUS_VERIFIED) {
-            $validated['funds_released'] = true;
-            // Trigger blockchain transaction for fund release
-            event(new TaskFundsReleased($task));
-        }
-
+        // Remove automatic fund release
         $task->update($validated);
         return response()->json($task);
     }

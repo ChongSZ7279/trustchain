@@ -206,7 +206,7 @@ const SubscriptionDonation = ({ organizationId, organizationName, onClose }) => 
           </div>
           <div className="flex justify-between py-2">
             <span className="text-gray-600">First Charge:</span>
-            <span className="font-semibold">Today</span>
+            <span className="font-semibold">Tomorrow</span>
           </div>
         </div>
         

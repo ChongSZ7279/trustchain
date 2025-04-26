@@ -330,7 +330,7 @@ export default function DonationDetails() {
                   <p className="text-sm text-indigo-600 font-medium">Donation Amount</p>
                   <p className="text-2xl font-bold text-indigo-900">
                     {typeof donation.amount === 'number' ? 
-                      `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(2)}` : 
+                      `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(4)}` : 
                       donation.amount}
                   </p>
                 </div>
@@ -622,8 +622,8 @@ export default function DonationDetails() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BackButton className="mb-6" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Header Section */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
@@ -690,7 +690,7 @@ export default function DonationDetails() {
                     <p className="text-sm text-indigo-600 font-medium">Amount</p>
                     <p className="text-2xl font-bold text-indigo-900">
                       {typeof donation.amount === 'number' ? 
-                        `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(2)} ${donation.currency_type}` : 
+                        `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(4)} ${donation.currency_type}` : 
                         donation.amount}
                     </p>
                   </div>
@@ -923,7 +923,7 @@ export default function DonationDetails() {
               </div>
                   <p className="text-xs text-gray-500 mt-2">
                     This charity aims to help {donation.charity.people_affected.toLocaleString()} people in total.
-                    Your donation contributes to {((donation.amount / donation.charity.fund_targeted) * 100).toFixed(2)}% of their funding goal.
+                    Your donation contributes to {((donation.amount / donation.charity.fund_targeted) * 100).toFixed(4)}% of their funding goal.
                 </p>
                 </div>
               )}
@@ -1001,7 +1001,7 @@ export default function DonationDetails() {
                         <dt className="text-xs text-gray-500">Amount</dt>
                         <dd className="text-sm font-medium text-gray-900 mt-1">
                           {typeof donation.amount === 'number' ? 
-                            `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(2)} ${donation.currency_type}` : 
+                            `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(4)} ${donation.currency_type}` : 
                             donation.amount}
                         </dd>
                       </div>

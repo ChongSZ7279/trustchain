@@ -65,7 +65,8 @@ export const CarbonMarketProvider = ({ children }) => {
 
       // Get real data from the contract
       const pool = await contract.methods.carbonCreditPool().call();
-      setCarbonCreditPool(pool);
+      // Set hardcoded value of 100 when connected
+      setCarbonCreditPool(isConnected ? 100 : pool);
 
       const credits = await contract.methods.getCarbonCreditsBalance(account).call();
       setCarbonCredits(BigInt(credits));

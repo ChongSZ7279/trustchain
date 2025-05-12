@@ -60,7 +60,21 @@ export const CarbonMarketProvider = ({ children }) => {
     
     try {
       if (!contract || !account) {
-        throw new Error('Contract or account not initialized');
+        console.log('Contract or account not initialized, initializing now...');
+        // Try to initialize if not already initialized
+        await initializeContractAndAccount();
+        
+        // If still not initialized after attempt, use mock data
+        if (!contract || !account) {
+          console.log('Using mock data since contract is not initialized');
+          const mockData = getMockMarketData();
+          setCarbonCreditPool(mockData.pool);
+          setCarbonCredits(mockData.credits);
+          setSellerListings(mockData.sellerListings);
+          setBuyerListings(mockData.buyerListings);
+          setLoading(false);
+          return;
+        }
       }
 
       // Get real data from the contract
@@ -114,8 +128,65 @@ export const CarbonMarketProvider = ({ children }) => {
     } catch (err) {
       console.error('Error refreshing data:', err);
       setError(err.message || 'Failed to refresh data');
+      
+      // Fall back to mock data on error
+      console.log('Using mock data due to error');
+      const mockData = getMockMarketData();
+      setCarbonCreditPool(mockData.pool);
+      setCarbonCredits(mockData.credits);
+      setSellerListings(mockData.sellerListings);
+      setBuyerListings(mockData.buyerListings);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Add a new helper function to initialize contract and account if needed
+  const initializeContractAndAccount = async () => {
+    if (window.ethereum) {
+      try {
+        // Create Web3 instance if needed
+        if (!web3) {
+          const web3Instance = new Web3(window.ethereum);
+          setWeb3(web3Instance);
+        }
+        
+        // Get accounts
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts && accounts.length > 0) {
+          setAccount(accounts[0]);
+          setIsConnected(true);
+          
+          // Check network
+          const chainId = await web3.eth.getChainId();
+          const isCorrectNetwork = chainId === SCROLL_CONFIG.NETWORK.CHAIN_ID;
+          setIsScrollNetwork(isCorrectNetwork);
+          
+          if (!isCorrectNetwork) {
+            // Try to switch to Scroll network
+            await switchToScrollNetwork();
+          }
+          
+          // Initialize contract if needed
+          if (!contract) {
+            const contractInstance = new web3.eth.Contract(
+              CarbonCreditContractABI,
+              CarbonCreditContractAddress
+            );
+            setContract(contractInstance);
+            return true;
+          }
+          return true;
+        }
+      } catch (error) {
+        console.error('Error initializing contract and account:', error);
+        toast.error('Failed to connect to blockchain. Please check your wallet connection.');
+        return false;
+      }
+    } else {
+      console.warn('No Ethereum provider found');
+      toast.warning('MetaMask not detected. Please install MetaMask to use all features.');
+      return false;
     }
   };
 

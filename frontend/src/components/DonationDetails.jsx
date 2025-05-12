@@ -6,9 +6,9 @@ import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import AdminFundReleaseButton from './AdminFundReleaseButton';
 import TransactionVerifier from './TransactionVerifier';
-import {
-  FaArrowLeft,
-  FaCheckCircle,
+import { 
+  FaArrowLeft, 
+  FaCheckCircle, 
   FaExclamationCircle,
   FaExclamationTriangle,
   FaSync,
@@ -138,7 +138,7 @@ export default function DonationDetails() {
       const response = await axios.post(`/donations/${donation.id}`, {
         status: newStatus
       });
-
+      
       setDonation(response.data);
       toast.success(`Donation marked as ${newStatus}`);
     } catch (err) {
@@ -153,7 +153,7 @@ export default function DonationDetails() {
     if (!window.confirm('Are you sure you want to delete this donation? This action cannot be undone.')) {
       return;
     }
-
+    
     try {
       setDeleteLoading(true);
       await axios.delete(`/donations/${donation.id}`);
@@ -172,7 +172,7 @@ export default function DonationDetails() {
     try {
       let provider;
       let signer;
-
+      
       // Check ethers version by feature detection
       if (typeof ethers.BrowserProvider === 'function') {
         // ethers v6
@@ -183,11 +183,11 @@ export default function DonationDetails() {
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
       }
-
+      
       const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
-
+      
       const contract = new ethers.Contract(
-        contractAddress,
+        contractAddress, 
         DonationContractABI,
         signer
       );
@@ -264,7 +264,7 @@ export default function DonationDetails() {
   const renderDonationInfo = () => {
     if (!donation) return null;
 
-    return (
+  return (
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -292,12 +292,12 @@ export default function DonationDetails() {
               ) : (
                 <FaBuilding className="w-8 h-8 text-indigo-500" />
               )}
-            </div>
-            <div>
+        </div>
+              <div>
               <h3 className="text-lg font-medium text-gray-900">{donation.charity?.name || 'Charity Organization'}</h3>
               <p className="text-sm text-gray-500">Donation #{donation.id}</p>
-            </div>
-          </div>
+              </div>
+              </div>
           <div className="flex items-center space-x-2">
             {donation.transaction_hash && (
               <button
@@ -319,9 +319,9 @@ export default function DonationDetails() {
             >
               <FaHeart className="h-5 w-5" />
             </button>
-          </div>
-        </div>
-
+                    </div>
+              </div>
+              
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="bg-indigo-50 rounded-lg p-4">
@@ -333,12 +333,12 @@ export default function DonationDetails() {
                       `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(4)}` : 
                       donation.amount}
                   </p>
-                </div>
+                    </div>
                 <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
                   <FaCoins className="h-6 w-6 text-indigo-600" />
                 </div>
               </div>
-            </div>
+              </div>
 
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="space-y-3">
@@ -351,19 +351,19 @@ export default function DonationDetails() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">Payment Method</span>
                   <span className="text-sm font-medium text-gray-900 flex items-center">
-                    {donation.payment_method === 'blockchain' ? (
-                      <>
+                  {donation.payment_method === 'blockchain' ? (
+                    <>
                         <FaEthereum className="mr-2 text-gray-400" />
                         Blockchain (Scroll)
-                      </>
-                    ) : (
-                      <>
+                    </>
+                  ) : (
+                    <>
                         <FaCreditCard className="mr-2 text-gray-400" />
                         {donation.payment_method || 'Standard Payment'}
-                      </>
-                    )}
+                    </>
+                  )}
                   </span>
-                </div>
+              </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">Transaction Hash</span>
                   <span className="text-sm font-medium text-gray-900 font-mono">
@@ -379,7 +379,7 @@ export default function DonationDetails() {
                       'N/A'
                     }
                   </span>
-                </div>
+                    </div>
                 {donation.donor_message && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Message</span>
@@ -390,7 +390,7 @@ export default function DonationDetails() {
                 )}
               </div>
             </div>
-          </div>
+              </div>
 
           <div className="space-y-4">
             <div className="bg-green-50 rounded-lg p-4">
@@ -430,8 +430,8 @@ export default function DonationDetails() {
                     </span>
                   </div>
                 )}
+                  </div>
               </div>
-            </div>
           </div>
         </div>
       </motion.div>
@@ -514,7 +514,7 @@ export default function DonationDetails() {
                        donation.transaction_hash ? '66%' : '33%' 
               }}
             />
-          </div>
+                </div>
 
           {/* Steps */}
           <div className="relative flex justify-between">
@@ -535,8 +535,8 @@ export default function DonationDetails() {
                       {new Date(step.date).toLocaleDateString()}
                     </p>
                   )}
-                </div>
-              </div>
+          </div>
+        </div>
             ))}
           </div>
         </div>
@@ -559,10 +559,10 @@ export default function DonationDetails() {
           Blockchain Verification
         </h3>
 
-        <div className="space-y-4">
+              <div className="space-y-4">
           <div className="bg-indigo-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
-                  <div>
+                <div>
                 <p className="text-sm text-indigo-600 font-medium">Transaction Hash</p>
                 <p className="text-sm font-mono text-indigo-900 mt-1">
                   {donation.transaction_hash ? `${donation.transaction_hash.slice(0, 8)}...` : 'N/A'}
@@ -570,18 +570,18 @@ export default function DonationDetails() {
               </div>
                       <a
                 href={`https://etherscan.io/tx/${donation.transactionHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    target="_blank"
+                    rel="noopener noreferrer"
                 className="p-2 text-indigo-600 hover:text-indigo-700 transition-colors duration-200 rounded-full hover:bg-indigo-100"
                 title="View on Etherscan"
-                      >
+                  >
                 <FaExternalLinkAlt className="h-5 w-5" />
-                      </a>
-            </div>
-                  </div>
+                  </a>
+                </div>
+                    </div>
 
           
-        </div>
+                    </div>
       </motion.div>
     );
   };
@@ -592,7 +592,7 @@ export default function DonationDetails() {
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
           <p className="mt-4 text-gray-600">Loading donation details...</p>
-        </div>
+                    </div>
       </div>
     );
   }
@@ -612,8 +612,8 @@ export default function DonationDetails() {
           >
             <FaArrowLeft className="mr-2" /> Back to Donations
           </Link>
-        </div>
-      </div>
+                </div>
+              </div>
     );
   }
 
@@ -646,14 +646,14 @@ export default function DonationDetails() {
                   <div className="h-24 w-24 rounded-full bg-white p-1 shadow-md flex items-center justify-center">
                     <div className="h-20 w-20 rounded-full bg-indigo-100 flex items-center justify-center">
                       <FaHandHoldingHeart className="h-10 w-10 text-indigo-600" />
-                    </div>
-                  </div>
+                      </div>
+                        </div>
                   <div className="ml-4">
                     <h1 className="text-2xl font-bold text-white">Donation #{donation.id}</h1>
                     <p className="text-gray-700">Created on {formatDate(donation.created_at)}</p>
+                    </div>
                   </div>
-                </div>
-
+                  
                 {isOwner() && (
                   <div className="mt-4 md:mt-0 flex space-x-2">
                     <button
@@ -668,13 +668,13 @@ export default function DonationDetails() {
                     >
                       <FaDownload className="mr-2" /> Download Invoice
                     </button>
-                  </div>
+                          </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-
+                      </div>
+                    </div>
+                  </div>
+                  
         <div className="space-y-6">
           {/* Donation Information */}
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -693,12 +693,12 @@ export default function DonationDetails() {
                         `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(4)} ${donation.currency_type}` : 
                         donation.amount}
                     </p>
-                  </div>
+                            </div>
                   <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
                     <FaCoins className="h-6 w-6 text-indigo-600" />
-                  </div>
-                </div>
-              </div>
+                        </div>
+                      </div>
+                    </div>
 
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="space-y-3">
@@ -706,8 +706,8 @@ export default function DonationDetails() {
                     <span className="text-sm text-gray-500">Date</span>
                     <span className="text-sm font-medium text-gray-900">
                       {new Date(donation.created_at).toLocaleString()}
-                    </span>
-                  </div>
+                                </span>
+                              </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Payment Method</span>
                     <span className="text-sm font-medium text-gray-900 flex items-center">
@@ -723,10 +723,10 @@ export default function DonationDetails() {
                         </>
                       )}
                     </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                              </div>
+                            </div>
+                        </div>
+                      </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -751,8 +751,8 @@ export default function DonationDetails() {
                     ) : (
                       <FaUser className="w-6 h-6 text-gray-500" />
                     )}
-                  </div>
-                  <div>
+                                    </div>
+                                      <div>
                     <p className="text-sm font-medium text-gray-900">
                       {donation.is_anonymous ? 'Anonymous Donor' : (donation.donor?.name || 'Anonymous')}
                     </p>
@@ -761,9 +761,9 @@ export default function DonationDetails() {
                         {`${donation.donor.wallet_address.slice(0, 6)}...${donation.donor.wallet_address.slice(-4)}`}
                       </p>
                     )}
-                  </div>
-                </div>
-              </div>
+                                      </div>
+                                      </div>
+                                    </div>
 
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">To</h3>
@@ -787,7 +787,7 @@ export default function DonationDetails() {
                     ) : (
                       <FaBuilding className="w-6 h-6 text-indigo-500" />
                     )}
-                  </div>
+                                  </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">
                       {donation.charity?.name || 'Charity Organization'}
@@ -797,18 +797,18 @@ export default function DonationDetails() {
                         {`${donation.charity.wallet_address.slice(0, 6)}...${donation.charity.wallet_address.slice(-4)}`}
                       </p>
                     )}
-                  </div>
-                </div>
-              </div>
+                                </div>
+                        </div>
+                      </div>
             </div>
 
             {donation.donor_message && (
               <div className="mt-6 bg-gray-50 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Message</h3>
                 <p className="text-sm text-gray-600 italic">"{donation.donor_message}"</p>
-              </div>
-            )}
-          </div>
+                    </div>
+                  )}
+                </div>
 
           {/* Blockchain Verification */}
           {donation.transaction_hash && (
@@ -835,17 +835,17 @@ export default function DonationDetails() {
                           'N/A'
                         }
                       </p>
-                        </div>
+                    </div>
                     <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
                       <FaShieldAlt className="h-6 w-6 text-indigo-600" />
+                      </div>
                     </div>
-                  </div>
                 </div>
 
                 
-              </div>
-            </div>
-          )}
+                  </div>
+                </div>
+              )}
 
           {/* Impact Section */}
           {donation.status === 'completed' && (
@@ -864,47 +864,47 @@ export default function DonationDetails() {
                       Your donation of {donation.amount} {donation.currency_type} helps provide essential support to those in need.
                       {donation.payment_method === 'blockchain' && ' With blockchain verification, you can be confident that your contribution is being used as intended.'}
                     </p>
-                </div>
               </div>
             </div>
+          </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 text-center">
                   <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                     <FaUser className="h-6 w-6 text-blue-600" />
-                </div>
+            </div>
                   <h4 className="text-lg font-bold text-gray-900">
                     {donation.charity?.people_affected ?
                       Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected) :
                       Math.floor(donation.amount * 2.5)}
                   </h4>
                   <p className="text-sm text-gray-500">People Directly Helped</p>
-                </div>
+                      </div>
 
                 <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 text-center">
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
                     <FaHandHoldingHeart className="h-6 w-6 text-green-600" />
-            </div>
+                    </div>
                   <h4 className="text-lg font-bold text-gray-900">
                     {donation.charity?.people_affected ? 
                       Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 0.4) : 
                       Math.floor(donation.amount / 10)}
                   </h4>
                   <p className="text-sm text-gray-500">Children Supported</p>
-                </div>
+                  </div>
 
                 <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 text-center">
                   <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
                     <FaBuilding className="h-6 w-6 text-purple-600" />
-                </div>
+              </div>
                   <h4 className="text-lg font-bold text-gray-900">
                     {donation.charity?.people_affected ? 
                       Math.floor((donation.amount / donation.charity.fund_targeted) * donation.charity.people_affected * 0.2) : 
                       Math.floor(donation.amount / 20)}
                   </h4>
                   <p className="text-sm text-gray-500">Families Assisted</p>
-                  </div>
-                </div>
+            </div>
+          </div>
 
               {donation.charity?.people_affected && (
                 <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 mb-6">
@@ -914,19 +914,19 @@ export default function DonationDetails() {
                     <span className="text-xs font-medium text-gray-700">
                       {donation.amount} {donation.currency_type} of {donation.charity.fund_targeted} {donation.currency_type}
                     </span>
-                </div>
+            </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div
                       className="bg-indigo-600 h-2.5 rounded-full"
                       style={{ width: `${Math.min(100, ((donation.amount) / donation.charity.fund_targeted) * 100)}%` }}
                     ></div>
-              </div>
+            </div>
                   <p className="text-xs text-gray-500 mt-2">
                     This charity aims to help {donation.charity.people_affected.toLocaleString()} people in total.
                     Your donation contributes to {((donation.amount / donation.charity.fund_targeted) * 100).toFixed(4)}% of their funding goal.
                 </p>
-                </div>
-              )}
+          </div>
+        )}
 
               <div className="text-center">
                     <Link 
@@ -951,18 +951,18 @@ export default function DonationDetails() {
               <div className="space-y-6">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <div>
+              <div>
                       <h3 className="text-sm font-medium text-gray-900">Receipt #{donation.id}</h3>
                       <p className="text-xs text-gray-500 mt-1">Generated on {new Date().toLocaleDateString()}</p>
-                    </div>
+              </div>
                     <div className="flex space-x-2">
-                      <button
+              <button
                         onClick={viewInvoice}
                         className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      >
+              >
                         <FaEye className="mr-2 text-gray-400" />
                         View
-                      </button>
+              </button>
                       <button
                         onClick={() => navigate(`/donations/${id}/invoice?download=true`)}
                         className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -977,12 +977,12 @@ export default function DonationDetails() {
                         <FaPrint className="mr-2 text-gray-400" />
                         Print
                       </button>
-                    </div>
+          </div>
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+              <div>
                         <dt className="text-xs text-gray-500">Transaction ID</dt>
                         <dd className="text-sm font-medium text-gray-900 font-mono mt-1">
                           {donation.transaction_hash ? 
@@ -990,13 +990,13 @@ export default function DonationDetails() {
                             'N/A'
                           }
                         </dd>
-                      </div>
-                      <div>
+              </div>
+              <div>
                         <dt className="text-xs text-gray-500">Payment Method</dt>
                         <dd className="text-sm font-medium text-gray-900 mt-1">
                           {donation.payment_method === 'blockchain' ? 'Blockchain (Scroll)' : 'Standard Payment'}
                         </dd>
-                      </div>
+                </div>
                       <div>
                         <dt className="text-xs text-gray-500">Amount</dt>
                         <dd className="text-sm font-medium text-gray-900 mt-1">
@@ -1004,22 +1004,22 @@ export default function DonationDetails() {
                             `${donation.currency_type === 'SCROLL' ? 'Ξ' : '$'}${donation.amount.toFixed(4)} ${donation.currency_type}` : 
                             donation.amount}
                         </dd>
-                      </div>
-                      <div>
+              </div>
+              <div>
                         <dt className="text-xs text-gray-500">Status</dt>
                         <dd className="text-sm font-medium text-gray-900 mt-1 capitalize">
                           {donation.status}
                         </dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
               </div>
+                    </dl>
             </div>
-          )}
+          </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>
   );
-}
+} 
 

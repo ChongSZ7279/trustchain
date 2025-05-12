@@ -13,7 +13,9 @@ import {
   FaCheckCircle,
   FaGlobe,
   FaTree,
-  FaRecycle
+  FaRecycle,
+  FaWallet,
+  FaSpinner
 } from 'react-icons/fa';
 import { useCarbonMarket } from '../context/CarbonMarketContext';
 import CarbonWalletButton from './CarbonWalletButton';
@@ -23,37 +25,28 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const CarbonMarket = () => {
-  const context = useCarbonMarket();
-  
-  // If context is not yet initialized, show loading state
-  if (!context) {
-    return (
-      <div className="min-h-screen bg-gray-50 pt-12 pb-24 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
-      </div>
-    );
-  }
-
-  const {
-    account,
-    isConnected,
-    isScrollNetwork,
-    loading,
-    carbonCreditPool,
+  const { 
+    isConnected, 
+    connectWallet, 
+    isScrollNetwork, 
+    switchToScrollNetwork,
     sellerListings,
     buyerListings,
-    connectWallet,
+    loading,
+    error,
     createSellerListing,
     createBuyerListing,
     buyCarbonCredits,
     sellCarbonCredits,
+    carbonCredits,
+    carbonCreditPool,
     refreshData,
     formatAddress,
     weiToEth,
     ethToWei,
     requestTestCredits,
     contract
-  } = context;
+  } = useCarbonMarket();
 
   const tradingMarketRef = useRef(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -67,6 +60,7 @@ const CarbonMarket = () => {
     price: '',
     rate: ''
   });
+  const [showConnectPrompt, setShowConnectPrompt] = useState(false);
 
   useEffect(() => {
     // Refresh data when component mounts
@@ -74,6 +68,22 @@ const CarbonMarket = () => {
       refreshData();
     }
   }, [isConnected]);
+
+  useEffect(() => {
+    // Check connection status and show prompt if needed
+    if (!isConnected && !loading) {
+      setShowConnectPrompt(true);
+    } else {
+      setShowConnectPrompt(false);
+    }
+  }, [isConnected, loading]);
+
+  // Check for contract errors
+  useEffect(() => {
+    if (error && error.includes('Contract or account not initialized')) {
+      toast.error('Failed to connect to Carbon Market contract. Please check your wallet connection and try again.');
+    }
+  }, [error]);
 
   const handleGetStarted = () => {
     if (!isConnected) {
@@ -209,22 +219,22 @@ const CarbonMarket = () => {
   // Add this debug function
   const debugMintCredits = async () => {
     try {
-      if (!contract || !account) {
+      if (!contract || !isConnected) {
         toast.error("Contract or account not initialized");
         return;
       }
 
       const owner = await contract.methods.owner().call();
       console.log("Contract owner:", owner);
-      console.log("Current account:", account);
+      console.log("Current account:", isConnected);
 
-      if (owner.toLowerCase() !== account.toLowerCase()) {
+      if (owner.toLowerCase() !== isConnected.toLowerCase()) {
         toast.error("Only the contract owner can mint credits");
         return;
       }
 
-      const tx = await contract.methods.mintCarbonCredits(account, "100").send({
-        from: account,
+      const tx = await contract.methods.mintCarbonCredits(isConnected, "100").send({
+        from: isConnected,
         gas: 200000
       });
 
@@ -232,7 +242,7 @@ const CarbonMarket = () => {
       toast.success("Successfully minted 100 credits!");
       
       // Check new balance
-      const newBalance = await contract.methods.getCarbonCreditsBalance(account).call();
+      const newBalance = await contract.methods.getCarbonCreditsBalance(isConnected).call();
       toast.info(`New balance: ${newBalance} credits`);
       
       refreshData();
@@ -242,9 +252,113 @@ const CarbonMarket = () => {
     }
   };
 
-  // Add the debug section to your JSX where appropriate
-  // For example, add it after the hero section:
-  // {isConnected && debugSection}
+  // Handle connection
+  const handleConnect = async () => {
+    try {
+      const connected = await connectWallet();
+      if (connected) {
+        toast.success('Successfully connected to wallet');
+        if (!isScrollNetwork) {
+          handleSwitchNetwork();
+        }
+        await refreshData();
+      }
+    } catch (err) {
+      console.error('Connection error:', err);
+      toast.error('Failed to connect: ' + err.message);
+    }
+  };
+
+  // Handle network switching
+  const handleSwitchNetwork = async () => {
+    try {
+      await switchToScrollNetwork();
+      toast.success('Successfully switched to Scroll network');
+    } catch (err) {
+      console.error('Network switch error:', err);
+      toast.error('Failed to switch networks: ' + err.message);
+    }
+  };
+
+  // Render connection prompt
+  const renderConnectionPrompt = () => (
+    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <FaExclamationTriangle className="h-5 w-5 text-yellow-400" />
+        </div>
+        <div className="ml-3">
+          <p className="text-sm text-yellow-700">
+            You need to connect your wallet to use the Carbon Market.
+          </p>
+          <div className="mt-4">
+            <button
+              onClick={handleConnect}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:border-indigo-700 focus:shadow-outline-indigo active:bg-indigo-700 transition ease-in-out duration-150"
+            >
+              <FaWallet className="mr-2" /> Connect Wallet
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin h-12 w-12 text-indigo-600 mx-auto" />
+          <p className="mt-4 text-lg text-gray-600">Loading Carbon Market...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show connection prompt if needed
+  if (showConnectPrompt) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Carbon Market</h1>
+        {renderConnectionPrompt()}
+        <div className="bg-white shadow rounded-lg p-6 mt-8">
+          <p className="text-gray-600">
+            Connect your wallet to view and participate in the Carbon Market.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show network switch prompt if needed
+  if (!isScrollNetwork && isConnected) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Carbon Market</h1>
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <FaExclamationTriangle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Please switch to the Scroll Sepolia testnet to use the Carbon Market.
+              </p>
+              <div className="mt-4">
+                <button
+                  onClick={handleSwitchNetwork}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:border-indigo-700 focus:shadow-outline-indigo active:bg-indigo-700 transition ease-in-out duration-150"
+                >
+                  Switch to Scroll Network
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-12 pb-24 px-4 sm:px-6 lg:px-8">
@@ -257,7 +371,6 @@ const CarbonMarket = () => {
           <h1 className="text-3xl font-bold text-gray-900">Carbon Marketplace</h1>
           <CarbonWalletButton />
         </div>
-
 
         {/* Hero Section */}
         <motion.div
